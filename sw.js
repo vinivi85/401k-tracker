@@ -1,8 +1,13 @@
-const CACHE_NAME = '401k-tracker-v1';
+const CACHE_NAME = '401k-tracker-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './core.js',
+  './tab-tracker.js',
+  './tab-paycheck.js',
+  './tab-projection.js',
+  './app.js',
 ];
 
 self.addEventListener('install', (event) => {
