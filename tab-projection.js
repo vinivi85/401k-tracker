@@ -197,19 +197,19 @@
         ),
 
         h('div', { style: S.importBox },
-          'Quer mais precisão nas taxas de retorno? Mande o PDF do prospecto do fundo (TARGET DATE 2050 e/ou US LG CAP STK IDX) aqui no chat — a Claude lê o retorno histórico real e te passa os números pra atualizar aqui.'
+          'Retornos baseados no histórico real de 10 anos de cada fundo (prospecto NetBenefits, dados de 05/31/2026). Usamos o horizonte de 10 anos em vez de 1 ou 3 anos porque suaviza ciclos de alta e baixa do mercado — mais realista para projeção de décadas. Quer atualizar com dados mais recentes? Mande o print/PDF do prospecto aqui no chat.'
         ),
 
         !editing ? h('div', null,
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Alocação US Large Cap Index'), h('span', { style: S.lineItemValue }, cfg.allocPctLargeCap + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno anual · Large Cap (estimado)'), h('span', { style: S.lineItemValue }, cfg.returnLargeCap + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno anual · Target Date 2050 (estimado)'), h('span', { style: S.lineItemValue }, cfg.returnTargetDate + '%')),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap (real, prospecto)'), h('span', { style: S.lineItemValue }, cfg.returnLargeCap + '%')),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050 (real, prospecto)'), h('span', { style: S.lineItemValue }, cfg.returnTargetDate + '%')),
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Contribuição total (employee+match+extra)'), h('span', { style: S.lineItemValue }, totalContribPct + '%')),
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly de referência'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross)))
         ) : h('div', { style: S.formBox },
           h(NumField, { label: '% ALOCADO EM US LARGE CAP INDEX', value: cfg.allocPctLargeCap, onChange: function (v) { update('allocPctLargeCap', v); } }),
-          h(NumField, { label: 'RETORNO ANUAL · LARGE CAP (%)', value: cfg.returnLargeCap, onChange: function (v) { update('returnLargeCap', v); } }),
-          h(NumField, { label: 'RETORNO ANUAL · TARGET DATE 2050 (%)', value: cfg.returnTargetDate, onChange: function (v) { update('returnTargetDate', v); } }),
+          h(NumField, { label: 'RETORNO 10YR · LARGE CAP (%)', value: cfg.returnLargeCap, onChange: function (v) { update('returnLargeCap', v); } }),
+          h(NumField, { label: 'RETORNO 10YR · TARGET DATE 2050 (%)', value: cfg.returnTargetDate, onChange: function (v) { update('returnTargetDate', v); } }),
           h(NumField, { label: 'CONTRIBUIÇÃO EMPLOYEE (%)', value: cfg.employeeContribPct, onChange: function (v) { update('employeeContribPct', v); } }),
           h(NumField, { label: 'COMPANY MATCH (%)', value: cfg.companyMatchPct, onChange: function (v) { update('companyMatchPct', v); } }),
           h(NumField, { label: 'COMPANY EXTRA (%)', value: cfg.companyExtraPct, onChange: function (v) { update('companyExtraPct', v); } }),
