@@ -1,4 +1,4 @@
-const CACHE_NAME = '401k-tracker-v2';
+const CACHE_NAME = '401k-tracker-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -26,20 +26,20 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first: sempre tenta buscar a versão mais nova da rede.
+// Só usa o cache como fallback se estiver offline.
+// Isso evita o app ficar "preso" numa versão antiga durante desenvolvimento ativo.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
-    })
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
