@@ -73,9 +73,117 @@ var h = React.createElement;
     return months[parseInt(parts[1], 10) - 1] + ' ' + parseInt(parts[2], 10);
   }
 
+  /* =========================================================
+     STORAGE — IndexedDB (mais resistente a limpeza do Safari/iOS
+     do que localStorage, que é zerado pelo ITP após inatividade)
+
+     Estratégia: no boot, carregamos TUDO do IndexedDB para um
+     cache em memória (window.__dbCache). Depois disso, loadJSON/
+     loadEntries continuam síncronos (lendo do cache), e save*
+     grava no cache E no IndexedDB em paralelo. Isso evita reescrever
+     todas as abas para async/await.
+     ========================================================= */
+  var DB_NAME = '401k-tracker-db';
+  var DB_STORE = 'kv';
+  var dbPromise = null;
+  window.__dbCache = window.__dbCache || {};
+  window.__dbReady = false;
+
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise(function (resolve, reject) {
+      if (!('indexedDB' in window)) { reject(new Error('no indexeddb')); return; }
+      var req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = function (ev) {
+        var db = ev.target.result;
+        if (!db.objectStoreNames.contains(DB_STORE)) {
+          db.createObjectStore(DB_STORE);
+        }
+      };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+    return dbPromise;
+  }
+
+  function idbGet(key) {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(DB_STORE, 'readonly');
+        var store = tx.objectStore(DB_STORE);
+        var req = store.get(key);
+        req.onsuccess = function () { resolve(req.result); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function idbSet(key, value) {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(DB_STORE, 'readwrite');
+        var store = tx.objectStore(DB_STORE);
+        var req = store.put(value, key);
+        req.onsuccess = function () { resolve(); };
+        req.onerror = function () { reject(req.error); };
+      });
+    });
+  }
+
+  function idbGetAllKeys() {
+    return openDB().then(function (db) {
+      return new Promise(function (resolve, reject) {
+        var tx = db.transaction(DB_STORE, 'readonly');
+        var store = tx.objectStore(DB_STORE);
+        var keysReq = store.getAllKeys();
+        keysReq.onsuccess = function () { resolve(keysReq.result); };
+        keysReq.onerror = function () { reject(keysReq.error); };
+      });
+    });
+  }
+
+  // Carrega TODOS os dados do IndexedDB para o cache em memória.
+  // Também migra qualquer dado remanescente do localStorage (de versões antigas do app)
+  // para o IndexedDB, então funciona como upgrade transparente.
+  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB];
+
+  function initStorage() {
+    return openDB().then(function () {
+      return Promise.all(ALL_KEYS.map(function (key) {
+        return idbGet(key).then(function (value) {
+          if (value !== undefined && value !== null) {
+            window.__dbCache[key] = value;
+            return null;
+          }
+          // fallback: migra do localStorage se existir (upgrade de versão antiga)
+          try {
+            var legacy = localStorage.getItem(key);
+            if (legacy !== null) {
+              window.__dbCache[key] = legacy;
+              return idbSet(key, legacy);
+            }
+          } catch (e) {}
+          return null;
+        });
+      }));
+    }).then(function () {
+      window.__dbReady = true;
+    }).catch(function (e) {
+      console.error('IndexedDB init failed, falling back to localStorage cache', e);
+      // fallback total: usa localStorage como cache (comportamento antigo)
+      ALL_KEYS.forEach(function (key) {
+        try {
+          var raw = localStorage.getItem(key);
+          if (raw !== null) window.__dbCache[key] = raw;
+        } catch (e2) {}
+      });
+      window.__dbReady = true;
+    });
+  }
+
   function loadJSON(key, fallback) {
     try {
-      var raw = localStorage.getItem(key);
+      var raw = window.__dbCache[key];
       if (raw) {
         var parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') return Object.assign({}, fallback, parsed);
@@ -86,7 +194,7 @@ var h = React.createElement;
 
   function loadEntries() {
     try {
-      var raw = localStorage.getItem(KEY_ENTRIES);
+      var raw = window.__dbCache[KEY_ENTRIES];
       if (raw) {
         var parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -96,7 +204,11 @@ var h = React.createElement;
   }
 
   function saveJSON(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+    var str = JSON.stringify(value);
+    window.__dbCache[key] = str;
+    idbSet(key, str).catch(function (e) { console.error('idbSet failed', e); });
+    // também grava no localStorage como segunda camada de redundância (best-effort)
+    try { localStorage.setItem(key, str); } catch (e) {}
   }
 
   function num(v, fallback) {
