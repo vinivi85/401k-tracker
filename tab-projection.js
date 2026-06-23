@@ -113,9 +113,17 @@
     }
 
     var horizons = cfg.horizons || [10, 15, 20, 25, 30];
+    var monthlyRate = Math.pow(1 + annualReturn, 1 / 12) - 1;
     var projections = horizons.map(function (yrs) {
       var result = projectGrowth(startBalance, yrs, annualReturn, biweeklyContribFn);
-      return { years: yrs, finalBalance: result.finalBalance, totalContributed: result.totalContributed, growth: result.finalBalance - startBalance - result.totalContributed };
+      var monthlyYield = result.finalBalance * monthlyRate;
+      return {
+        years: yrs,
+        finalBalance: result.finalBalance,
+        totalContributed: result.totalContributed,
+        growth: result.finalBalance - startBalance - result.totalContributed,
+        monthlyYield: monthlyYield
+      };
     });
 
     var chartHorizon = projections[projections.length - 1];
@@ -157,9 +165,10 @@
           h('thead', null,
             h('tr', null,
               h('th', { style: S.th }, 'ANOS'),
-              h('th', { style: Object.assign({}, S.th, { textAlign: 'right' }) }, 'SALDO PROJETADO'),
+              h('th', { style: Object.assign({}, S.th, { textAlign: 'right' }) }, 'SALDO'),
               h('th', { style: Object.assign({}, S.th, { textAlign: 'right' }) }, 'APORTADO'),
-              h('th', { style: Object.assign({}, S.th, { textAlign: 'right' }) }, 'RENDIMENTO')
+              h('th', { style: Object.assign({}, S.th, { textAlign: 'right' }) }, 'REND.'),
+              h('th', { style: Object.assign({}, S.th, { textAlign: 'right' }) }, '/MÊS')
             )
           ),
           h('tbody', null,
@@ -168,11 +177,14 @@
                 h('td', { style: S.td }, p.years),
                 h('td', { style: Object.assign({}, S.tdBold, { textAlign: 'right' }) }, formatUSDShort(p.finalBalance)),
                 h('td', { style: Object.assign({}, S.td, { textAlign: 'right' }) }, formatUSDShort(p.totalContributed)),
-                h('td', { style: Object.assign({}, S.td, { textAlign: 'right', color: '#5EEAD4' }) }, formatUSDShort(p.growth))
+                h('td', { style: Object.assign({}, S.td, { textAlign: 'right', color: '#5EEAD4' }) }, formatUSDShort(p.growth)),
+                h('td', { style: Object.assign({}, S.td, { textAlign: 'right', color: '#5EEAD4' }) }, formatUSDShort(p.monthlyYield))
               );
             })
           )
-        )
+        ),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 10, lineHeight: 1.5 } },
+          'REND./MÊS = quanto o saldo projetado naquele ano renderia por mês, na taxa de retorno usada, se você parasse de aportar a partir daquele ponto.')
       ),
 
       h('div', { style: S.card },
