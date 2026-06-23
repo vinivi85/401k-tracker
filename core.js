@@ -241,8 +241,8 @@ var h = React.createElement;
 
     /* Projection specific */
     tierBadge: { display: 'inline-flex', alignItems: 'center', gap: 4, background: '#134E4A', color: '#5EEAD4', borderRadius: 6, padding: '3px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600 },
-    table: { width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: 11 },
-    th: { textAlign: 'left', color: '#6B7280', fontSize: 9, letterSpacing: 1, padding: '6px 4px', borderBottom: '1px solid #1F2937' },
-    td: { padding: '8px 4px', borderBottom: '1px solid #1A2333', color: '#E5E7EB' },
-    tdBold: { padding: '8px 4px', borderBottom: '1px solid #1A2333', color: '#F9FAFB', fontWeight: 700 }
+    table: { width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, tableLayout: 'fixed' },
+    th: { textAlign: 'left', color: '#6B7280', fontSize: 8, letterSpacing: 0.5, padding: '6px 2px', borderBottom: '1px solid #1F2937' },
+    td: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#E5E7EB', fontSize: 10 },
+    tdBold: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#F9FAFB', fontWeight: 700, fontSize: 10 }
   };
