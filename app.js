@@ -1,20 +1,34 @@
 /* =========================================================
    APP PRINCIPAL — navegação por abas no rodapé
+   Aguarda o IndexedDB carregar antes de montar o app de fato,
+   para garantir que os dados salvos estejam no cache em memória.
    ========================================================= */
 (function () {
   'use strict';
   var h = React.createElement;
 
+  function Loading() {
+    return h('div', {
+      style: { minHeight: '100vh', background: '#0B1120', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5EEAD4', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, letterSpacing: 2 }
+    }, 'CARREGANDO DADOS...');
+  }
+
   function App() {
-    var savedTab = (function () {
-      try { return localStorage.getItem(KEY_ACTIVE_TAB) || 'tracker'; } catch (e) { return 'tracker'; }
-    })();
+    var savedTab = 'tracker';
+    try {
+      var rawTab = window.__dbCache[KEY_ACTIVE_TAB];
+      if (rawTab === 'tracker' || rawTab === 'paycheck' || rawTab === 'projection') {
+        savedTab = rawTab;
+      }
+    } catch (e) {}
 
     var tabState = React.useState(savedTab);
     var activeTab = tabState[0], setActiveTab = tabState[1];
 
     function selectTab(tab) {
       setActiveTab(tab);
+      window.__dbCache[KEY_ACTIVE_TAB] = tab;
+      idbSet(KEY_ACTIVE_TAB, tab).catch(function () {});
       try { localStorage.setItem(KEY_ACTIVE_TAB, tab); } catch (e) {}
     }
 
@@ -57,7 +71,14 @@
   }
 
   var root = ReactDOM.createRoot(document.getElementById('root'));
-  root.render(h(App));
+  root.render(h(Loading));
+
+  initStorage().then(function () {
+    root.render(h(App));
+  }).catch(function (e) {
+    console.error('Storage init failed completely', e);
+    root.render(h(App)); // renderiza mesmo assim, com cache vazio (vai usar defaults)
+  });
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
