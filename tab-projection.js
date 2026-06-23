@@ -40,6 +40,16 @@
     return sorted[sorted.length - 1].balance;
   }
 
+  function getCurrentPaycheckGross() {
+    try {
+      var paycheckCfg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+      var result = window.calcPaycheck(paycheckCfg);
+      return result.gross;
+    } catch (e) {
+      return num(defaultProjectionConfig.biweeklyGross, 2752.39);
+    }
+  }
+
   function blendedAnnualReturn(cfg) {
     var pctLarge = num(cfg.allocPctLargeCap, 20.26) / 100;
     var pctTarget = 1 - pctLarge;
@@ -103,7 +113,7 @@
     var startBalance = getLatestBalance();
     var annualReturn = blendedAnnualReturn(cfg);
     var totalContribPct = num(cfg.employeeContribPct) + num(cfg.companyMatchPct) + num(cfg.companyExtraPct);
-    var baseBiweeklyGross = num(cfg.biweeklyGross, 2752.39);
+    var baseBiweeklyGross = getCurrentPaycheckGross();
     var baseRateRef = SALARY_TIERS[CURRENT_YOS_INDEX].rate;
 
     function biweeklyContribFn(yearOffset) {
@@ -217,7 +227,7 @@
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap (real, prospecto)'), h('span', { style: S.lineItemValue }, cfg.returnLargeCap + '%')),
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050 (real, prospecto)'), h('span', { style: S.lineItemValue }, cfg.returnTargetDate + '%')),
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Contribuição total (employee+match+extra)'), h('span', { style: S.lineItemValue }, totalContribPct + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly de referência'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross)))
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (vem da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross)))
         ) : h('div', { style: S.formBox },
           h(NumField, { label: '% ALOCADO EM US LARGE CAP INDEX', value: cfg.allocPctLargeCap, onChange: function (v) { update('allocPctLargeCap', v); } }),
           h(NumField, { label: 'RETORNO 10YR · LARGE CAP (%)', value: cfg.returnLargeCap, onChange: function (v) { update('returnLargeCap', v); } }),
@@ -225,7 +235,9 @@
           h(NumField, { label: 'CONTRIBUIÇÃO EMPLOYEE (%)', value: cfg.employeeContribPct, onChange: function (v) { update('employeeContribPct', v); } }),
           h(NumField, { label: 'COMPANY MATCH (%)', value: cfg.companyMatchPct, onChange: function (v) { update('companyMatchPct', v); } }),
           h(NumField, { label: 'COMPANY EXTRA (%)', value: cfg.companyExtraPct, onChange: function (v) { update('companyExtraPct', v); } }),
-          h(NumField, { label: 'GROSS BIWEEKLY DE REFERÊNCIA ($)', value: cfg.biweeklyGross, onChange: function (v) { update('biweeklyGross', v); } }),
+          h('div', { style: Object.assign({}, S.importBox, { marginBottom: 0 }) },
+            'Gross biweekly: ' + formatUSD(baseBiweeklyGross) + ' — calculado automaticamente a partir das horas preenchidas na aba PAYCHECK. Para mudar esse valor, ajuste as horas ou regras lá.'
+          ),
           h('button', { style: S.ghostBtn, onClick: function () { setCfg(defaultProjectionConfig); saveJSON(KEY_PROJECTION, defaultProjectionConfig); } },
             h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
         )
