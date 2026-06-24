@@ -4,7 +4,8 @@
    - OT1.5 = base x 1.5 | OT2.0 = base x 2.0
    - WRK-HOL (feriado trabalhado) = base x 1.5
    - HOL (feriado não trabalhado) = base x 1.0
-   - Shift 2 REG diff = fixo ($0.51) | Shift 2 OT diff = REG diff x 1.5
+   - Shift 2 REG diff = fixo ($0.51/h) | Shift 2 OT diff = fixo ($0.77/h) — ambos valores
+     diretos do holerite, NÃO derivados um do outro por multiplicador
    - LUNCH-P entra como linha de OT (base x 1.5)
    - 401k = % do gross editável (confirmado 4% = $103.97 em gross $2,599.16)
    - SS/Medicare base = Gross - soma dos itens pré-tax (medical/dental/vision/AD&D)
@@ -28,7 +29,7 @@
     var holRate = base * 1.0;
     var wrkHolRate = base * 1.5;
     var s2RegDiff = num(cfg.shift2RegDiff, 0.51);
-    var s2OtDiff = s2RegDiff * num(cfg.shift2OtMultiplier, 1.5);
+    var s2OtDiff = num(cfg.shift2OtDiff, 0.77);
 
     var regHours = num(cfg.regHours, 0);
     var otHours = num(cfg.otHours, 0);
@@ -299,10 +300,11 @@
         !editingRules ? h('div', null,
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Taxa base'), h('span', { style: S.lineItemValue }, formatUSD(cfg.baseRate) + '/h')),
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 REG diff'), h('span', { style: S.lineItemValue }, formatUSD(cfg.shift2RegDiff) + '/h')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 OT diff (= REG diff × 1.5)'), h('span', { style: S.lineItemValue }, formatUSD(r.s2OtDiff) + '/h'))
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 OT diff'), h('span', { style: S.lineItemValue }, formatUSD(cfg.shift2OtDiff) + '/h'))
         ) : h('div', { style: S.formBox },
           h(NumField, { label: 'TAXA BASE ($/h) — atualize quando mudar', value: cfg.baseRate, onChange: function (v) { update('baseRate', v); } }),
           h(NumField, { label: 'SHIFT 2 REG DIFF ($/h)', value: cfg.shift2RegDiff, onChange: function (v) { update('shift2RegDiff', v); } }),
+          h(NumField, { label: 'SHIFT 2 OT DIFF ($/h)', value: cfg.shift2OtDiff, onChange: function (v) { update('shift2OtDiff', v); } }),
           h('button', { style: S.ghostBtn, onClick: resetDefaults }, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
         )
       ),
