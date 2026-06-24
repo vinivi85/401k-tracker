@@ -28,17 +28,33 @@ var h = React.createElement;
     shift2RegDiff: 0.51,
     shift2OtMultiplier: 1.5, // OT diff = regDiff * 1.5
     contrib401kPct: 4,
-    fixedPretax: 245.52,     // Section 125 (médico+dental+visão+AD&D)
-    fixedPosttax: 60.68,
-    ssRate: 6.2,
-    medicareRate: 1.45,
-    fedWithholdingPct: 1.2316,  // efetivo verificado em pay stub real ($31.27 em $2,539.82 taxable)
+    ssRatePct: 6.2,
+    medicareRatePct: 1.45,
+    fedWithholdingPct: 1.2316,  // efetivo aproximado, editável (varia bastante com o gross)
     regHours: 80,
     otHours: 0,
     ot2Hours: 0,
     holHours: 0,
     wrkHolHours: 0,
-    lunchPenaltyHours: 0
+    lunchPenaltyHours: 0,
+    // Deduções pré-tax individuais (valores reais do holerite 06/08-06/21/2026)
+    preTaxItems: [
+      { key: 'medical', label: 'Medical Coverage', value: 216.16 },
+      { key: 'dental', label: 'Dental Coverage', value: 14.43 },
+      { key: 'vision', label: 'Vision Coverage', value: 8.85 },
+      { key: 'eeAdd', label: 'Employee AD&D', value: 3.54 },
+      { key: 'spouseAdd', label: 'Spouse AD&D', value: 2.47 },
+      { key: 'childAdd', label: 'Child AD&D', value: 0.07 }
+    ],
+    // Deduções pós-tax individuais (valores reais do holerite 06/08-06/21/2026)
+    postTaxItems: [
+      { key: 'eeLife', label: 'Employee Life', value: 13.07 },
+      { key: 'spouseLife', label: 'Spouse Life', value: 1.65 },
+      { key: 'childLife', label: 'Child Life', value: 0.93 },
+      { key: 'groupAccident', label: 'Group Accident Ins', value: 2.64 },
+      { key: 'loan401k', label: '401k Loan', value: 20.90 },
+      { key: 'unionDues', label: 'Union Dues - TWU', value: 21.49 }
+    ]
   };
 
   /* ---------- Seed: configuração de projeção 401k ---------- */
