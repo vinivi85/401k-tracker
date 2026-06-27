@@ -1,13 +1,17 @@
 /* =========================================================
    TAB 4: PAY — holerites (líquido) agrupados por mês
-   Dados inseridos manualmente a partir do histórico em pay.aa.com.
-   Cada item: data do pagamento, período (referência), valor líquido, tipo.
+   Fonte de verdade: Supabase (tabela pay_entries).
+   Cache local (IndexedDB, via KEY_PAY_ENTRIES) é usado para abrir
+   instantâneo e funcionar offline; sincroniza com a nuvem sempre
+   que há rede disponível.
    ========================================================= */
 (function () {
   'use strict';
   var h = React.createElement;
 
-  /* ---------- Seed: histórico de pagamentos líquidos (extraído de pay.aa.com) ---------- */
+  var MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+
+  /* ---------- Seed local (usado só se nunca houve sync nem cache) ---------- */
   var initialPayEntries = [
     { id: 'p1',  date: '2026-01-09', periodStart: '2025-12-22', periodEnd: '2026-01-04', amount: 912.87,   type: 'Regular payroll run' },
     { id: 'p2',  date: '2026-01-23', periodStart: '2026-01-05', periodEnd: '2026-01-18', amount: 3302.13,  type: 'Regular payroll run' },
@@ -25,9 +29,7 @@
     { id: 'p14', date: '2026-06-26', periodStart: '2026-06-08', periodEnd: '2026-06-21', amount: 2008.87,  type: 'Regular payroll run' }
   ];
 
-  var MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-
-  function loadPayEntries() {
+  function loadCachedPayEntries() {
     try {
       var raw = window.__dbCache[KEY_PAY_ENTRIES];
       if (raw) {
@@ -36,6 +38,10 @@
       }
     } catch (e) {}
     return initialPayEntries;
+  }
+
+  function cachePayEntries(list) {
+    saveJSON(KEY_PAY_ENTRIES, list);
   }
 
   function monthKey(iso) {
@@ -49,8 +55,11 @@
   }
 
   function PayTab() {
-    var state = React.useState(loadPayEntries());
+    var state = React.useState(loadCachedPayEntries());
     var entries = state[0], setEntries = state[1];
+
+    var syncState = React.useState('syncing'); // 'syncing' | 'synced' | 'offline'
+    var syncStatus = syncState[0], setSyncStatus = syncState[1];
 
     var formState = React.useState(false);
     var showForm = formState[0], setShowForm = formState[1];
@@ -67,25 +76,66 @@
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
 
+    var savingState = React.useState(false);
+    var saving = savingState[0], setSaving = savingState[1];
+
+    /* ---------- Ao montar: busca a versão mais recente no Supabase ---------- */
+    React.useEffect(function () {
+      var cancelled = false;
+      SupabaseAPI.fetchPayEntries().then(function (remote) {
+        if (cancelled) return;
+        if (remote && remote.length > 0) {
+          setEntries(remote);
+          cachePayEntries(remote);
+        }
+        setSyncStatus('synced');
+      }).catch(function (e) {
+        console.error('Supabase fetch falhou, usando cache local', e);
+        setSyncStatus('offline');
+      });
+      return function () { cancelled = true; };
+    }, []);
+
     function handleAdd() {
       setError('');
       if (!newDate) { setError('Selecione a data do pagamento.'); return; }
       var amt = parseFloat(newAmount);
       if (!newAmount || isNaN(amt)) { setError('Informe um valor líquido válido.'); return; }
-      var entry = { id: Date.now().toString(), date: newDate, periodStart: newDate, periodEnd: newDate, amount: amt, type: newType || 'Regular payroll run' };
-      var next = entries.concat([entry]);
-      setEntries(next);
-      saveJSON(KEY_PAY_ENTRIES, next);
-      setNewDate('');
-      setNewAmount('');
-      setNewType('Regular payroll run');
-      setShowForm(false);
+
+      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: amt, type: newType || 'Regular payroll run' };
+      setSaving(true);
+
+      SupabaseAPI.insertPayEntry(draft).then(function (created) {
+        var next = entries.concat([created]);
+        setEntries(next);
+        cachePayEntries(next);
+        setNewDate('');
+        setNewAmount('');
+        setNewType('Regular payroll run');
+        setShowForm(false);
+        setSaving(false);
+      }).catch(function (e) {
+        console.error('Falha ao salvar na nuvem', e);
+        // fallback: salva só localmente com id temporário, pra não perder o dado
+        var localEntry = Object.assign({ id: 'local-' + Date.now() }, draft);
+        var next = entries.concat([localEntry]);
+        setEntries(next);
+        cachePayEntries(next);
+        setSyncStatus('offline');
+        setError('Sem conexão com a nuvem — salvo só neste dispositivo por enquanto.');
+        setSaving(false);
+      });
     }
 
     function handleDelete(id) {
       var next = entries.filter(function (e) { return e.id !== id; });
       setEntries(next);
-      saveJSON(KEY_PAY_ENTRIES, next);
+      cachePayEntries(next);
+      if (String(id).indexOf('local-') === 0) return; // nunca existiu na nuvem
+      SupabaseAPI.deletePayEntry(id).catch(function (e) {
+        console.error('Falha ao deletar na nuvem', e);
+        setSyncStatus('offline');
+      });
     }
 
     var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
@@ -143,6 +193,15 @@
       );
     });
 
+    var syncBadge;
+    if (syncStatus === 'syncing') {
+      syncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
+    } else if (syncStatus === 'synced') {
+      syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
+    } else {
+      syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
+    }
+
     return h(React.Fragment, null,
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'TOTAL RECEBIDO (LÍQUIDO)'),
@@ -163,6 +222,8 @@
           )
         )
       ),
+
+      h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, margin: '10px 0 -4px' } }, syncBadge),
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
@@ -199,11 +260,11 @@
             )
           ),
           error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAdd }, 'REGISTRAR PAGAMENTO')
+          h('button', { style: S.submitBtn, onClick: handleAdd, disabled: saving }, saving ? 'SALVANDO...' : 'REGISTRAR PAGAMENTO')
         ) : null
       ),
 
-      h('div', { style: S.footer }, 'DADOS SALVOS NESTE DISPOSITIVO · PAY.AA.COM')
+      h('div', { style: S.footer }, 'DADOS NA NUVEM (SUPABASE) · CACHE LOCAL OFFLINE')
     );
   }
 
