@@ -13,6 +13,8 @@ var h = React.createElement;
   var KEY_PROJECTION = '401k-projection-config';
   var KEY_ACTIVE_TAB = '401k-active-tab';
   var KEY_PAY_ENTRIES = '401k-pay-entries';
+  var KEY_WALLETS = '401k-wallets';
+  var KEY_WALLET_ENTRIES = '401k-wallet-entries';
 
   /* ---------- Seed: histórico de saldo (Tracker) ---------- */
   var initialEntries = [
@@ -162,7 +164,7 @@ var h = React.createElement;
   // Carrega TODOS os dados do IndexedDB para o cache em memória.
   // Também migra qualquer dado remanescente do localStorage (de versões antigas do app)
   // para o IndexedDB, então funciona como upgrade transparente.
-  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES];
+  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES, KEY_WALLETS, KEY_WALLET_ENTRIES];
 
   function initStorage() {
     return openDB().then(function () {
@@ -244,7 +246,9 @@ var h = React.createElement;
     dollar: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
     chart: 'M3 3v18h18 M18.7 8l-5.1 5.2-3-3L7 13.6',
     reset: 'M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10',
-    receipt: 'M6 2h12v20l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-1.5V2z M8 7h8 M8 11h8 M8 15h5'
+    receipt: 'M6 2h12v20l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-1.5V2z M8 7h8 M8 11h8 M8 15h5',
+    chevron: 'M6 9l6 6 6-6',
+    wallet: 'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3 M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z M16 13h2'
   };
 
   function Icon(props) {
@@ -374,5 +378,14 @@ var h = React.createElement;
     table: { width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, tableLayout: 'fixed' },
     th: { textAlign: 'left', color: '#6B7280', fontSize: 8, letterSpacing: 0.5, padding: '6px 2px', borderBottom: '1px solid #1F2937' },
     td: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#E5E7EB', fontSize: 10 },
-    tdBold: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#F9FAFB', fontWeight: 700, fontSize: 10 }
+    tdBold: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#F9FAFB', fontWeight: 700, fontSize: 10 },
+
+    /* Wallets specific */
+    walletCardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' },
+    walletHeaderLeft: { display: 'flex', alignItems: 'center', gap: 8 },
+    walletName: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: '#F9FAFB' },
+    walletBalance: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: '#5EEAD4' },
+    walletMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 },
+    walletBody: { marginTop: 12, paddingTop: 12, borderTop: '1px solid #1A2333' },
+    smallAddBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#5EEAD4', border: '1px solid #115E59', borderRadius: 6, padding: '5px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 0.5, cursor: 'pointer' }
   };
