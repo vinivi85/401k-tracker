@@ -12,6 +12,7 @@ var h = React.createElement;
   var KEY_PAYCHECK = '401k-paycheck-config';
   var KEY_PROJECTION = '401k-projection-config';
   var KEY_ACTIVE_TAB = '401k-active-tab';
+  var KEY_PAY_ENTRIES = '401k-pay-entries';
 
   /* ---------- Seed: histórico de saldo (Tracker) ---------- */
   var initialEntries = [
@@ -161,7 +162,7 @@ var h = React.createElement;
   // Carrega TODOS os dados do IndexedDB para o cache em memória.
   // Também migra qualquer dado remanescente do localStorage (de versões antigas do app)
   // para o IndexedDB, então funciona como upgrade transparente.
-  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB];
+  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES];
 
   function initStorage() {
     return openDB().then(function () {
@@ -242,7 +243,8 @@ var h = React.createElement;
     gauge: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 12l4-4 M12 6v2',
     dollar: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
     chart: 'M3 3v18h18 M18.7 8l-5.1 5.2-3-3L7 13.6',
-    reset: 'M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10'
+    reset: 'M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10',
+    receipt: 'M6 2h12v20l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-1.5V2z M8 7h8 M8 11h8 M8 15h5'
   };
 
   function Icon(props) {
