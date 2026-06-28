@@ -293,6 +293,9 @@
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
 
+    var trackerSyncState = React.useState('syncing');
+    var trackerSyncStatus = trackerSyncState[0], setTrackerSyncStatus = trackerSyncState[1];
+
     /* ---------- Estado das carteiras (vive aqui para poder somar no saldo global) ---------- */
     var walletsState = React.useState(loadCachedWallets());
     var wallets = walletsState[0], setWallets = walletsState[1];
@@ -302,6 +305,22 @@
 
     var walletSyncState = React.useState('syncing');
     var walletSyncStatus = walletSyncState[0], setWalletSyncStatus = walletSyncState[1];
+
+    React.useEffect(function () {
+      var cancelled = false;
+      SupabaseAPI.fetchTrackerEntries().then(function (remote) {
+        if (cancelled) return;
+        if (remote && remote.length > 0) {
+          setEntries(remote);
+          saveJSON(KEY_ENTRIES, remote);
+        }
+        setTrackerSyncStatus('synced');
+      }).catch(function (e) {
+        console.error('Supabase fetch tracker_entries falhou, usando cache local', e);
+        setTrackerSyncStatus('offline');
+      });
+      return function () { cancelled = true; };
+    }, []);
 
     React.useEffect(function () {
       var cancelled = false;
@@ -350,19 +369,37 @@
       if (!newDate) { setError('Selecione uma data.'); return; }
       var bal = parseFloat(newBalance);
       if (!newBalance || isNaN(bal)) { setError('Informe um saldo válido.'); return; }
-      var entry = { id: Date.now().toString(), date: newDate, balance: bal };
-      var next = entries.filter(function (e) { return e.date !== newDate; }).concat([entry]);
-      setEntries(next);
-      saveJSON(KEY_ENTRIES, next);
-      setNewDate('');
-      setNewBalance('');
-      setShowForm(false);
+
+      SupabaseAPI.insertTrackerEntry(newDate, bal).then(function (created) {
+        var next = entries.filter(function (e) { return e.date !== newDate; }).concat([created]);
+        setEntries(next);
+        saveJSON(KEY_ENTRIES, next);
+        setNewDate('');
+        setNewBalance('');
+        setShowForm(false);
+      }).catch(function (e) {
+        console.error('Falha ao salvar leitura 401k na nuvem', e);
+        var local = { id: 'local-' + Date.now(), date: newDate, balance: bal };
+        var next = entries.filter(function (en) { return en.date !== newDate; }).concat([local]);
+        setEntries(next);
+        saveJSON(KEY_ENTRIES, next);
+        setTrackerSyncStatus('offline');
+        setError('Sem conexão — salvo só neste dispositivo por enquanto.');
+        setNewDate('');
+        setNewBalance('');
+        setShowForm(false);
+      });
     }
 
     function handleDelete(id) {
       var next = entries.filter(function (e) { return e.id !== id; });
       setEntries(next);
       saveJSON(KEY_ENTRIES, next);
+      if (String(id).indexOf('local-') === 0) return;
+      SupabaseAPI.deleteTrackerEntry(id).catch(function (e) {
+        console.error('Falha ao deletar leitura 401k na nuvem', e);
+        setTrackerSyncStatus('offline');
+      });
     }
 
     var entryRows = sorted.slice().reverse().map(function (e, idx) {
@@ -378,7 +415,14 @@
       );
     });
 
+    var trackerSyncBadge;
+    if (trackerSyncStatus === 'syncing') trackerSyncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
+    else if (trackerSyncStatus === 'synced') trackerSyncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
+    else trackerSyncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
+
     return h(React.Fragment, null,
+      h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, margin: '8px 0 -4px' } }, trackerSyncBadge),
+
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
