@@ -26,11 +26,21 @@
     var infoState = React.useState('');
     var info = infoState[0], setInfo = infoState[1];
 
+    function validatePassword(pwd) {
+      if (pwd.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.';
+      if (!/[A-Z]/.test(pwd)) return 'A senha precisa ter pelo menos 1 letra maiúscula.';
+      if (!/[!@#$%^&*(),.?":{}|<>_\-+=~`[\]\\\/;']/.test(pwd)) return 'A senha precisa ter pelo menos 1 caractere especial.';
+      return null;
+    }
+
     function handleSubmit() {
       setError('');
       setInfo('');
       if (!email.trim() || !password) { setError('Preencha e-mail e senha.'); return; }
-      if (mode === 'signup' && password.length < 6) { setError('A senha precisa ter pelo menos 6 caracteres.'); return; }
+      if (mode === 'signup') {
+        var pwdError = validatePassword(password);
+        if (pwdError) { setError(pwdError); return; }
+      }
 
       setLoading(true);
       var action = mode === 'signin' ? SupabaseAuth.signIn(email.trim(), password) : SupabaseAuth.signUp(email.trim(), password);
@@ -68,7 +78,10 @@
             type: 'password', value: password, style: S.input,
             onChange: function (ev) { setPassword(ev.target.value); },
             onKeyDown: function (ev) { if (ev.key === 'Enter') handleSubmit(); }
-          })
+          }),
+          mode === 'signup' ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 4, lineHeight: 1.5 } },
+            'Mínimo 8 caracteres, 1 letra maiúscula e 1 caractere especial (ex: !@#$%)'
+          ) : null
         ),
 
         error ? h('div', { style: S.errorText }, error) : null,
