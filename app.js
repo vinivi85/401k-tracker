@@ -25,6 +25,39 @@
     var tabState = React.useState(savedTab);
     var activeTab = tabState[0], setActiveTab = tabState[1];
 
+    /* ---------- Estado de bloqueio (PIN / biometria) ---------- */
+    var lockConfigState = React.useState(loadLockConfig());
+    var lockConfig = lockConfigState[0], setLockConfig = lockConfigState[1];
+
+    var hasPin = !!lockConfig.pinHash;
+    var unlockedState = React.useState(!hasPin); // se não tem PIN configurado ainda, app abre direto
+    var unlocked = unlockedState[0], setUnlocked = unlockedState[1];
+
+    var securityState = React.useState(false);
+    var showSecurity = securityState[0], setShowSecurity = securityState[1];
+
+    // Re-bloqueia automaticamente quando o app volta de segundo plano
+    React.useEffect(function () {
+      if (!hasPin) return;
+      function handleVisibility() {
+        if (document.visibilityState === 'visible') {
+          setUnlocked(false);
+        }
+      }
+      document.addEventListener('visibilitychange', handleVisibility);
+      return function () { document.removeEventListener('visibilitychange', handleVisibility); };
+    }, [hasPin]);
+
+    function handlePinSetupDone(newConfig) {
+      setLockConfig(newConfig);
+      saveLockConfig(newConfig);
+      setUnlocked(true);
+    }
+
+    function handleUnlock() {
+      setUnlocked(true);
+    }
+
     function selectTab(tab) {
       setActiveTab(tab);
       window.__dbCache[KEY_ACTIVE_TAB] = tab;
@@ -45,13 +78,33 @@
     else if (activeTab === 'pay') content = h(window.PayTab);
     else content = h(window.ProjectionTab);
 
+    if (!hasPin) {
+      return h(window.PinSetup, { onDone: handlePinSetupDone });
+    }
+    if (!unlocked) {
+      return h(window.LockScreen, { lockConfig: lockConfig, onUnlock: handleUnlock });
+    }
+
+    if (showSecurity) {
+      return h(window.SecurityPanel, {
+        lockConfig: lockConfig,
+        onChange: function (cfg) { setLockConfig(cfg); saveLockConfig(cfg); },
+        onClose: function () { setShowSecurity(false); }
+      });
+    }
+
     return h('div', { style: S.app },
       h('div', { style: S.headerStrip },
         h('div', { style: S.headerLeft },
           h(Icon, { name: 'plane', size: 16, color: '#5EEAD4', style: { transform: 'rotate(45deg)' } }),
           h('span', { style: S.headerLabel }, 'AA 401(K) · FLIGHT DECK')
         ),
-        h('div', { style: S.headerRight }, 'OFFLINE-READY')
+        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+          h('span', { style: S.headerRight }, 'OFFLINE-READY'),
+          h('button', { style: { background: 'transparent', border: 'none', color: '#4B5563', cursor: 'pointer', display: 'flex', padding: 2 }, onClick: function () { setShowSecurity(true); } },
+            h(Icon, { name: 'lock', size: 15 })
+          )
+        )
       ),
 
       h('div', { style: S.scrollArea }, content),
