@@ -14,6 +14,20 @@
   }
 
   function App() {
+    /* ---------- Estado de autenticação (email/senha) ---------- */
+    var authState = React.useState(SupabaseAuth.getSession());
+    var session = authState[0], setSession = authState[1];
+
+    function handleAuthenticated(newSession) {
+      setSession(newSession);
+    }
+
+    function handleSignOut() {
+      SupabaseAuth.signOut().then(function () {
+        setSession(null);
+      });
+    }
+
     var savedTab = 'tracker';
     try {
       var rawTab = window.__dbCache[KEY_ACTIVE_TAB];
@@ -78,6 +92,10 @@
     else if (activeTab === 'pay') content = h(window.PayTab);
     else content = h(window.ProjectionTab);
 
+    /* ---------- Ordem das telas: Login -> PIN -> App ---------- */
+    if (!session) {
+      return h(window.AuthScreen, { onAuthenticated: handleAuthenticated });
+    }
     if (!hasPin) {
       return h(window.PinSetup, { onDone: handlePinSetupDone });
     }
@@ -89,7 +107,9 @@
       return h(window.SecurityPanel, {
         lockConfig: lockConfig,
         onChange: function (cfg) { setLockConfig(cfg); saveLockConfig(cfg); },
-        onClose: function () { setShowSecurity(false); }
+        onClose: function () { setShowSecurity(false); },
+        userEmail: session.user.email,
+        onSignOut: handleSignOut
       });
     }
 
