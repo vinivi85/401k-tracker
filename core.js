@@ -15,6 +15,7 @@ var h = React.createElement;
   var KEY_PAY_ENTRIES = '401k-pay-entries';
   var KEY_WALLETS = '401k-wallets';
   var KEY_WALLET_ENTRIES = '401k-wallet-entries';
+  var KEY_LOCK_CONFIG = '401k-lock-config';
 
   /* ---------- Seed: histórico de saldo (Tracker) ---------- */
   var initialEntries = [
@@ -164,7 +165,7 @@ var h = React.createElement;
   // Carrega TODOS os dados do IndexedDB para o cache em memória.
   // Também migra qualquer dado remanescente do localStorage (de versões antigas do app)
   // para o IndexedDB, então funciona como upgrade transparente.
-  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES, KEY_WALLETS, KEY_WALLET_ENTRIES];
+  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES, KEY_WALLETS, KEY_WALLET_ENTRIES, KEY_LOCK_CONFIG];
 
   function initStorage() {
     return openDB().then(function () {
@@ -235,6 +236,84 @@ var h = React.createElement;
     return isNaN(n) ? (fallback || 0) : n;
   }
 
+  /* ============================================================
+     LOCK SCREEN — PIN (hash SHA-256) + Face ID / Touch ID (WebAuthn)
+     ============================================================ */
+  function loadLockConfig() {
+    return loadJSON(KEY_LOCK_CONFIG, { pinHash: null, biometricEnabled: false, credentialId: null });
+  }
+
+  function saveLockConfig(cfg) {
+    saveJSON(KEY_LOCK_CONFIG, cfg);
+  }
+
+  // Hash simples via SubtleCrypto nativo (sem libs externas). Não é para
+  // segurança de nível bancário — é só para não guardar o PIN em texto puro
+  // localmente, protegendo contra olhar-de-rabo-de-olho/uso casual indevido.
+  function hashPin(pin) {
+    var enc = new TextEncoder().encode('401k-tracker-salt:' + pin);
+    return crypto.subtle.digest('SHA-256', enc).then(function (buf) {
+      var bytes = new Uint8Array(buf);
+      var hex = '';
+      for (var i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
+      return hex;
+    });
+  }
+
+  function verifyPin(pin, storedHash) {
+    return hashPin(pin).then(function (h) { return h === storedHash; });
+  }
+
+  var WEBAUTHN_SUPPORTED = !!(window.PublicKeyCredential && navigator.credentials);
+
+  function bufToBase64(buf) {
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+  }
+  function base64ToBuf(b64) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  // Cria uma credencial biométrica local (Face ID / Touch ID / fingerprint do Android)
+  function enrollBiometric() {
+    if (!WEBAUTHN_SUPPORTED) return Promise.reject(new Error('WebAuthn não suportado neste navegador.'));
+    var challenge = crypto.getRandomValues(new Uint8Array(32));
+    var userId = crypto.getRandomValues(new Uint8Array(16));
+    return navigator.credentials.create({
+      publicKey: {
+        challenge: challenge,
+        rp: { name: '401k Tracker' },
+        user: { id: userId, name: 'vinicius', displayName: 'Vinicius' },
+        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    }).then(function (cred) {
+      return bufToBase64(cred.rawId);
+    });
+  }
+
+  // Solicita a verificação biométrica de uma credencial já cadastrada
+  function verifyBiometric(credentialIdB64) {
+    if (!WEBAUTHN_SUPPORTED) return Promise.reject(new Error('WebAuthn não suportado neste navegador.'));
+    var challenge = crypto.getRandomValues(new Uint8Array(32));
+    var allowCredentials = [];
+    if (credentialIdB64) {
+      allowCredentials.push({ id: base64ToBuf(credentialIdB64), type: 'public-key' });
+    }
+    return navigator.credentials.get({
+      publicKey: {
+        challenge: challenge,
+        allowCredentials: allowCredentials,
+        userVerification: 'required',
+        timeout: 60000
+      }
+    }).then(function () { return true; });
+  }
+
   /* ---------- Icons ---------- */
   var ICON_PATHS = {
     plane: 'M21.5 15.5L15 12.7V7.2c0-1-.6-1.9-1.5-2.2-.3-.1-.6 0-.8.2L11 7.3 8.3 5.2c-.2-.2-.5-.3-.8-.2-.9.3-1.5 1.2-1.5 2.2v5.5L0 15.5v1.5l6-1.8v2.3l-1.7 1.3v1.2l3.2-1 .5-.1.5.1 3.2 1v-1.2L10 17.2v-2.3l6 1.8v-1.2z',
@@ -248,7 +327,10 @@ var h = React.createElement;
     reset: 'M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10',
     receipt: 'M6 2h12v20l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-1.5V2z M8 7h8 M8 11h8 M8 15h5',
     chevron: 'M6 9l6 6 6-6',
-    wallet: 'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3 M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z M16 13h2'
+    wallet: 'M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3 M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z M16 13h2',
+    lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
+    delete: 'M3 12l5-7h13v14H8z M13 9l4 6 M17 9l-4 6',
+    faceid: 'M8 3H6a3 3 0 0 0-3 3v2 M16 3h2a3 3 0 0 1 3 3v2 M8 21H6a3 3 0 0 1-3-3v-2 M16 21h2a3 3 0 0 0 3-3v-2 M9 9h.01 M15 9h.01 M9 15c.7.7 1.8 1 3 1s2.3-.3 3-1'
   };
 
   function Icon(props) {
@@ -387,5 +469,17 @@ var h = React.createElement;
     walletBalance: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: '#5EEAD4' },
     walletMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 },
     walletBody: { marginTop: 12, paddingTop: 12, borderTop: '1px solid #1A2333' },
-    smallAddBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#5EEAD4', border: '1px solid #115E59', borderRadius: 6, padding: '5px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 0.5, cursor: 'pointer' }
+    smallAddBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#5EEAD4', border: '1px solid #115E59', borderRadius: 6, padding: '5px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 0.5, cursor: 'pointer' },
+
+    /* Lock screen specific */
+    lockScreen: { minHeight: '100vh', background: '#0B1120', color: '#E5E7EB', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: 480, margin: '0 auto', padding: '0 24px' },
+    lockTitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 2, color: '#6B7280', marginTop: 16, marginBottom: 28 },
+    pinDots: { display: 'flex', gap: 16, marginBottom: 36 },
+    pinDot: { width: 14, height: 14, borderRadius: '50%', border: '1.5px solid #374151' },
+    pinDotFilled: { width: 14, height: 14, borderRadius: '50%', background: '#5EEAD4', border: '1.5px solid #5EEAD4' },
+    pinDotError: { width: 14, height: 14, borderRadius: '50%', background: '#FB7185', border: '1.5px solid #FB7185' },
+    keypad: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18, width: '100%', maxWidth: 280 },
+    keypadBtn: { aspectRatio: '1', borderRadius: '50%', background: '#111827', border: '1px solid #1F2937', color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontSize: 22, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    keypadBtnGhost: { aspectRatio: '1', borderRadius: '50%', background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    lockError: { color: '#FB7185', fontSize: 12, fontFamily: "'JetBrains Mono', monospace", marginTop: -16, marginBottom: 20 }
   };
