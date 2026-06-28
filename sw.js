@@ -1,10 +1,11 @@
-const CACHE_NAME = '401k-tracker-v8';
+const CACHE_NAME = '401k-tracker-v9';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './core.js',
   './supabase-client.js',
+  './auth-screen.js',
   './lock-screen.js',
   './tab-tracker.js',
   './tab-paycheck.js',
