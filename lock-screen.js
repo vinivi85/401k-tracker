@@ -170,6 +170,8 @@
     var lockConfig = props.lockConfig;
     var onChange = props.onChange;
     var onClose = props.onClose;
+    var userEmail = props.userEmail;
+    var onSignOut = props.onSignOut;
 
     var modeState = React.useState('menu'); // 'menu' | 'changePin'
     var mode = modeState[0], setMode = modeState[1];
@@ -219,6 +221,14 @@
       ),
 
       h('div', { style: S.scrollArea },
+        h('div', { style: S.card },
+          h('div', { style: S.cardHeader },
+            h('span', { style: S.cardTitle }, 'CONTA')
+          ),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#9CA3AF', marginBottom: 10 } }, userEmail || ''),
+          h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: onSignOut }, 'SAIR DA CONTA')
+        ),
+
         h('div', { style: S.card },
           h('div', { style: S.cardHeader },
             h('span', { style: S.cardTitle }, 'PIN DE ACESSO')
