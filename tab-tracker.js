@@ -151,15 +151,12 @@
     );
   }
 
-  function WalletsSection() {
-    var walletsState = React.useState(loadCachedWallets());
-    var wallets = walletsState[0], setWallets = walletsState[1];
-
-    var entriesState = React.useState(loadCachedWalletEntries());
-    var walletEntries = entriesState[0], setWalletEntries = entriesState[1];
-
-    var syncState = React.useState('syncing');
-    var syncStatus = syncState[0], setSyncStatus = syncState[1];
+  function WalletsSection(props) {
+    var wallets = props.wallets, setWallets = props.setWallets;
+    var walletEntries = props.walletEntries, setWalletEntries = props.setWalletEntries;
+    var syncStatus = props.syncStatus, setSyncStatus = props.setSyncStatus;
+    var walletCards = props.walletCards;
+    var grandTotal = props.grandTotal;
 
     var showNewWallet = React.useState(false);
     var showForm = showNewWallet[0], setShowForm = showNewWallet[1];
@@ -169,23 +166,6 @@
 
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
-
-    React.useEffect(function () {
-      var cancelled = false;
-      Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()]).then(function (results) {
-        if (cancelled) return;
-        var remoteWallets = results[0], remoteEntries = results[1];
-        setWallets(remoteWallets);
-        setWalletEntries(remoteEntries);
-        saveJSON(KEY_WALLETS, remoteWallets);
-        saveJSON(KEY_WALLET_ENTRIES, remoteEntries);
-        setSyncStatus('synced');
-      }).catch(function (e) {
-        console.error('Supabase fetch wallets falhou, usando cache local', e);
-        setSyncStatus('offline');
-      });
-      return function () { cancelled = true; };
-    }, []);
 
     function handleAddWallet() {
       setError('');
@@ -248,15 +228,6 @@
         setSyncStatus('offline');
       });
     }
-
-    /* Total geral = soma da leitura mais recente de cada carteira */
-    var grandTotal = 0;
-    var walletCards = wallets.map(function (w) {
-      var ownEntries = walletEntries.filter(function (e) { return e.walletId === w.id; })
-        .slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
-      if (ownEntries.length) grandTotal += ownEntries[ownEntries.length - 1].balance;
-      return { wallet: w, entries: ownEntries };
-    });
 
     var syncBadge;
     if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
@@ -322,6 +293,33 @@
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
 
+    /* ---------- Estado das carteiras (vive aqui para poder somar no saldo global) ---------- */
+    var walletsState = React.useState(loadCachedWallets());
+    var wallets = walletsState[0], setWallets = walletsState[1];
+
+    var walletEntriesState = React.useState(loadCachedWalletEntries());
+    var walletEntries = walletEntriesState[0], setWalletEntries = walletEntriesState[1];
+
+    var walletSyncState = React.useState('syncing');
+    var walletSyncStatus = walletSyncState[0], setWalletSyncStatus = walletSyncState[1];
+
+    React.useEffect(function () {
+      var cancelled = false;
+      Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()]).then(function (results) {
+        if (cancelled) return;
+        var remoteWallets = results[0], remoteEntries = results[1];
+        setWallets(remoteWallets);
+        setWalletEntries(remoteEntries);
+        saveJSON(KEY_WALLETS, remoteWallets);
+        saveJSON(KEY_WALLET_ENTRIES, remoteEntries);
+        setWalletSyncStatus('synced');
+      }).catch(function (e) {
+        console.error('Supabase fetch wallets falhou, usando cache local', e);
+        setWalletSyncStatus('offline');
+      });
+      return function () { cancelled = true; };
+    }, []);
+
     var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
     var latest = sorted[sorted.length - 1];
     var first = sorted[0];
@@ -335,6 +333,17 @@
     var chartData = sorted.map(function (e) {
       return { label: formatDateLabel(e.date), value: e.balance };
     });
+
+    /* ---------- Total das carteiras (soma da leitura mais recente de cada) ---------- */
+    var walletsTotal = 0;
+    var walletCards = wallets.map(function (w) {
+      var ownEntries = walletEntries.filter(function (e) { return e.walletId === w.id; })
+        .slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+      if (ownEntries.length) walletsTotal += ownEntries[ownEntries.length - 1].balance;
+      return { wallet: w, entries: ownEntries };
+    });
+
+    var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
 
     function handleAdd() {
       setError('');
@@ -370,8 +379,14 @@
     });
 
     return h(React.Fragment, null,
+      h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
+        h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
+        h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
+        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K'))
+      ),
+
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'SALDO ATUAL'),
+        h('div', { style: S.gaugeLabel }, 'SALDO ATUAL 401K'),
         h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
         h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
 
@@ -398,7 +413,7 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'ALTÍMETRO DE SALDO'),
+          h('span', { style: S.cardTitle }, 'ALTÍMETRO DE SALDO 401K'),
           h('span', { style: S.cardSub }, sorted.length + ' leituras')
         ),
         h(MiniChart, { data: chartData })
@@ -406,7 +421,7 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'REGISTRO DE LEITURAS'),
+          h('span', { style: S.cardTitle }, 'REGISTRO DE LEITURAS 401K'),
           h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'NOVA LEITURA'
@@ -429,7 +444,16 @@
         h('div', { style: S.entryList }, entryRows)
       ),
 
-      h(WalletsSection),
+      h(WalletsSection, {
+        wallets: wallets,
+        setWallets: setWallets,
+        walletEntries: walletEntries,
+        setWalletEntries: setWalletEntries,
+        syncStatus: walletSyncStatus,
+        setSyncStatus: setWalletSyncStatus,
+        walletCards: walletCards,
+        grandTotal: walletsTotal
+      }),
 
       h('div', { style: S.footer }, 'DADOS SALVOS NESTE DISPOSITIVO · NETBENEFITS / FIDELITY')
     );
