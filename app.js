@@ -50,26 +50,76 @@
     var securityState = React.useState(false);
     var showSecurity = securityState[0], setShowSecurity = securityState[1];
 
-    // Re-bloqueia automaticamente quando o app volta de segundo plano
+    var INACTIVITY_LIMIT_MS = 60 * 1000; // 1 minuto sem atividade -> pede PIN de novo
+    var LAST_ACTIVITY_KEY = '401k-last-activity';
+
+    function markActivity() {
+      try { localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now())); } catch (e) {}
+    }
+
+    function getIdleMs() {
+      try {
+        var last = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY), 10);
+        if (!last) return Infinity;
+        return Date.now() - last;
+      } catch (e) {
+        return Infinity;
+      }
+    }
+
+    // Re-bloqueia se o app ficou 1+ minuto sem nenhuma interação do usuário,
+    // seja porque foi pro background ou porque ficou aberto e esquecido na tela.
     React.useEffect(function () {
       if (!hasPin) return;
-      function handleVisibility() {
-        if (document.visibilityState === 'visible') {
+
+      function checkIdleAndLock() {
+        if (getIdleMs() >= INACTIVITY_LIMIT_MS) {
           setUnlocked(false);
         }
       }
+
+      function handleVisibility() {
+        if (document.visibilityState === 'visible') {
+          checkIdleAndLock();
+          markActivity();
+        }
+      }
+
+      function handleActivity() {
+        markActivity();
+      }
+
+      // Verifica a cada 10s enquanto o app está em primeiro plano e desbloqueado
+      var intervalId = setInterval(function () {
+        if (document.visibilityState === 'visible') checkIdleAndLock();
+      }, 10000);
+
       document.addEventListener('visibilitychange', handleVisibility);
-      return function () { document.removeEventListener('visibilitychange', handleVisibility); };
+      window.addEventListener('pointerdown', handleActivity);
+      window.addEventListener('keydown', handleActivity);
+      window.addEventListener('touchstart', handleActivity);
+
+      markActivity(); // monta já contando a partir de agora
+
+      return function () {
+        clearInterval(intervalId);
+        document.removeEventListener('visibilitychange', handleVisibility);
+        window.removeEventListener('pointerdown', handleActivity);
+        window.removeEventListener('keydown', handleActivity);
+        window.removeEventListener('touchstart', handleActivity);
+      };
     }, [hasPin]);
 
     function handlePinSetupDone(newConfig) {
       setLockConfig(newConfig);
       saveLockConfig(newConfig);
       setUnlocked(true);
+      markActivity();
     }
 
     function handleUnlock() {
       setUnlocked(true);
+      markActivity();
     }
 
     function selectTab(tab) {
