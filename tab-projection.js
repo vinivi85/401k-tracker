@@ -10,8 +10,9 @@
   'use strict';
   var h = React.createElement;
 
-  // Tabela real de tiers por tempo de serviço (coluna 1/6/2026), validada em sessão anterior
-  var SALARY_TIERS = [
+  // Tabela real de tiers por tempo de serviço (coluna 1/6/2026), validada em sessão anterior.
+  // Serve como valor padrão; o usuário pode editar e os valores ficam salvos em KEY_PROJECTION.
+  var DEFAULT_SALARY_TIERS = [
     { yos: '3-4', rate: 23.28 },
     { yos: '4-5', rate: 24.52 },
     { yos: '5-6', rate: 26.36 },
@@ -23,14 +24,25 @@
     { yos: '11+', rate: 41.52 }
   ];
 
-  var CURRENT_YOS_INDEX = 0; // hoje: 3-4 anos (confirmado pelo usuário)
   var PAYCHECKS_PER_YEAR = 26; // biweekly
 
-  function rateForYear(yearOffset) {
-    // yearOffset 0 = hoje (3-4 anos). Cada ano avança um tier, até o último (11+, mantém fixo depois)
-    var idx = CURRENT_YOS_INDEX + Math.floor(yearOffset);
-    if (idx >= SALARY_TIERS.length) idx = SALARY_TIERS.length - 1;
-    return SALARY_TIERS[idx].rate;
+  function getSalaryTiers(cfg) {
+    if (cfg && Array.isArray(cfg.salaryTiers) && cfg.salaryTiers.length > 0) return cfg.salaryTiers;
+    return DEFAULT_SALARY_TIERS;
+  }
+
+  function getCurrentYosIndex(cfg) {
+    var tiers = getSalaryTiers(cfg);
+    var idx = (cfg && typeof cfg.currentYosIndex === 'number') ? cfg.currentYosIndex : 0;
+    if (idx < 0 || idx >= tiers.length) idx = 0;
+    return idx;
+  }
+
+  function rateForYear(tiers, currentIdx, yearOffset) {
+    // yearOffset 0 = hoje. Cada ano avança um tier, até o último (mantém fixo depois)
+    var idx = currentIdx + Math.floor(yearOffset);
+    if (idx >= tiers.length) idx = tiers.length - 1;
+    return num(tiers[idx].rate);
   }
 
   function getLatestBalance() {
@@ -100,6 +112,9 @@
     var editState = React.useState(false);
     var editing = editState[0], setEditing = editState[1];
 
+    var editingTiersState = React.useState(false);
+    var editingTiers = editingTiersState[0], setEditingTiers = editingTiersState[1];
+
     var importState = React.useState(false);
     var showImport = importState[0], setShowImport = importState[1];
 
@@ -110,15 +125,33 @@
       saveJSON(KEY_PROJECTION, next);
     }
 
+    var salaryTiers = getSalaryTiers(cfg);
+    var currentYosIndex = getCurrentYosIndex(cfg);
+
+    function updateTierRate(idx, value) {
+      var nextTiers = salaryTiers.map(function (t, i) { return i === idx ? Object.assign({}, t, { rate: value }) : t; });
+      update('salaryTiers', nextTiers);
+    }
+
+    function setCurrentTier(idx) {
+      update('currentYosIndex', idx);
+    }
+
+    function resetTiers() {
+      var next = Object.assign({}, cfg, { salaryTiers: DEFAULT_SALARY_TIERS, currentYosIndex: 0 });
+      setCfg(next);
+      saveJSON(KEY_PROJECTION, next);
+    }
+
     var startBalance = getLatestBalance();
     var annualReturn = blendedAnnualReturn(cfg);
     var totalContribPct = num(cfg.employeeContribPct) + num(cfg.companyMatchPct) + num(cfg.companyExtraPct);
     var baseBiweeklyGross = getCurrentPaycheckGross();
-    var baseRateRef = SALARY_TIERS[CURRENT_YOS_INDEX].rate;
+    var baseRateRef = num(salaryTiers[currentYosIndex].rate);
 
     function biweeklyContribFn(yearOffset) {
-      var rate = rateForYear(yearOffset);
-      var scaledGross = baseBiweeklyGross * (rate / baseRateRef);
+      var rate = rateForYear(salaryTiers, currentYosIndex, yearOffset);
+      var scaledGross = baseRateRef > 0 ? baseBiweeklyGross * (rate / baseRateRef) : baseBiweeklyGross;
       return scaledGross * (totalContribPct / 100);
     }
 
@@ -198,18 +231,43 @@
       ),
 
       h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'PROGRESSÃO SALARIAL (FLEET SERVICE/RAMP)')),
-        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 } },
-          SALARY_TIERS.map(function (t, i) {
-            var isCurrent = i === CURRENT_YOS_INDEX;
-            return h('span', {
-              key: i,
-              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' })
-            }, t.yos + 'a: ' + formatUSD(t.rate));
-          })
+        h('div', { style: S.cardHeader },
+          h('span', { style: S.cardTitle }, 'PROGRESSÃO SALARIAL (FLEET SERVICE/RAMP)'),
+          h('button', { style: S.ghostBtn, onClick: function () { setEditingTiers(!editingTiers); } }, editingTiers ? 'FECHAR' : 'EDITAR')
         ),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
-          'Posição atual destacada: 3-4 anos de empresa. A projeção avança um tier por ano automaticamente.')
+
+        !editingTiers ? h('div', null,
+          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 } },
+            salaryTiers.map(function (t, i) {
+              var isCurrent = i === currentYosIndex;
+              return h('span', {
+                key: i,
+                style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' })
+              }, t.yos + 'a: ' + formatUSD(num(t.rate)));
+            })
+          ),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
+            'Posição atual destacada: ' + salaryTiers[currentYosIndex].yos + ' anos de empresa. A projeção avança um tier por ano automaticamente.')
+        ) : h('div', { style: S.formBox },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 10, lineHeight: 1.5 } },
+            'Toque numa faixa para marcá-la como sua posição atual. Edite o valor/hora de cada faixa conforme a tabela oficial mais recente da AA.'),
+          salaryTiers.map(function (t, i) {
+            var isCurrent = i === currentYosIndex;
+            return h('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
+              h('button', {
+                style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' }, { cursor: 'pointer', border: 'none', flexShrink: 0, width: 64 }),
+                onClick: function () { setCurrentTier(i); }
+              }, t.yos + 'a'),
+              h('input', {
+                type: 'number', step: '0.01', value: t.rate, style: Object.assign({}, S.input, { flex: 1 }),
+                onChange: function (ev) { updateTierRate(i, ev.target.value); }
+              }),
+              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4B5563' } }, '/h')
+            );
+          }),
+          h('button', { style: S.ghostBtn, onClick: resetTiers },
+            h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR TABELA PADRÃO')
+        )
       ),
 
       h('div', { style: S.card },
