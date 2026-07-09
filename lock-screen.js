@@ -1,30 +1,70 @@
 /* =========================================================
-   LOCK SCREEN — protege o app com PIN numérico + Face/Touch ID
+   LOCK SCREEN — PIN de 4 dígitos com token de sessão local.
+   Sem WebAuthn/Passkey — funciona nativamente em todos os
+   navegadores e PWAs sem depender do iCloud Keychain do iOS.
+
+   Fluxo:
+   1. Usuário cria PIN de 4 dígitos (hash SHA-256, nunca em texto puro)
+   2. Ao desbloquear corretamente, salva um token de sessão no
+      localStorage com timestamp
+   3. App verifica o token a cada abertura — se tiver menos de
+      5 min desde a última atividade, abre direto sem pedir PIN
+   4. Se passar 5 min de inatividade, pede PIN de novo
    ========================================================= */
 (function () {
   'use strict';
   var h = React.createElement;
 
-  /* ---------- Teclado numérico reutilizável ---------- */
-  function Keypad(props) {
-    var onDigit = props.onDigit;
-    var onDelete = props.onDelete;
-    var onBiometric = props.onBiometric; // opcional
+  var PIN_LENGTH = 4;
+  var SESSION_TOKEN_KEY = '401k-session-token';
+  var INACTIVITY_MS = 5 * 60 * 1000; // 5 minutos
 
-    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-    return h('div', { style: S.keypad },
-      keys.map(function (k) {
-        return h('button', { key: k, style: S.keypadBtn, onClick: function () { onDigit(k); } }, k);
-      }),
-      onBiometric
-        ? h('button', { style: S.keypadBtnGhost, onClick: onBiometric }, h(Icon, { name: 'faceid', size: 22 }))
-        : h('div', null),
-      h('button', { style: S.keypadBtn, onClick: function () { onDigit('0'); } }, '0'),
-      h('button', { style: S.keypadBtnGhost, onClick: onDelete }, h(Icon, { name: 'delete', size: 20 }))
-    );
+  /* ---------- Token de sessão simples (sem WebAuthn) ---------- */
+  function generateSessionToken() {
+    var arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
 
+  function saveSessionToken() {
+    try {
+      var token = { value: generateSessionToken(), ts: Date.now() };
+      localStorage.setItem(SESSION_TOKEN_KEY, JSON.stringify(token));
+    } catch (e) {}
+  }
+
+  function clearSessionToken() {
+    try { localStorage.removeItem(SESSION_TOKEN_KEY); } catch (e) {}
+  }
+
+  function isSessionValid() {
+    try {
+      var raw = localStorage.getItem(SESSION_TOKEN_KEY);
+      if (!raw) return false;
+      var token = JSON.parse(raw);
+      return token && token.ts && (Date.now() - token.ts) < INACTIVITY_MS;
+    } catch (e) { return false; }
+  }
+
+  function touchSession() {
+    try {
+      var raw = localStorage.getItem(SESSION_TOKEN_KEY);
+      if (!raw) return;
+      var token = JSON.parse(raw);
+      if (token && token.value) {
+        token.ts = Date.now();
+        localStorage.setItem(SESSION_TOKEN_KEY, JSON.stringify(token));
+      }
+    } catch (e) {}
+  }
+
+  /* Expõe pra uso no app.js */
+  window.isSessionValid = isSessionValid;
+  window.saveSessionToken = saveSessionToken;
+  window.clearSessionToken = clearSessionToken;
+  window.touchSession = touchSession;
+
+  /* ---------- Componentes visuais ---------- */
   function PinDots(props) {
     var length = props.length, max = props.max, error = props.error;
     var dots = [];
@@ -35,13 +75,25 @@
     return h('div', { style: S.pinDots }, dots);
   }
 
-  var PIN_LENGTH = 4;
+  function Keypad(props) {
+    var onDigit = props.onDigit;
+    var onDelete = props.onDelete;
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    return h('div', { style: S.keypad },
+      keys.map(function (k) {
+        return h('button', { key: k, style: S.keypadBtn, onClick: function () { onDigit(k); } }, k);
+      }),
+      h('div', null), // espaço vazio onde ficava o Face ID
+      h('button', { style: S.keypadBtn, onClick: function () { onDigit('0'); } }, '0'),
+      h('button', { style: S.keypadBtnGhost, onClick: onDelete }, h(Icon, { name: 'delete', size: 20 }))
+    );
+  }
 
-  /* ---------- Tela de configuração inicial do PIN ---------- */
+  /* ---------- Tela de criação do PIN ---------- */
   function PinSetup(props) {
-    var onDone = props.onDone; // chamado com (lockConfig) quando termina
+    var onDone = props.onDone;
 
-    var stepState = React.useState('create'); // 'create' | 'confirm' | 'biometric'
+    var stepState = React.useState('create'); // 'create' | 'confirm'
     var step = stepState[0], setStep = stepState[1];
 
     var firstPinState = React.useState('');
@@ -50,14 +102,8 @@
     var pinState = React.useState('');
     var pin = pinState[0], setPin = pinState[1];
 
-    var pinHashState = React.useState('');
-    var pinHash = pinHashState[0], setPinHash = pinHashState[1];
-
     var errorState = React.useState(false);
     var error = errorState[0], setError = errorState[1];
-
-    var bioStatusState = React.useState('');
-    var bioStatus = bioStatusState[0], setBioStatus = bioStatusState[1];
 
     function handleDigit(d) {
       if (pin.length >= PIN_LENGTH) return;
@@ -74,21 +120,12 @@
         } else {
           if (next === firstPin) {
             hashPin(next).then(function (hash) {
-              setPinHash(hash);
-              if (WEBAUTHN_SUPPORTED) {
-                setPin('');
-                setStep('biometric');
-              } else {
-                onDone({ pinHash: hash, biometricEnabled: false, credentialId: null });
-              }
+              onDone({ pinHash: hash, pinLength: PIN_LENGTH });
             });
           } else {
             setError(true);
             setTimeout(function () {
-              setPin('');
-              setFirstPin('');
-              setStep('create');
-              setError(false);
+              setPin(''); setFirstPin(''); setStep('create'); setError(false);
             }, 600);
           }
         }
@@ -100,44 +137,19 @@
       setError(false);
     }
 
-    function handleEnableBiometric() {
-      setBioStatus('aguardando...');
-      enrollBiometric().then(function (credId) {
-        onDone({ pinHash: pinHash, biometricEnabled: true, credentialId: credId });
-      }).catch(function (e) {
-        console.error('Falha ao ativar Face ID', e);
-        setBioStatus('Não foi possível ativar. Verifique as configurações do seu aparelho.');
-      });
-    }
-
-    function handleSkipBiometric() {
-      onDone({ pinHash: pinHash, biometricEnabled: false, credentialId: null });
-    }
-
-    if (step === 'biometric') {
-      return h('div', { style: S.lockScreen },
-        h(Icon, { name: 'faceid', size: 36, color: '#5EEAD4' }),
-        h('div', { style: S.lockTitle }, 'ATIVAR FACE ID / TOUCH ID?'),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6B7280', textAlign: 'center', maxWidth: 260, lineHeight: 1.6, marginBottom: 28 } },
-          'Abra o app com Face ID sem digitar o PIN. O PIN continua como backup.\n\n' +
-          'No iPhone/iPad: o iOS vai pedir sua senha do Apple ID uma vez para criar a Passkey — isso é normal e necessário para o Face ID funcionar em PWAs.'
-        ),
-        bioStatus ? h('div', { style: { color: '#FBBF24', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginBottom: 16 } }, bioStatus) : null,
-        h('button', { style: Object.assign({}, S.submitBtn, { marginBottom: 12 }), onClick: handleEnableBiometric }, 'ATIVAR FACE ID / TOUCH ID'),
-        h('button', { style: { background: 'transparent', border: 'none', color: '#6B7280', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, cursor: 'pointer', padding: 8 }, onClick: handleSkipBiometric }, 'AGORA NÃO')
-      );
-    }
-
     return h('div', { style: S.lockScreen },
       h(Icon, { name: 'lock', size: 28, color: '#5EEAD4' }),
       h('div', { style: S.lockTitle }, step === 'create' ? 'CRIE UM PIN DE 4 DÍGITOS' : 'CONFIRME O PIN'),
+      h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginBottom: 20, textAlign: 'center' } },
+        step === 'create' ? 'Digite 4 dígitos para proteger o app' : 'Digite o PIN novamente para confirmar'
+      ),
       h(PinDots, { length: pin.length, max: PIN_LENGTH, error: error }),
-      error ? h('div', { style: S.lockError }, 'PINs não coincidem, tente de novo') : null,
+      error ? h('div', { style: S.lockError }, 'PINs não coincidem — tente de novo') : null,
       h(Keypad, { onDigit: handleDigit, onDelete: handleDelete })
     );
   }
 
-  /* ---------- Tela de bloqueio (desbloquear app já configurado) ---------- */
+  /* ---------- Tela de desbloqueio ---------- */
   function LockScreen(props) {
     var lockConfig = props.lockConfig;
     var onUnlock = props.onUnlock;
@@ -148,25 +160,6 @@
     var errorState = React.useState(false);
     var error = errorState[0], setError = errorState[1];
 
-    var bioTriedState = React.useState(false);
-    var bioTried = bioTriedState[0], setBioTried = bioTriedState[1];
-
-    function tryBiometric() {
-      verifyBiometric(lockConfig.credentialId).then(function () {
-        onUnlock();
-      }).catch(function (e) {
-        console.error('Biometria falhou ou foi cancelada', e);
-      });
-    }
-
-    // Tenta biometria automaticamente uma vez ao montar, se estiver habilitada
-    React.useEffect(function () {
-      if (lockConfig.biometricEnabled && WEBAUTHN_SUPPORTED && !bioTried) {
-        setBioTried(true);
-        tryBiometric();
-      }
-    }, []);
-
     function handleDigit(d) {
       if (pin.length >= PIN_LENGTH) return;
       var next = pin + d;
@@ -174,6 +167,7 @@
       if (next.length === PIN_LENGTH) {
         verifyPin(next, lockConfig.pinHash).then(function (ok) {
           if (ok) {
+            saveSessionToken(); // salva token de sessão ao desbloquear
             onUnlock();
           } else {
             setError(true);
@@ -193,19 +187,11 @@
       h('div', { style: S.lockTitle }, 'DIGITE SEU PIN'),
       h(PinDots, { length: pin.length, max: PIN_LENGTH, error: error }),
       error ? h('div', { style: S.lockError }, 'PIN incorreto') : null,
-      h(Keypad, {
-        onDigit: handleDigit,
-        onDelete: handleDelete,
-        onBiometric: (lockConfig.biometricEnabled && WEBAUTHN_SUPPORTED) ? tryBiometric : null
-      })
+      h(Keypad, { onDigit: handleDigit, onDelete: handleDelete })
     );
   }
 
-  window.PinSetup = PinSetup;
-  window.LockScreen = LockScreen;
-  window.PIN_LENGTH = PIN_LENGTH;
-
-  /* ---------- Painel de segurança (gerenciar PIN / Face ID) ---------- */
+  /* ---------- Painel de segurança ---------- */
   function SecurityPanel(props) {
     var lockConfig = props.lockConfig;
     var onChange = props.onChange;
@@ -219,34 +205,12 @@
     var statusState = React.useState('');
     var status = statusState[0], setStatus = statusState[1];
 
-    var savingState = React.useState(false);
-    var saving = savingState[0], setSaving = savingState[1];
-
-    function handleToggleBiometric() {
-      if (lockConfig.biometricEnabled) {
-        onChange(Object.assign({}, lockConfig, { biometricEnabled: false, credentialId: null }));
-        setStatus('Face/Touch ID desativado.');
-        return;
-      }
-      setSaving(true);
-      setStatus('');
-      enrollBiometric().then(function (credId) {
-        onChange(Object.assign({}, lockConfig, { biometricEnabled: true, credentialId: credId }));
-        setStatus('Face/Touch ID ativado com sucesso.');
-        setSaving(false);
-      }).catch(function (e) {
-        console.error('Falha ao cadastrar biometria', e);
-        setStatus('Não foi possível ativar — verifique se seu dispositivo tem Face ID/Touch ID configurado.');
-        setSaving(false);
-      });
-    }
-
     if (mode === 'changePin') {
       return h(window.PinSetup, {
         onDone: function (newConfig) {
-          onChange(Object.assign({}, newConfig, { biometricEnabled: lockConfig.biometricEnabled, credentialId: lockConfig.credentialId }));
+          onChange(newConfig);
           setMode('menu');
-          setStatus('PIN atualizado.');
+          setStatus('PIN atualizado com sucesso.');
         }
       });
     }
@@ -262,45 +226,27 @@
 
       h('div', { style: S.scrollArea },
         h('div', { style: S.card },
-          h('div', { style: S.cardHeader },
-            h('span', { style: S.cardTitle }, 'CONTA')
-          ),
+          h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'CONTA')),
           h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#9CA3AF', marginBottom: 10 } }, userEmail || ''),
           h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: onSignOut }, 'SAIR DA CONTA')
         ),
 
         h('div', { style: S.card },
-          h('div', { style: S.cardHeader },
-            h('span', { style: S.cardTitle }, 'PIN DE ACESSO')
+          h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'PIN DE ACESSO')),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', lineHeight: 1.6, marginBottom: 10 } },
+            'O app pede o PIN após 5 minutos de inatividade. O PIN é armazenado como hash — nunca em texto puro.'
           ),
-          h('button', { style: S.addBtn, onClick: function () { setMode('changePin'); } }, 'ALTERAR PIN')
-        ),
-
-        h('div', { style: S.card },
-          h('div', { style: S.cardHeader },
-            h('span', { style: S.cardTitle }, 'FACE ID / TOUCH ID'),
-            h('span', { style: S.cardSub }, WEBAUTHN_SUPPORTED ? (lockConfig.biometricEnabled ? 'ATIVADO' : 'DESATIVADO') : 'INDISPONÍVEL')
-          ),
-          !WEBAUTHN_SUPPORTED ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6B7280' } }, 'Este navegador/dispositivo não suporta biometria web.')
-            : h('div', null,
-                h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', lineHeight: 1.6, marginBottom: 10 } },
-                  lockConfig.biometricEnabled
-                    ? 'Face ID/Touch ID ativo. Para desativar, toque abaixo.'
-                    : 'No iPhone: o iOS pedirá sua senha do Apple ID uma vez para criar a Passkey no iCloud — é o mecanismo padrão do iOS para Face ID em apps web.'
-                ),
-                h('button', {
-                  style: lockConfig.biometricEnabled ? Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D', background: 'transparent' }) : S.addBtn,
-                  onClick: handleToggleBiometric,
-                  disabled: saving
-                }, saving ? 'AGUARDANDO...' : (lockConfig.biometricEnabled ? 'DESATIVAR' : 'ATIVAR FACE/TOUCH ID'))
-              ),
+          h('button', { style: S.addBtn, onClick: function () { setMode('changePin'); } }, 'ALTERAR PIN'),
           status ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4', marginTop: 10 } }, status) : null
         ),
 
-        h('div', { style: S.footer }, 'O PIN É ARMAZENADO COMO HASH, NUNCA EM TEXTO PURO')
+        h('div', { style: S.footer }, 'SESSÃO LOCAL · TIMEOUT 5 MINUTOS DE INATIVIDADE')
       )
     );
   }
 
+  window.PinSetup = PinSetup;
+  window.LockScreen = LockScreen;
+  window.PIN_LENGTH = PIN_LENGTH;
   window.SecurityPanel = SecurityPanel;
 })();
