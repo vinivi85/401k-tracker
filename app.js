@@ -40,11 +40,26 @@
     var activeTab = tabState[0], setActiveTab = tabState[1];
 
     /* ---------- Estado de bloqueio (PIN / biometria) ---------- */
-    var lockConfigState = React.useState(loadLockConfig());
+    var rawLockConfig = loadLockConfig();
+
+    // Migração: se o PIN foi criado com 6 dígitos (PIN_LENGTH antigo),
+    // limpa o config e força o usuário a criar um PIN novo de 4 dígitos.
+    if (rawLockConfig.pinHash && rawLockConfig.pinLength && rawLockConfig.pinLength !== PIN_LENGTH) {
+      rawLockConfig = { pinHash: null, biometricEnabled: false, credentialId: null };
+      saveLockConfig(rawLockConfig);
+    }
+    // Se não tem pinLength gravado, o PIN foi criado antes dessa flag existir (6 dígitos).
+    // Força re-cadastro também.
+    if (rawLockConfig.pinHash && !rawLockConfig.pinLength) {
+      rawLockConfig = { pinHash: null, biometricEnabled: false, credentialId: null };
+      saveLockConfig(rawLockConfig);
+    }
+
+    var lockConfigState = React.useState(rawLockConfig);
     var lockConfig = lockConfigState[0], setLockConfig = lockConfigState[1];
 
     var hasPin = !!lockConfig.pinHash;
-    var unlockedState = React.useState(!hasPin); // se não tem PIN configurado ainda, app abre direto
+    var unlockedState = React.useState(!hasPin);
     var unlocked = unlockedState[0], setUnlocked = unlockedState[1];
 
     var securityState = React.useState(false);
@@ -111,8 +126,9 @@
     }, [hasPin]);
 
     function handlePinSetupDone(newConfig) {
-      setLockConfig(newConfig);
-      saveLockConfig(newConfig);
+      var withLength = Object.assign({}, newConfig, { pinLength: PIN_LENGTH });
+      setLockConfig(withLength);
+      saveLockConfig(withLength);
       setUnlocked(true);
       markActivity();
     }
