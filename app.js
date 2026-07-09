@@ -59,62 +59,40 @@
     var lockConfig = lockConfigState[0], setLockConfig = lockConfigState[1];
 
     var hasPin = !!lockConfig.pinHash;
-    var unlockedState = React.useState(!hasPin);
+    // Se tem PIN, só abre direto se o token de sessão ainda for válido (menos de 5 min de inatividade)
+    var unlockedState = React.useState(!hasPin || isSessionValid());
     var unlocked = unlockedState[0], setUnlocked = unlockedState[1];
 
     var securityState = React.useState(false);
     var showSecurity = securityState[0], setShowSecurity = securityState[1];
 
-    var INACTIVITY_LIMIT_MS = 60 * 1000; // 1 minuto sem atividade -> pede PIN de novo
-    var LAST_ACTIVITY_KEY = '401k-last-activity';
-
-    function markActivity() {
-      try { localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now())); } catch (e) {}
-    }
-
-    function getIdleMs() {
-      try {
-        var last = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY), 10);
-        if (!last) return Infinity;
-        return Date.now() - last;
-      } catch (e) {
-        return Infinity;
-      }
-    }
-
-    // Re-bloqueia se o app ficou 1+ minuto sem nenhuma interação do usuário,
-    // seja porque foi pro background ou porque ficou aberto e esquecido na tela.
+    // Monitora atividade e re-bloqueia quando o token de sessão expirar (5 min)
     React.useEffect(function () {
       if (!hasPin) return;
 
-      function checkIdleAndLock() {
-        if (getIdleMs() >= INACTIVITY_LIMIT_MS) {
+      function checkAndLock() {
+        if (!isSessionValid()) {
           setUnlocked(false);
         }
       }
 
       function handleVisibility() {
-        if (document.visibilityState === 'visible') {
-          checkIdleAndLock();
-          markActivity();
-        }
+        if (document.visibilityState === 'visible') checkAndLock();
       }
 
       function handleActivity() {
-        markActivity();
+        if (unlocked) touchSession();
       }
 
-      // Verifica a cada 10s enquanto o app está em primeiro plano e desbloqueado
+      // Verifica a cada 30s se a sessão ainda é válida
       var intervalId = setInterval(function () {
-        if (document.visibilityState === 'visible') checkIdleAndLock();
-      }, 10000);
+        if (document.visibilityState === 'visible') checkAndLock();
+      }, 30000);
 
       document.addEventListener('visibilitychange', handleVisibility);
       window.addEventListener('pointerdown', handleActivity);
       window.addEventListener('keydown', handleActivity);
       window.addEventListener('touchstart', handleActivity);
-
-      markActivity(); // monta já contando a partir de agora
 
       return function () {
         clearInterval(intervalId);
@@ -123,19 +101,16 @@
         window.removeEventListener('keydown', handleActivity);
         window.removeEventListener('touchstart', handleActivity);
       };
-    }, [hasPin]);
+    }, [hasPin, unlocked]);
 
     function handlePinSetupDone(newConfig) {
-      var withLength = Object.assign({}, newConfig, { pinLength: PIN_LENGTH });
-      setLockConfig(withLength);
-      saveLockConfig(withLength);
+      setLockConfig(newConfig);
+      saveLockConfig(newConfig);
       setUnlocked(true);
-      markActivity();
     }
 
     function handleUnlock() {
       setUnlocked(true);
-      markActivity();
     }
 
     function selectTab(tab) {
