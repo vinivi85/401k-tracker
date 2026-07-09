@@ -31,7 +31,8 @@ var h = React.createElement;
   var defaultPaycheckConfig = {
     baseRate: 23.28,
     shift2RegDiff: 0.51,
-    shift2OtDiff: 0.77,      // valor FIXO confirmado no holerite (19.5h x 0.77 = 15.02), não é derivado de regDiff x 1.5
+    shift2OtDiff: 0.77,      // valor FIXO confirmado no holerite — OT1.5, WRK-HOL, LUNCH-P
+    shift2Ot2Diff: 1.02,     // Shift 2 DT diff — específico para horas OT2.0 (Double Time)
     contrib401kPct: 4,
     ssRatePct: 6.2,
     medicareRatePct: 1.45,
