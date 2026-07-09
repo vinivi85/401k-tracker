@@ -30,6 +30,7 @@
     var wrkHolRate = base * 1.5;
     var s2RegDiff = num(cfg.shift2RegDiff, 0.51);
     var s2OtDiff = num(cfg.shift2OtDiff, 0.77);
+    var s2Ot2Diff = num(cfg.shift2Ot2Diff, 1.02);
 
     var regHours = num(cfg.regHours, 0);
     var otHours = num(cfg.otHours, 0);
@@ -46,12 +47,14 @@
     var payLunch = lunchHours * otRate;
 
     var regLikeHours = regHours + holHours;
-    var otLikeHours = otHours + ot2Hours + wrkHolHours + lunchHours;
+    var otLikeHours = otHours + wrkHolHours + lunchHours; // OT1.5, WRK-HOL, LUNCH-P
+    var ot2LikeHours = ot2Hours;                          // OT2.0 tem diff próprio ($1.02)
 
     var diffReg = regLikeHours * s2RegDiff;
     var diffOt = otLikeHours * s2OtDiff;
+    var diffOt2 = ot2LikeHours * s2Ot2Diff;
 
-    var gross = payReg + payOt + payOt2 + payHol + payWrkHol + payLunch + diffReg + diffOt;
+    var gross = payReg + payOt + payOt2 + payHol + payWrkHol + payLunch + diffReg + diffOt + diffOt2;
 
     var contrib401k = gross * (num(cfg.contrib401kPct, 4) / 100);
     var preTaxTotal = sumItems(cfg.preTaxItems);
@@ -69,9 +72,9 @@
 
     return {
       base: base, otRate: otRate, ot2Rate: ot2Rate, holRate: holRate, wrkHolRate: wrkHolRate,
-      s2RegDiff: s2RegDiff, s2OtDiff: s2OtDiff,
+      s2RegDiff: s2RegDiff, s2OtDiff: s2OtDiff, s2Ot2Diff: s2Ot2Diff,
       payReg: payReg, payOt: payOt, payOt2: payOt2, payHol: payHol, payWrkHol: payWrkHol, payLunch: payLunch,
-      diffReg: diffReg, diffOt: diffOt,
+      diffReg: diffReg, diffOt: diffOt, diffOt2: diffOt2,
       gross: gross, contrib401k: contrib401k, preTaxTotal: preTaxTotal, postTaxTotal: postTaxTotal,
       ssMedicareBase: ssMedicareBase, federalTaxableBase: federalTaxableBase,
       ss: ss, medicare: medicare, federal: federal,
@@ -148,8 +151,9 @@
     if (num(cfg.holHours) > 0) lineItems.push(['HOL (' + cfg.holHours + 'h × ' + formatUSD(r.holRate) + ')', r.payHol]);
     if (num(cfg.wrkHolHours) > 0) lineItems.push(['WRK-HOL (' + cfg.wrkHolHours + 'h × ' + formatUSD(r.wrkHolRate) + ')', r.payWrkHol]);
     if (num(cfg.lunchPenaltyHours) > 0) lineItems.push(['LUNCH-P (' + cfg.lunchPenaltyHours + 'h × ' + formatUSD(r.otRate) + ')', r.payLunch]);
-    lineItems.push(['Shift 2 REG diff', r.diffReg]);
-    lineItems.push(['Shift 2 OT diff', r.diffOt]);
+    if (r.diffReg > 0) lineItems.push(['Shift 2 REG diff (' + (num(cfg.regHours) + num(cfg.holHours)) + 'h × ' + formatUSD(r.s2RegDiff) + ')', r.diffReg]);
+    if (r.diffOt > 0) lineItems.push(['Shift 2 OT diff (' + (num(cfg.otHours) + num(cfg.wrkHolHours) + num(cfg.lunchPenaltyHours)) + 'h × ' + formatUSD(r.s2OtDiff) + ')', r.diffOt]);
+    if (r.diffOt2 > 0) lineItems.push(['Shift 2 DT diff (' + cfg.ot2Hours + 'h × ' + formatUSD(r.s2Ot2Diff) + ')', r.diffOt2]);
 
     return h(React.Fragment, null,
       h('div', { style: S.gaugeCard },
@@ -300,11 +304,13 @@
         !editingRules ? h('div', null,
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Taxa base'), h('span', { style: S.lineItemValue }, formatUSD(cfg.baseRate) + '/h')),
           h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 REG diff'), h('span', { style: S.lineItemValue }, formatUSD(cfg.shift2RegDiff) + '/h')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 OT diff'), h('span', { style: S.lineItemValue }, formatUSD(cfg.shift2OtDiff) + '/h'))
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 OT diff (OT1.5)'), h('span', { style: S.lineItemValue }, formatUSD(cfg.shift2OtDiff) + '/h')),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Shift 2 DT diff (OT2.0)'), h('span', { style: S.lineItemValue }, formatUSD(num(cfg.shift2Ot2Diff, 1.02)) + '/h'))
         ) : h('div', { style: S.formBox },
-          h(NumField, { label: 'TAXA BASE ($/h) — atualize quando mudar', value: cfg.baseRate, onChange: function (v) { update('baseRate', v); } }),
+          h(NumField, { label: 'TAXA BASE ($/h) — atualize quando mudar de faixa', value: cfg.baseRate, onChange: function (v) { update('baseRate', v); } }),
           h(NumField, { label: 'SHIFT 2 REG DIFF ($/h)', value: cfg.shift2RegDiff, onChange: function (v) { update('shift2RegDiff', v); } }),
-          h(NumField, { label: 'SHIFT 2 OT DIFF ($/h)', value: cfg.shift2OtDiff, onChange: function (v) { update('shift2OtDiff', v); } }),
+          h(NumField, { label: 'SHIFT 2 OT DIFF ($/h) — OT1.5, WRK-HOL, LUNCH-P', value: cfg.shift2OtDiff, onChange: function (v) { update('shift2OtDiff', v); } }),
+          h(NumField, { label: 'SHIFT 2 DT DIFF ($/h) — OT2.0 (Double Time)', value: num(cfg.shift2Ot2Diff, 1.02), onChange: function (v) { update('shift2Ot2Diff', v); } }),
           h('button', { style: S.ghostBtn, onClick: resetDefaults }, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
         )
       ),
