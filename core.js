@@ -266,55 +266,7 @@ var h = React.createElement;
     return hashPin(pin).then(function (h) { return h === storedHash; });
   }
 
-  var WEBAUTHN_SUPPORTED = !!(window.PublicKeyCredential && navigator.credentials);
-
-  function bufToBase64(buf) {
-    return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
-  }
-  function base64ToBuf(b64) {
-    var bin = atob(b64);
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return bytes;
-  }
-
-  // Cria uma credencial biométrica local (Face ID / Touch ID / fingerprint do Android)
-  function enrollBiometric() {
-    if (!WEBAUTHN_SUPPORTED) return Promise.reject(new Error('WebAuthn não suportado neste navegador.'));
-    var challenge = crypto.getRandomValues(new Uint8Array(32));
-    var userId = crypto.getRandomValues(new Uint8Array(16));
-    return navigator.credentials.create({
-      publicKey: {
-        challenge: challenge,
-        rp: { name: '401k Tracker' },
-        user: { id: userId, name: 'vinicius', displayName: 'Vinicius' },
-        pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
-        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
-        timeout: 60000,
-        attestation: 'none'
-      }
-    }).then(function (cred) {
-      return bufToBase64(cred.rawId);
-    });
-  }
-
-  // Solicita a verificação biométrica de uma credencial já cadastrada
-  function verifyBiometric(credentialIdB64) {
-    if (!WEBAUTHN_SUPPORTED) return Promise.reject(new Error('WebAuthn não suportado neste navegador.'));
-    var challenge = crypto.getRandomValues(new Uint8Array(32));
-    var allowCredentials = [];
-    if (credentialIdB64) {
-      allowCredentials.push({ id: base64ToBuf(credentialIdB64), type: 'public-key' });
-    }
-    return navigator.credentials.get({
-      publicKey: {
-        challenge: challenge,
-        allowCredentials: allowCredentials,
-        userVerification: 'required',
-        timeout: 60000
-      }
-    }).then(function () { return true; });
-  }
+  var WEBAUTHN_SUPPORTED = false; // WebAuthn removido — usamos token de sessão local
 
   /* ---------- Icons ---------- */
   var ICON_PATHS = {
