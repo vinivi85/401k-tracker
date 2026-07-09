@@ -35,13 +35,13 @@
     return h('div', { style: S.pinDots }, dots);
   }
 
-  var PIN_LENGTH = 6;
+  var PIN_LENGTH = 4;
 
   /* ---------- Tela de configuração inicial do PIN ---------- */
   function PinSetup(props) {
     var onDone = props.onDone; // chamado com (lockConfig) quando termina
 
-    var stepState = React.useState('create'); // 'create' | 'confirm'
+    var stepState = React.useState('create'); // 'create' | 'confirm' | 'biometric'
     var step = stepState[0], setStep = stepState[1];
 
     var firstPinState = React.useState('');
@@ -50,8 +50,14 @@
     var pinState = React.useState('');
     var pin = pinState[0], setPin = pinState[1];
 
+    var pinHashState = React.useState('');
+    var pinHash = pinHashState[0], setPinHash = pinHashState[1];
+
     var errorState = React.useState(false);
     var error = errorState[0], setError = errorState[1];
+
+    var bioStatusState = React.useState('');
+    var bioStatus = bioStatusState[0], setBioStatus = bioStatusState[1];
 
     function handleDigit(d) {
       if (pin.length >= PIN_LENGTH) return;
@@ -67,8 +73,14 @@
           }, 150);
         } else {
           if (next === firstPin) {
-            hashPin(next).then(function (h) {
-              onDone({ pinHash: h, biometricEnabled: false, credentialId: null });
+            hashPin(next).then(function (hash) {
+              setPinHash(hash);
+              if (WEBAUTHN_SUPPORTED) {
+                setPin('');
+                setStep('biometric');
+              } else {
+                onDone({ pinHash: hash, biometricEnabled: false, credentialId: null });
+              }
             });
           } else {
             setError(true);
@@ -88,9 +100,36 @@
       setError(false);
     }
 
+    function handleEnableBiometric() {
+      setBioStatus('aguardando...');
+      enrollBiometric().then(function (credId) {
+        onDone({ pinHash: pinHash, biometricEnabled: true, credentialId: credId });
+      }).catch(function (e) {
+        console.error('Falha ao ativar Face ID', e);
+        setBioStatus('Não foi possível ativar. Verifique as configurações do seu aparelho.');
+      });
+    }
+
+    function handleSkipBiometric() {
+      onDone({ pinHash: pinHash, biometricEnabled: false, credentialId: null });
+    }
+
+    if (step === 'biometric') {
+      return h('div', { style: S.lockScreen },
+        h(Icon, { name: 'faceid', size: 36, color: '#5EEAD4' }),
+        h('div', { style: S.lockTitle }, 'ATIVAR FACE ID / TOUCH ID?'),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6B7280', textAlign: 'center', maxWidth: 260, lineHeight: 1.6, marginBottom: 28 } },
+          'Abra o app com biometria sem precisar digitar o PIN. O PIN continua como backup.'
+        ),
+        bioStatus ? h('div', { style: { color: '#FBBF24', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginBottom: 16 } }, bioStatus) : null,
+        h('button', { style: Object.assign({}, S.submitBtn, { marginBottom: 12 }), onClick: handleEnableBiometric }, 'ATIVAR FACE ID / TOUCH ID'),
+        h('button', { style: { background: 'transparent', border: 'none', color: '#6B7280', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, cursor: 'pointer', padding: 8 }, onClick: handleSkipBiometric }, 'AGORA NÃO')
+      );
+    }
+
     return h('div', { style: S.lockScreen },
       h(Icon, { name: 'lock', size: 28, color: '#5EEAD4' }),
-      h('div', { style: S.lockTitle }, step === 'create' ? 'CRIE UM PIN DE ACESSO' : 'CONFIRME O PIN'),
+      h('div', { style: S.lockTitle }, step === 'create' ? 'CRIE UM PIN DE 4 DÍGITOS' : 'CONFIRME O PIN'),
       h(PinDots, { length: pin.length, max: PIN_LENGTH, error: error }),
       error ? h('div', { style: S.lockError }, 'PINs não coincidem, tente de novo') : null,
       h(Keypad, { onDigit: handleDigit, onDelete: handleDelete })
