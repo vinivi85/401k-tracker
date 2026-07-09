@@ -119,7 +119,8 @@
         h(Icon, { name: 'faceid', size: 36, color: '#5EEAD4' }),
         h('div', { style: S.lockTitle }, 'ATIVAR FACE ID / TOUCH ID?'),
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6B7280', textAlign: 'center', maxWidth: 260, lineHeight: 1.6, marginBottom: 28 } },
-          'Abra o app com biometria sem precisar digitar o PIN. O PIN continua como backup.'
+          'Abra o app com Face ID sem digitar o PIN. O PIN continua como backup.\n\n' +
+          'No iPhone/iPad: o iOS vai pedir sua senha do Apple ID uma vez para criar a Passkey — isso é normal e necessário para o Face ID funcionar em PWAs.'
         ),
         bioStatus ? h('div', { style: { color: '#FBBF24', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginBottom: 16 } }, bioStatus) : null,
         h('button', { style: Object.assign({}, S.submitBtn, { marginBottom: 12 }), onClick: handleEnableBiometric }, 'ATIVAR FACE ID / TOUCH ID'),
@@ -281,11 +282,18 @@
             h('span', { style: S.cardSub }, WEBAUTHN_SUPPORTED ? (lockConfig.biometricEnabled ? 'ATIVADO' : 'DESATIVADO') : 'INDISPONÍVEL')
           ),
           !WEBAUTHN_SUPPORTED ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6B7280' } }, 'Este navegador/dispositivo não suporta biometria web.')
-            : h('button', {
-                style: lockConfig.biometricEnabled ? Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D', background: 'transparent' }) : S.addBtn,
-                onClick: handleToggleBiometric,
-                disabled: saving
-              }, saving ? 'AGUARDANDO...' : (lockConfig.biometricEnabled ? 'DESATIVAR' : 'ATIVAR FACE/TOUCH ID')),
+            : h('div', null,
+                h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', lineHeight: 1.6, marginBottom: 10 } },
+                  lockConfig.biometricEnabled
+                    ? 'Face ID/Touch ID ativo. Para desativar, toque abaixo.'
+                    : 'No iPhone: o iOS pedirá sua senha do Apple ID uma vez para criar a Passkey no iCloud — é o mecanismo padrão do iOS para Face ID em apps web.'
+                ),
+                h('button', {
+                  style: lockConfig.biometricEnabled ? Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D', background: 'transparent' }) : S.addBtn,
+                  onClick: handleToggleBiometric,
+                  disabled: saving
+                }, saving ? 'AGUARDANDO...' : (lockConfig.biometricEnabled ? 'DESATIVAR' : 'ATIVAR FACE/TOUCH ID'))
+              ),
           status ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4', marginTop: 10 } }, status) : null
         ),
 
