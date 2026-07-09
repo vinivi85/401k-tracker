@@ -417,7 +417,10 @@
       });
     }
 
-    var entryRows = sorted.slice().reverse().map(function (e, idx) {
+    var expandedState = React.useState(false);
+    var expanded = expandedState[0], setExpanded = expandedState[1];
+
+    var allEntryRows = sorted.slice().reverse().map(function (e, idx) {
       var sortedIdx = sorted.length - 1 - idx;
       var prevEntry = sortedIdx > 0 ? sorted[sortedIdx - 1] : null;
       var diff = prevEntry ? e.balance - prevEntry.balance : 0;
@@ -429,6 +432,10 @@
         h('button', { style: S.deleteBtn, onClick: function () { handleDelete(e.id); } }, h(Icon, { name: 'trash', size: 13 }))
       );
     });
+
+    var PREVIEW_COUNT = 3;
+    var visibleRows = expanded ? allEntryRows : allEntryRows.slice(0, PREVIEW_COUNT);
+    var hasMore = allEntryRows.length > PREVIEW_COUNT;
 
     var trackerSyncBadge;
     if (trackerSyncStatus === 'syncing') trackerSyncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
@@ -479,11 +486,16 @@
       ),
 
       h('div', { style: S.card },
-        h('div', { style: S.cardHeader },
+        h('div', { style: S.walletCardHeader, onClick: function () { if (hasMore) setExpanded(!expanded); } },
           h('span', { style: S.cardTitle }, 'REGISTRO DE LEITURAS 401K'),
-          h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
-            h(Icon, { name: 'plus', size: 14 }),
-            showForm ? 'CANCELAR' : 'NOVA LEITURA'
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+            h('button', { style: S.addBtn, onClick: function (ev) { ev.stopPropagation(); setShowForm(!showForm); } },
+              h(Icon, { name: 'plus', size: 14 }),
+              showForm ? 'CANCELAR' : 'NOVA LEITURA'
+            ),
+            hasMore ? h('div', { style: { color: '#4B5563', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
+              h(Icon, { name: 'chevron', size: 16 })
+            ) : null
           )
         ),
 
@@ -500,7 +512,12 @@
           h('button', { style: S.submitBtn, onClick: handleAdd }, 'REGISTRAR LEITURA')
         ) : null,
 
-        h('div', { style: S.entryList }, entryRows)
+        h('div', { style: S.entryList }, visibleRows),
+
+        hasMore && !expanded ? h('div', {
+          style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', padding: '8px 0 2px', cursor: 'pointer' },
+          onClick: function () { setExpanded(true); }
+        }, '+ ' + (allEntryRows.length - PREVIEW_COUNT) + ' leituras anteriores') : null
       ),
 
       h(WalletsSection, {
