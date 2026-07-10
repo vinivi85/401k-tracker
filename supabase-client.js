@@ -135,7 +135,7 @@ var SupabaseAPI = {
       return resp.json();
     }).then(function (rows) {
       return rows.map(function (r) {
-        return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), type: r.type };
+        return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, type: r.type };
       });
     });
   },
@@ -146,14 +146,15 @@ var SupabaseAPI = {
       headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
       body: JSON.stringify({
         pay_date: entry.date, period_start: entry.periodStart, period_end: entry.periodEnd,
-        amount: entry.amount, type: entry.type, user_id: currentUserId()
+        amount: entry.amount, type: entry.type, user_id: currentUserId(),
+        gross: entry.gross != null ? entry.gross : null
       })
     }).then(function (resp) {
       if (!resp.ok) throw new Error('Supabase insert failed: ' + resp.status);
       return resp.json();
     }).then(function (rows) {
       var r = rows[0];
-      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), type: r.type };
+      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, type: r.type };
     });
   },
 
