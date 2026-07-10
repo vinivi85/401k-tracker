@@ -1,9 +1,7 @@
 /* =========================================================
-   TAB 4: PAY — holerites (líquido) agrupados por mês
-   Fonte de verdade: Supabase (tabela pay_entries).
-   Cache local (IndexedDB, via KEY_PAY_ENTRIES) é usado para abrir
-   instantâneo e funcionar offline; sincroniza com a nuvem sempre
-   que há rede disponível.
+   TAB 4: PAY — holerites agrupados por mês
+   Campos: net (amount), gross (opcional), type, date, period
+   Calcula: % redução por período, W-2 estimado, totais por mês
    ========================================================= */
 (function () {
   'use strict';
@@ -11,22 +9,21 @@
 
   var MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
-  /* ---------- Seed local (usado só se nunca houve sync nem cache) ---------- */
   var initialPayEntries = [
-    { id: 'p1',  date: '2026-01-09', periodStart: '2025-12-22', periodEnd: '2026-01-04', amount: 912.87,   type: 'Regular payroll run' },
-    { id: 'p2',  date: '2026-01-23', periodStart: '2026-01-05', periodEnd: '2026-01-18', amount: 3302.13,  type: 'Regular payroll run' },
-    { id: 'p3',  date: '2026-02-06', periodStart: '2026-01-19', periodEnd: '2026-02-01', amount: 2885.24,  type: 'Regular payroll run' },
-    { id: 'p4',  date: '2026-02-20', periodStart: '2026-02-02', periodEnd: '2026-02-15', amount: 2549.26,  type: 'Regular payroll run' },
-    { id: 'p5',  date: '2026-02-24', periodStart: '2026-02-24', periodEnd: '2026-02-24', amount: 177.81,   type: 'Bonus payment' },
-    { id: 'p6',  date: '2026-03-06', periodStart: '2026-02-16', periodEnd: '2026-03-01', amount: 3034.60,  type: 'Regular payroll run' },
-    { id: 'p7',  date: '2026-03-20', periodStart: '2026-03-02', periodEnd: '2026-03-15', amount: 2677.92,  type: 'Regular payroll run' },
-    { id: 'p8',  date: '2026-04-02', periodStart: '2026-03-16', periodEnd: '2026-03-29', amount: 1952.18,  type: 'Regular payroll run' },
-    { id: 'p9',  date: '2026-04-17', periodStart: '2026-03-30', periodEnd: '2026-04-12', amount: 2705.82,  type: 'Regular payroll run' },
-    { id: 'p10', date: '2026-05-01', periodStart: '2026-04-13', periodEnd: '2026-04-26', amount: 2642.23,  type: 'Regular payroll run' },
-    { id: 'p11', date: '2026-05-15', periodStart: '2026-04-27', periodEnd: '2026-05-10', amount: 2727.79,  type: 'Regular payroll run' },
-    { id: 'p12', date: '2026-05-29', periodStart: '2026-05-11', periodEnd: '2026-05-24', amount: 2511.76,  type: 'Regular payroll run' },
-    { id: 'p13', date: '2026-06-12', periodStart: '2026-05-25', periodEnd: '2026-06-07', amount: 2144.22,  type: 'Regular payroll run' },
-    { id: 'p14', date: '2026-06-26', periodStart: '2026-06-08', periodEnd: '2026-06-21', amount: 2008.87,  type: 'Regular payroll run' }
+    { id: 'p1',  date: '2026-01-09', periodStart: '2025-12-22', periodEnd: '2026-01-04', amount: 912.87,  gross: null, type: 'Regular payroll run' },
+    { id: 'p2',  date: '2026-01-23', periodStart: '2026-01-05', periodEnd: '2026-01-18', amount: 3302.13, gross: null, type: 'Regular payroll run' },
+    { id: 'p3',  date: '2026-02-06', periodStart: '2026-01-19', periodEnd: '2026-02-01', amount: 2885.24, gross: null, type: 'Regular payroll run' },
+    { id: 'p4',  date: '2026-02-20', periodStart: '2026-02-02', periodEnd: '2026-02-15', amount: 2549.26, gross: null, type: 'Regular payroll run' },
+    { id: 'p5',  date: '2026-02-24', periodStart: '2026-02-24', periodEnd: '2026-02-24', amount: 177.81,  gross: null, type: 'Bonus payment' },
+    { id: 'p6',  date: '2026-03-06', periodStart: '2026-02-16', periodEnd: '2026-03-01', amount: 3034.60, gross: null, type: 'Regular payroll run' },
+    { id: 'p7',  date: '2026-03-20', periodStart: '2026-03-02', periodEnd: '2026-03-15', amount: 2677.92, gross: null, type: 'Regular payroll run' },
+    { id: 'p8',  date: '2026-04-02', periodStart: '2026-03-16', periodEnd: '2026-03-29', amount: 1952.18, gross: null, type: 'Regular payroll run' },
+    { id: 'p9',  date: '2026-04-17', periodStart: '2026-03-30', periodEnd: '2026-04-12', amount: 2705.82, gross: null, type: 'Regular payroll run' },
+    { id: 'p10', date: '2026-05-01', periodStart: '2026-04-13', periodEnd: '2026-04-26', amount: 2642.23, gross: null, type: 'Regular payroll run' },
+    { id: 'p11', date: '2026-05-15', periodStart: '2026-04-27', periodEnd: '2026-05-10', amount: 2727.79, gross: null, type: 'Regular payroll run' },
+    { id: 'p12', date: '2026-05-29', periodStart: '2026-05-11', periodEnd: '2026-05-24', amount: 2511.76, gross: null, type: 'Regular payroll run' },
+    { id: 'p13', date: '2026-06-12', periodStart: '2026-05-25', periodEnd: '2026-06-07', amount: 2144.22, gross: null, type: 'Regular payroll run' },
+    { id: 'p14', date: '2026-06-26', periodStart: '2026-06-08', periodEnd: '2026-06-21', amount: 2008.87, gross: null, type: 'Regular payroll run' }
   ];
 
   function loadCachedPayEntries() {
@@ -40,38 +37,40 @@
     return initialPayEntries;
   }
 
-  function cachePayEntries(list) {
-    saveJSON(KEY_PAY_ENTRIES, list);
-  }
+  function cachePayEntries(list) { saveJSON(KEY_PAY_ENTRIES, list); }
 
-  function monthKey(iso) {
-    return iso.slice(0, 7); // 'YYYY-MM'
-  }
-
+  function monthKey(iso) { return iso.slice(0, 7); }
   function monthLabel(key) {
     var parts = key.split('-');
-    var y = parts[0], m = parseInt(parts[1], 10) - 1;
-    return MONTH_NAMES[m] + ' ' + y.slice(2);
+    return MONTH_NAMES[parseInt(parts[1], 10) - 1] + ' ' + parts[0].slice(2);
+  }
+
+  function reductionPct(gross, net) {
+    if (!gross || gross <= 0) return null;
+    return ((gross - net) / gross) * 100;
   }
 
   function PayTab() {
     var state = React.useState(loadCachedPayEntries());
     var entries = state[0], setEntries = state[1];
 
-    var syncState = React.useState('syncing'); // 'syncing' | 'synced' | 'offline'
+    var syncState = React.useState('syncing');
     var syncStatus = syncState[0], setSyncStatus = syncState[1];
 
     var formState = React.useState(false);
     var showForm = formState[0], setShowForm = formState[1];
 
-    var dateState = React.useState('');
-    var newDate = dateState[0], setNewDate = dateState[1];
+    var newDateState = React.useState('');
+    var newDate = newDateState[0], setNewDate = newDateState[1];
 
-    var amountState = React.useState('');
-    var newAmount = amountState[0], setNewAmount = amountState[1];
+    var newNetState = React.useState('');
+    var newNet = newNetState[0], setNewNet = newNetState[1];
 
-    var typeState = React.useState('Regular payroll run');
-    var newType = typeState[0], setNewType = typeState[1];
+    var newGrossState = React.useState('');
+    var newGross = newGrossState[0], setNewGross = newGrossState[1];
+
+    var newTypeState = React.useState('Regular payroll run');
+    var newType = newTypeState[0], setNewType = newTypeState[1];
 
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
@@ -79,70 +78,53 @@
     var savingState = React.useState(false);
     var saving = savingState[0], setSaving = savingState[1];
 
-    /* ---------- Ao montar: busca a versão mais recente no Supabase ---------- */
     React.useEffect(function () {
       var cancelled = false;
       SupabaseAPI.fetchPayEntries().then(function (remote) {
         if (cancelled) return;
-        if (remote && remote.length > 0) {
-          setEntries(remote);
-          cachePayEntries(remote);
-        }
+        if (remote && remote.length > 0) { setEntries(remote); cachePayEntries(remote); }
         setSyncStatus('synced');
-      }).catch(function (e) {
-        console.error('Supabase fetch falhou, usando cache local', e);
-        setSyncStatus('offline');
-      });
+      }).catch(function () { setSyncStatus('offline'); });
       return function () { cancelled = true; };
     }, []);
 
     function handleAdd() {
       setError('');
       if (!newDate) { setError('Selecione a data do pagamento.'); return; }
-      var amt = parseFloat(newAmount);
-      if (!newAmount || isNaN(amt)) { setError('Informe um valor líquido válido.'); return; }
+      var net = parseFloat(newNet);
+      if (!newNet || isNaN(net)) { setError('Informe o valor líquido (NET).'); return; }
+      var gross = newGross ? parseFloat(newGross) : null;
+      if (newGross && (isNaN(gross) || gross < net)) { setError('Gross não pode ser menor que o líquido.'); return; }
 
-      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: amt, type: newType || 'Regular payroll run' };
+      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: net, gross: gross, type: newType || 'Regular payroll run' };
       setSaving(true);
 
       SupabaseAPI.insertPayEntry(draft).then(function (created) {
         var next = entries.concat([created]);
-        setEntries(next);
-        cachePayEntries(next);
-        setNewDate('');
-        setNewAmount('');
-        setNewType('Regular payroll run');
-        setShowForm(false);
-        setSaving(false);
-      }).catch(function (e) {
-        console.error('Falha ao salvar na nuvem', e);
-        // fallback: salva só localmente com id temporário, pra não perder o dado
+        setEntries(next); cachePayEntries(next);
+        setNewDate(''); setNewNet(''); setNewGross(''); setNewType('Regular payroll run');
+        setShowForm(false); setSaving(false);
+      }).catch(function () {
         var localEntry = Object.assign({ id: 'local-' + Date.now() }, draft);
         var next = entries.concat([localEntry]);
-        setEntries(next);
-        cachePayEntries(next);
+        setEntries(next); cachePayEntries(next);
         setSyncStatus('offline');
-        setError('Sem conexão com a nuvem — salvo só neste dispositivo por enquanto.');
+        setError('Sem conexão — salvo só neste dispositivo por enquanto.');
         setSaving(false);
       });
     }
 
     function handleDelete(id) {
       var next = entries.filter(function (e) { return e.id !== id; });
-      setEntries(next);
-      cachePayEntries(next);
-      if (String(id).indexOf('local-') === 0) return; // nunca existiu na nuvem
-      SupabaseAPI.deletePayEntry(id).catch(function (e) {
-        console.error('Falha ao deletar na nuvem', e);
-        setSyncStatus('offline');
-      });
+      setEntries(next); cachePayEntries(next);
+      if (String(id).indexOf('local-') === 0) return;
+      SupabaseAPI.deletePayEntry(id).catch(function () { setSyncStatus('offline'); });
     }
 
     var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
 
     /* ---------- Agrupa por mês ---------- */
-    var groups = {};
-    var order = [];
+    var groups = {}, order = [];
     sorted.forEach(function (e) {
       var key = monthKey(e.date);
       if (!groups[key]) { groups[key] = []; order.push(key); }
@@ -152,30 +134,51 @@
 
     var monthSummaries = order.map(function (key) {
       var items = groups[key];
-      var total = items.reduce(function (sum, e) { return sum + e.amount; }, 0);
-      return { key: key, items: items, total: total, count: items.length };
+      var totalNet = items.reduce(function (s, e) { return s + e.amount; }, 0);
+      var totalGross = items.every(function (e) { return e.gross != null; })
+        ? items.reduce(function (s, e) { return s + e.gross; }, 0) : null;
+      return { key: key, items: items, total: totalNet, totalGross: totalGross, count: items.length };
     });
 
-    var grandTotal = monthSummaries.reduce(function (sum, m) { return sum + m.total; }, 0);
-    var avgMonth = monthSummaries.length ? grandTotal / monthSummaries.length : 0;
+    var grandNet = monthSummaries.reduce(function (s, m) { return s + m.total; }, 0);
+    var avgMonth = monthSummaries.length ? grandNet / monthSummaries.length : 0;
 
-    var chartData = monthSummaries.map(function (m) {
-      return { label: monthLabel(m.key), value: m.total };
-    });
+    /* W-2 estimado = soma de todos os gross do ano corrente que existem */
+    var currentYear = new Date().getFullYear().toString();
+    var w2Entries = sorted.filter(function (e) { return e.date && e.date.startsWith(currentYear) && e.gross != null; });
+    var w2Gross = w2Entries.reduce(function (s, e) { return s + e.gross; }, 0);
+    var w2Net   = w2Entries.reduce(function (s, e) { return s + e.amount; }, 0);
+    var w2Reduction = w2Gross > 0 ? ((w2Gross - w2Net) / w2Gross) * 100 : null;
 
-    /* ---------- Renderiza do mês mais recente para o mais antigo ---------- */
+    var chartData = monthSummaries.map(function (m) { return { label: monthLabel(m.key), value: m.total }; });
+
+    /* ---------- Cards por mês ---------- */
     var monthCards = monthSummaries.slice().reverse().map(function (m) {
+      var mReduction = m.totalGross ? reductionPct(m.totalGross, m.total) : null;
+
       var rows = m.items.slice().reverse().map(function (e) {
         var rangeLabel = e.periodStart === e.periodEnd
           ? formatDateLabel(e.periodStart)
           : (formatDateLabel(e.periodStart) + '–' + formatDateLabel(e.periodEnd));
+        var pct = reductionPct(e.gross, e.amount);
+        var isBonus = e.type === 'Bonus payment';
+
         return h('div', { key: e.id, style: S.entryRow },
           h('div', { style: S.entryDate }, formatDateLabel(e.date)),
           h('div', null,
-            h('div', { style: S.entryBalance }, formatUSD(e.amount)),
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 } }, e.type === 'Bonus payment' ? 'BÔNUS · ' + rangeLabel : rangeLabel)
+            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 6 } },
+              h('div', { style: S.entryBalance }, formatUSD(e.amount)),
+              e.gross != null ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'de ' + formatUSD(e.gross)) : null
+            ),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 } },
+              (isBonus ? 'BÔNUS · ' : '') + rangeLabel
+            )
           ),
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: e.type === 'Bonus payment' ? '#FBBF24' : '#4B5563', textAlign: 'right' } }, e.type === 'Bonus payment' ? 'BÔNUS' : ''),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textAlign: 'right' } },
+            pct != null
+              ? h('span', { style: { color: '#FB7185' } }, '-' + pct.toFixed(1) + '%')
+              : h('span', { style: { color: isBonus ? '#FBBF24' : '#4B5563' } }, isBonus ? 'BÔNUS' : '')
+          ),
           h('button', { style: S.deleteBtn, onClick: function () { handleDelete(e.id); } }, h(Icon, { name: 'trash', size: 13 }))
         );
       });
@@ -186,28 +189,32 @@
           h('span', { style: S.cardSub }, m.count + ' pagamento' + (m.count > 1 ? 's' : ''))
         ),
         h('div', { style: S.totalRow },
-          h('span', null, 'TOTAL LÍQUIDO'),
+          h('span', null, 'LÍQUIDO'),
           h('span', { style: { color: '#5EEAD4' } }, formatUSD(m.total))
         ),
+        m.totalGross ? h('div', { style: S.totalRow },
+          h('span', null, 'GROSS'),
+          h('div', { style: { textAlign: 'right' } },
+            h('div', { style: { color: '#9CA3AF', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 } }, formatUSD(m.totalGross)),
+            mReduction ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FB7185' } }, 'redução ' + mReduction.toFixed(1) + '%') : null
+          )
+        ) : null,
         h('div', { style: S.entryList }, rows)
       );
     });
 
     var syncBadge;
-    if (syncStatus === 'syncing') {
-      syncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
-    } else if (syncStatus === 'synced') {
-      syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
-    } else {
-      syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
-    }
+    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
+    else if (syncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
+    else syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
 
     return h(React.Fragment, null,
+
+      /* ---------- Card principal: net total ---------- */
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'TOTAL RECEBIDO (LÍQUIDO)'),
-        h('div', { style: S.gaugeValue }, formatUSD(grandTotal)),
-        h('div', { style: S.gaugeDate }, monthSummaries.length + ' meses registrados · MÉDIA ' + formatUSD(avgMonth) + '/MÊS'),
-
+        h('div', { style: S.gaugeValue }, formatUSD(grandNet)),
+        h('div', { style: S.gaugeDate }, monthSummaries.length + ' meses · MÉDIA ' + formatUSD(avgMonth) + '/MÊS'),
         h('div', { style: S.deltaRow },
           h('div', { style: S.deltaBox },
             h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS'),
@@ -217,11 +224,40 @@
           ),
           h('div', { style: S.deltaDivider }),
           h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'TOTAL DE PAGAMENTOS'),
+            h('div', { style: S.deltaLabel }, 'Nº DE PAGAMENTOS'),
             h('div', { style: Object.assign({}, S.deltaValue, { color: '#F9FAFB' }) }, String(sorted.length))
           )
         )
       ),
+
+      /* ---------- Card W-2 / gross anual ---------- */
+      w2Gross > 0 ? h('div', { style: S.card },
+        h('div', { style: S.cardHeader },
+          h('span', { style: S.cardTitle }, 'W-2 ESTIMADO ' + currentYear),
+          h('span', { style: S.cardSub }, w2Entries.length + ' períodos com gross')
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'GROSS YTD'),
+          h('span', { style: { color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700 } }, formatUSD(w2Gross))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'NET YTD'),
+          h('span', { style: { color: '#5EEAD4' } }, formatUSD(w2Net))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'TOTAL DESCONTADO'),
+          h('span', { style: { color: '#FB7185' } }, formatUSD(w2Gross - w2Net))
+        ),
+        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #134E4A', paddingTop: 10, marginTop: 4 }) },
+          h('span', null, 'TAXA EFETIVA DE REDUÇÃO'),
+          h('span', { style: { color: '#FBBF24', fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700 } },
+            w2Reduction.toFixed(2) + '%'
+          )
+        ),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
+          'Soma de impostos + deduções ÷ gross. Registre o gross em cada pagamento para manter atualizado.'
+        )
+      ) : null,
 
       h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, margin: '10px 0 -4px' } }, syncBadge),
 
@@ -235,6 +271,7 @@
 
       monthCards,
 
+      /* ---------- Formulário de novo pagamento ---------- */
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'ADICIONAR PAGAMENTO'),
@@ -249,9 +286,19 @@
             h('input', { type: 'date', value: newDate, style: S.input, onChange: function (ev) { setNewDate(ev.target.value); } })
           ),
           h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'VALOR LÍQUIDO (USD)'),
-            h('input', { type: 'number', step: '0.01', placeholder: '2008.87', value: newAmount, style: S.input, onChange: function (ev) { setNewAmount(ev.target.value); } })
+            h('label', { style: S.formLabel }, 'GROSS (BRUTO) — opcional mas recomendado'),
+            h('input', { type: 'number', step: '0.01', placeholder: 'ex: 3120.50', value: newGross, style: S.input, onChange: function (ev) { setNewGross(ev.target.value); } })
           ),
+          h('div', { style: S.formRow },
+            h('label', { style: S.formLabel }, 'NET (LÍQUIDO)'),
+            h('input', { type: 'number', step: '0.01', placeholder: 'ex: 2008.87', value: newNet, style: S.input, onChange: function (ev) { setNewNet(ev.target.value); } })
+          ),
+          /* Preview de redução em tempo real */
+          newGross && newNet && parseFloat(newGross) > 0 && parseFloat(newNet) > 0 && parseFloat(newGross) >= parseFloat(newNet)
+            ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#FBBF24', marginBottom: 8 } },
+                'Redução: ' + reductionPct(parseFloat(newGross), parseFloat(newNet)).toFixed(2) + '% · Desconto: ' + formatUSD(parseFloat(newGross) - parseFloat(newNet))
+              )
+            : null,
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'TIPO'),
             h('select', { value: newType, style: S.input, onChange: function (ev) { setNewType(ev.target.value); } },
