@@ -152,7 +152,7 @@ var SupabaseAPI = {
       return resp.json();
     }).then(function (rows) {
       return rows.map(function (r) {
-        return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, type: r.type };
+        return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null, type: r.type };
       });
     });
   },
@@ -164,14 +164,15 @@ var SupabaseAPI = {
       body: JSON.stringify({
         pay_date: entry.date, period_start: entry.periodStart, period_end: entry.periodEnd,
         amount: entry.amount, type: entry.type, user_id: currentUserId(),
-        gross: entry.gross != null ? entry.gross : null
+        gross: entry.gross != null ? entry.gross : null,
+        contrib401k: entry.contrib401k != null ? entry.contrib401k : null
       })
     }).then(function (resp) {
       if (!resp.ok) throw new Error('Supabase insert failed: ' + resp.status);
       return resp.json();
     }).then(function (rows) {
       var r = rows[0];
-      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, type: r.type };
+      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null, type: r.type };
     });
   },
 
@@ -193,7 +194,7 @@ var SupabaseAPI = {
       return resp.json();
     }).then(function (rows) {
       var r = rows[0];
-      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, type: r.type };
+      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null, type: r.type };
     });
   },
 
