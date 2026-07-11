@@ -250,7 +250,7 @@
         ),
 
         h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'Profit sharing AA ('),
+          h('span', { style: S.lineItemLabel }, '401K AA Contrib ('),
           h('span', null,
             h('input', {
               type: 'number', step: '0.01', value: num(cfg.profitSharingPct, 5),
