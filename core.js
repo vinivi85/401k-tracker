@@ -35,7 +35,7 @@ var h = React.createElement;
     shift2Ot2Diff: 1.02,     // Shift 2 DT diff — específico para horas OT2.0 (Double Time)
     contrib401kPct: 4,
     matchLimitPct: 4,            // limite do match 1:1 da empresa (%)
-    profitSharingPct: 5,         // contribuição automática AA — fixo independente do aporte (%)
+    profitSharingPct: 5,         // 401K AA Contrib — contribuição automática AA (% editável)
     ssRatePct: 6.2,
     medicareRatePct: 1.45,
     fedWithholdingPct: 1.2316,  // efetivo aproximado, editável (varia bastante com o gross)
