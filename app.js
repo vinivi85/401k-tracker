@@ -31,7 +31,7 @@
     var savedTab = 'tracker';
     try {
       var rawTab = window.__dbCache[KEY_ACTIVE_TAB];
-      if (rawTab === 'tracker' || rawTab === 'paycheck' || rawTab === 'projection' || rawTab === 'pay') {
+      if (rawTab === 'tracker' || rawTab === 'paycheck' || rawTab === 'projection' || rawTab === 'pay' || rawTab === 'config') {
         savedTab = rawTab;
       }
     } catch (e) {}
@@ -121,17 +121,19 @@
     }
 
     var TABS = [
-      { id: 'tracker', label: 'TRACKER', icon: 'gauge' },
-      { id: 'paycheck', label: 'PAYCHECK', icon: 'dollar' },
-      { id: 'pay', label: 'PAY', icon: 'receipt' },
-      { id: 'projection', label: 'PROJEÇÃO', icon: 'chart' }
+      { id: 'tracker',    label: 'TRACKER',   icon: 'gauge'   },
+      { id: 'paycheck',   label: 'PAYCHECK',  icon: 'dollar'  },
+      { id: 'pay',        label: 'PAY',       icon: 'receipt' },
+      { id: 'projection', label: 'PROJEÇÃO',  icon: 'chart'   },
+      { id: 'config',     label: 'CONFIG',    icon: 'settings'}
     ];
 
     var content;
-    if (activeTab === 'tracker') content = h(window.TrackerTab);
-    else if (activeTab === 'paycheck') content = h(window.PaycheckTab);
-    else if (activeTab === 'pay') content = h(window.PayTab);
-    else content = h(window.ProjectionTab);
+    if (activeTab === 'tracker')    content = h(window.TrackerTab);
+    else if (activeTab === 'paycheck')  content = h(window.PaycheckTab);
+    else if (activeTab === 'pay')       content = h(window.PayTab);
+    else if (activeTab === 'projection') content = h(window.ProjectionTab);
+    else content = h(window.ConfigTab);
 
     /* ---------- Ordem das telas: Login -> PIN -> App ---------- */
     if (!session) {
