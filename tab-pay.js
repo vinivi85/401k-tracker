@@ -54,6 +54,8 @@
     var e = props.entry;
     var onDelete = props.onDelete;
     var onUpdate = props.onUpdate;
+    var matchLimitPct = props.matchLimitPct || 4;
+    var profitSharingPct = props.profitSharingPct || 5;
 
     var editingState = React.useState(false);
     var editing = editingState[0], setEditing = editingState[1];
@@ -63,6 +65,9 @@
 
     var netValState = React.useState(String(e.amount));
     var netVal = netValState[0], setNetVal = netValState[1];
+
+    var contribValState = React.useState(e.contrib401k != null ? String(e.contrib401k) : '');
+    var contribVal = contribValState[0], setContribVal = contribValState[1];
 
     var savingState = React.useState(false);
     var saving = savingState[0], setSaving = savingState[1];
@@ -74,15 +79,24 @@
       setErr('');
       var net = parseFloat(netVal);
       var gross = grossVal ? parseFloat(grossVal) : null;
+      var contrib = contribVal ? parseFloat(contribVal) : null;
       if (isNaN(net) || net <= 0) { setErr('Net inválido.'); return; }
       if (gross != null && (isNaN(gross) || gross < net)) { setErr('Gross não pode ser menor que o net.'); return; }
       setSaving(true);
-      onUpdate(e.id, { gross: gross, amount: net }, function (ok, msg) {
+      onUpdate(e.id, { gross: gross, amount: net, contrib401k: contrib }, function (ok, msg) {
         setSaving(false);
         if (ok) setEditing(false);
         else setErr(msg || 'Falha ao salvar.');
       });
     }
+
+    /* Calcula match/profit sharing se tiver gross e contrib */
+    var gross = e.gross;
+    var contrib = e.contrib401k;
+    var companyMatch = (gross && contrib) ? gross * (Math.min(contrib / gross * 100, matchLimitPct) / 100) : null;
+    var profitSharing = gross ? gross * (profitSharingPct / 100) : null;
+    var companyTotal = (companyMatch != null && profitSharing != null) ? companyMatch + profitSharing : null;
+    var myContribPct = (gross && contrib) ? (contrib / gross * 100) : null;
 
     var rangeLabel = e.periodStart === e.periodEnd
       ? formatDateLabel(e.periodStart)
@@ -103,11 +117,18 @@
             h('input', { type: 'number', step: '0.01', value: netVal, style: S.input, onChange: function (ev) { setNetVal(ev.target.value); } })
           )
         ),
+        h('div', { style: { flex: 1 } },
+          h('label', { style: S.formLabel }, 'MINHA CONTRIB. 401K ($)'),
+          h('input', { type: 'number', step: '0.01', value: contribVal, style: S.input, placeholder: 'ex: 124.80', onChange: function (ev) { setContribVal(ev.target.value); } })
+        ),
+        grossVal && contribVal && parseFloat(grossVal) > 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4' } },
+          'Match empresa: ' + formatUSD(parseFloat(grossVal) * (Math.min(parseFloat(contribVal)/parseFloat(grossVal)*100, matchLimitPct)/100)) +
+          ' · Profit sharing: ' + formatUSD(parseFloat(grossVal) * profitSharingPct / 100)
+        ) : null,
         grossVal && netVal && parseFloat(grossVal) >= parseFloat(netVal)
           ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24' } },
-              'Redução: ' + reductionPct(parseFloat(grossVal), parseFloat(netVal)).toFixed(2) + '% · Desconto: ' + formatUSD(parseFloat(grossVal) - parseFloat(netVal))
-            )
-          : null,
+              'Redução: ' + reductionPct(parseFloat(grossVal), parseFloat(netVal)).toFixed(2) + '%'
+            ) : null,
         err ? h('div', { style: S.errorText }, err) : null,
         h('div', { style: { display: 'flex', gap: 8 } },
           h('button', { style: S.submitBtn, onClick: handleSave, disabled: saving }, saving ? 'SALVANDO...' : 'SALVAR'),
@@ -123,7 +144,11 @@
           h('div', { style: S.entryBalance }, formatUSD(e.amount)),
           e.gross != null ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'de ' + formatUSD(e.gross)) : null
         ),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 } },
+        contrib != null ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginTop: 1 } },
+          '401K: ' + formatUSD(contrib) + (myContribPct ? ' (' + myContribPct.toFixed(1) + '%)' : '') +
+          (companyTotal != null ? ' · empresa: ' + formatUSD(companyTotal) : '')
+        ) : null,
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 1 } },
           (isBonus ? 'BÔNUS · ' : '') + rangeLabel
         )
       ),
@@ -161,6 +186,9 @@
     var newTypeState = React.useState('Regular payroll run');
     var newType = newTypeState[0], setNewType = newTypeState[1];
 
+    var newContribState = React.useState('');
+    var newContrib = newContribState[0], setNewContrib = newContribState[1];
+
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
 
@@ -184,14 +212,15 @@
       if (!newNet || isNaN(net)) { setError('Informe o valor líquido (NET).'); return; }
       var gross = newGross ? parseFloat(newGross) : null;
       if (newGross && (isNaN(gross) || gross < net)) { setError('Gross não pode ser menor que o líquido.'); return; }
+      var contrib = newContrib ? parseFloat(newContrib) : null;
 
-      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: net, gross: gross, type: newType || 'Regular payroll run' };
+      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: net, gross: gross, contrib401k: contrib, type: newType || 'Regular payroll run' };
       setSaving(true);
 
       SupabaseAPI.insertPayEntry(draft).then(function (created) {
         var next = entries.concat([created]);
         setEntries(next); cachePayEntries(next);
-        setNewDate(''); setNewNet(''); setNewGross(''); setNewType('Regular payroll run');
+        setNewDate(''); setNewNet(''); setNewGross(''); setNewContrib(''); setNewType('Regular payroll run');
         setShowForm(false); setSaving(false);
       }).catch(function () {
         var localEntry = Object.assign({ id: 'local-' + Date.now() }, draft);
@@ -213,13 +242,13 @@
     function handleUpdate(id, fields, callback) {
       if (String(id).indexOf('local-') === 0) {
         var next = entries.map(function (e) {
-          return e.id === id ? Object.assign({}, e, { gross: fields.gross, amount: fields.amount }) : e;
+          return e.id === id ? Object.assign({}, e, { gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k }) : e;
         });
         setEntries(next); cachePayEntries(next);
         callback(true);
         return;
       }
-      SupabaseAPI.updatePayEntry(id, { gross: fields.gross, amount: fields.amount }).then(function (updated) {
+      SupabaseAPI.updatePayEntry(id, { gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k }).then(function (updated) {
         var next = entries.map(function (e) { return e.id === id ? updated : e; });
         setEntries(next); cachePayEntries(next);
         callback(true);
@@ -230,6 +259,11 @@
     }
 
     var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+
+    /* Lê config do paycheck pra usar matchLimitPct e profitSharingPct */
+    var paycheckCfg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+    var matchLimitPct = num(paycheckCfg.matchLimitPct, 4);
+    var profitSharingPct = num(paycheckCfg.profitSharingPct, 5);
 
     /* ---------- Agrupa por mês ---------- */
     var groups = {}, order = [];
@@ -258,6 +292,16 @@
     var w2Net   = w2Entries.reduce(function (s, e) { return s + e.amount; }, 0);
     var w2Reduction = w2Gross > 0 ? ((w2Gross - w2Net) / w2Gross) * 100 : null;
 
+    /* Totais anuais 401k */
+    var contrib401kEntries = sorted.filter(function (e) { return e.date && e.date.startsWith(currentYear) && e.contrib401k != null && e.gross != null; });
+    var totalMyContrib = contrib401kEntries.reduce(function (s, e) { return s + e.contrib401k; }, 0);
+    var totalCompanyMatch = contrib401kEntries.reduce(function (s, e) {
+      return s + e.gross * (Math.min(e.contrib401k / e.gross * 100, matchLimitPct) / 100);
+    }, 0);
+    var totalProfitSharing = contrib401kEntries.reduce(function (s, e) { return s + e.gross * profitSharingPct / 100; }, 0);
+    var totalCompany = totalCompanyMatch + totalProfitSharing;
+    var total401kYTD = totalMyContrib + totalCompany;
+
     var chartData = monthSummaries.map(function (m) { return { label: monthLabel(m.key), value: m.total }; });
 
     /* ---------- Cards por mês ---------- */
@@ -265,7 +309,7 @@
       var mReduction = m.totalGross ? reductionPct(m.totalGross, m.total) : null;
 
       var rows = m.items.slice().reverse().map(function (e) {
-        return h(PayEntryRow, { key: e.id, entry: e, onDelete: handleDelete, onUpdate: handleUpdate });
+        return h(PayEntryRow, { key: e.id, entry: e, onDelete: handleDelete, onUpdate: handleUpdate, matchLimitPct: matchLimitPct, profitSharingPct: profitSharingPct });
       });
 
       return h('div', { key: m.key, style: S.card },
@@ -354,6 +398,34 @@
         h(MiniChart, { data: chartData })
       ),
 
+      /* ---------- Card 401k anual ---------- */
+      total401kYTD > 0 ? h('div', { style: S.card },
+        h('div', { style: S.cardHeader },
+          h('span', { style: S.cardTitle }, '401K YTD ' + currentYear),
+          h('span', { style: S.cardSub }, contrib401kEntries.length + ' períodos')
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'MINHA CONTRIBUIÇÃO'),
+          h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalMyContrib))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'MATCH DA EMPRESA'),
+          h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalCompanyMatch))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'PROFIT SHARING (' + profitSharingPct + '%)'),
+          h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalProfitSharing))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'TOTAL EMPRESA'),
+          h('span', { style: { color: '#9CA3AF' } }, formatUSD(totalCompany))
+        ),
+        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #134E4A', paddingTop: 10, marginTop: 4 }) },
+          h('span', null, 'TOTAL 401K (EU + EMPRESA)'),
+          h('span', { style: { color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 14 } }, formatUSD(total401kYTD))
+        )
+      ) : null,
+
       monthCards,
 
       /* ---------- Formulário de novo pagamento ---------- */
@@ -371,19 +443,27 @@
             h('input', { type: 'date', value: newDate, style: S.input, onChange: function (ev) { setNewDate(ev.target.value); } })
           ),
           h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'GROSS (BRUTO) — opcional mas recomendado'),
+            h('label', { style: S.formLabel }, 'GROSS (BRUTO) — recomendado'),
             h('input', { type: 'number', step: '0.01', placeholder: 'ex: 3120.50', value: newGross, style: S.input, onChange: function (ev) { setNewGross(ev.target.value); } })
           ),
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'NET (LÍQUIDO)'),
             h('input', { type: 'number', step: '0.01', placeholder: 'ex: 2008.87', value: newNet, style: S.input, onChange: function (ev) { setNewNet(ev.target.value); } })
           ),
-          /* Preview de redução em tempo real */
-          newGross && newNet && parseFloat(newGross) > 0 && parseFloat(newNet) > 0 && parseFloat(newGross) >= parseFloat(newNet)
-            ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#FBBF24', marginBottom: 8 } },
-                'Redução: ' + reductionPct(parseFloat(newGross), parseFloat(newNet)).toFixed(2) + '% · Desconto: ' + formatUSD(parseFloat(newGross) - parseFloat(newNet))
-              )
-            : null,
+          h('div', { style: S.formRow },
+            h('label', { style: S.formLabel }, 'MINHA CONTRIB. 401K ($)'),
+            h('input', { type: 'number', step: '0.01', placeholder: 'ex: 124.80', value: newContrib, style: S.input, onChange: function (ev) { setNewContrib(ev.target.value); } })
+          ),
+          /* Preview em tempo real */
+          newGross && newNet && parseFloat(newGross) >= parseFloat(newNet)
+            ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24', marginBottom: 4 } },
+                'Redução: ' + reductionPct(parseFloat(newGross), parseFloat(newNet)).toFixed(2) + '%'
+              ) : null,
+          newGross && newContrib && parseFloat(newGross) > 0
+            ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginBottom: 8 } },
+                'Match empresa: ' + formatUSD(parseFloat(newGross) * (Math.min(parseFloat(newContrib)/parseFloat(newGross)*100, matchLimitPct)/100)) +
+                ' · Profit sharing: ' + formatUSD(parseFloat(newGross) * profitSharingPct / 100)
+              ) : null,
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'TIPO'),
             h('select', { value: newType, style: S.input, onChange: function (ev) { setNewType(ev.target.value); } },
