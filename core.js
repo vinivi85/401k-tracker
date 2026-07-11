@@ -241,8 +241,40 @@ var h = React.createElement;
   }
 
   /* ============================================================
-     LOCK SCREEN — PIN (hash SHA-256) + Face ID / Touch ID (WebAuthn)
+     PROGRESSÃO SALARIAL — funções globais usadas por tab-config.js
+     e tab-projection.js
      ============================================================ */
+  var DEFAULT_SALARY_TIERS = [
+    { yos: '3-4',  rate: 23.28 },
+    { yos: '4-5',  rate: 24.52 },
+    { yos: '5-6',  rate: 26.36 },
+    { yos: '6-7',  rate: 27.61 },
+    { yos: '7-8',  rate: 28.87 },
+    { yos: '8-9',  rate: 30.50 },
+    { yos: '9-10', rate: 32.65 },
+    { yos: '10-11',rate: 40.31 },
+    { yos: '11+',  rate: 41.52 }
+  ];
+
+  function getSalaryTiers(cfg) {
+    if (cfg && Array.isArray(cfg.salaryTiers) && cfg.salaryTiers.length > 0) return cfg.salaryTiers;
+    return DEFAULT_SALARY_TIERS;
+  }
+
+  function getCurrentYosIndex(cfg) {
+    var tiers = getSalaryTiers(cfg);
+    var idx = (cfg && typeof cfg.currentYosIndex === 'number') ? cfg.currentYosIndex : 0;
+    if (idx < 0 || idx >= tiers.length) idx = 0;
+    return idx;
+  }
+
+  function rateForYear(tiers, currentIdx, yearOffset) {
+    var idx = currentIdx + Math.floor(yearOffset);
+    if (idx >= tiers.length) idx = tiers.length - 1;
+    return num(tiers[idx].rate);
+  }
+
+
   function loadLockConfig() {
     return loadJSON(KEY_LOCK_CONFIG, { pinHash: null, biometricEnabled: false, credentialId: null });
   }
@@ -287,7 +319,8 @@ var h = React.createElement;
     lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
     delete: 'M3 12l5-7h13v14H8z M13 9l4 6 M17 9l-4 6',
     faceid: 'M8 3H6a3 3 0 0 0-3 3v2 M16 3h2a3 3 0 0 1 3 3v2 M8 21H6a3 3 0 0 1-3-3v-2 M16 21h2a3 3 0 0 0 3-3v-2 M9 9h.01 M15 9h.01 M9 15c.7.7 1.8 1 3 1s2.3-.3 3-1',
-    edit: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 1-2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'
+    edit: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 1-2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
+    settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'
   };
 
   function Icon(props) {
