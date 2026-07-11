@@ -50,6 +50,95 @@
     return ((gross - net) / gross) * 100;
   }
 
+  function PayEntryRow(props) {
+    var e = props.entry;
+    var onDelete = props.onDelete;
+    var onUpdate = props.onUpdate;
+
+    var editingState = React.useState(false);
+    var editing = editingState[0], setEditing = editingState[1];
+
+    var grossValState = React.useState(e.gross != null ? String(e.gross) : '');
+    var grossVal = grossValState[0], setGrossVal = grossValState[1];
+
+    var netValState = React.useState(String(e.amount));
+    var netVal = netValState[0], setNetVal = netValState[1];
+
+    var savingState = React.useState(false);
+    var saving = savingState[0], setSaving = savingState[1];
+
+    var errState = React.useState('');
+    var err = errState[0], setErr = errState[1];
+
+    function handleSave() {
+      setErr('');
+      var net = parseFloat(netVal);
+      var gross = grossVal ? parseFloat(grossVal) : null;
+      if (isNaN(net) || net <= 0) { setErr('Net inválido.'); return; }
+      if (gross != null && (isNaN(gross) || gross < net)) { setErr('Gross não pode ser menor que o net.'); return; }
+      setSaving(true);
+      onUpdate(e.id, { gross: gross, amount: net }, function (ok, msg) {
+        setSaving(false);
+        if (ok) setEditing(false);
+        else setErr(msg || 'Falha ao salvar.');
+      });
+    }
+
+    var rangeLabel = e.periodStart === e.periodEnd
+      ? formatDateLabel(e.periodStart)
+      : (formatDateLabel(e.periodStart) + '–' + formatDateLabel(e.periodEnd));
+    var pct = reductionPct(e.gross, e.amount);
+    var isBonus = e.type === 'Bonus payment';
+
+    if (editing) {
+      return h('div', { style: Object.assign({}, S.entryRow, { flexDirection: 'column', alignItems: 'stretch', gap: 8, paddingBottom: 10 }) },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, formatDateLabel(e.date) + ' · ' + rangeLabel),
+        h('div', { style: { display: 'flex', gap: 8 } },
+          h('div', { style: { flex: 1 } },
+            h('label', { style: S.formLabel }, 'GROSS'),
+            h('input', { type: 'number', step: '0.01', value: grossVal, style: S.input, placeholder: 'ex: 3120.50', onChange: function (ev) { setGrossVal(ev.target.value); } })
+          ),
+          h('div', { style: { flex: 1 } },
+            h('label', { style: S.formLabel }, 'NET'),
+            h('input', { type: 'number', step: '0.01', value: netVal, style: S.input, onChange: function (ev) { setNetVal(ev.target.value); } })
+          )
+        ),
+        grossVal && netVal && parseFloat(grossVal) >= parseFloat(netVal)
+          ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24' } },
+              'Redução: ' + reductionPct(parseFloat(grossVal), parseFloat(netVal)).toFixed(2) + '% · Desconto: ' + formatUSD(parseFloat(grossVal) - parseFloat(netVal))
+            )
+          : null,
+        err ? h('div', { style: S.errorText }, err) : null,
+        h('div', { style: { display: 'flex', gap: 8 } },
+          h('button', { style: S.submitBtn, onClick: handleSave, disabled: saving }, saving ? 'SALVANDO...' : 'SALVAR'),
+          h('button', { style: Object.assign({}, S.addBtn, { color: '#6B7280', borderColor: '#374151' }), onClick: function () { setEditing(false); setErr(''); } }, 'CANCELAR')
+        )
+      );
+    }
+
+    return h('div', { key: e.id, style: S.entryRow },
+      h('div', { style: S.entryDate }, formatDateLabel(e.date)),
+      h('div', null,
+        h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 6 } },
+          h('div', { style: S.entryBalance }, formatUSD(e.amount)),
+          e.gross != null ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'de ' + formatUSD(e.gross)) : null
+        ),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 } },
+          (isBonus ? 'BÔNUS · ' : '') + rangeLabel
+        )
+      ),
+      h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textAlign: 'right' } },
+        pct != null
+          ? h('span', { style: { color: '#FB7185' } }, '-' + pct.toFixed(1) + '%')
+          : h('span', { style: { color: '#4B5563' } }, e.gross == null ? 'SEM GROSS' : (isBonus ? 'BÔNUS' : ''))
+      ),
+      h('div', { style: { display: 'flex', gap: 4 } },
+        h('button', { style: Object.assign({}, S.deleteBtn, { color: '#5EEAD4' }), onClick: function () { setEditing(true); } }, h(Icon, { name: 'edit', size: 13 })),
+        h('button', { style: S.deleteBtn, onClick: function () { onDelete(e.id); } }, h(Icon, { name: 'trash', size: 13 }))
+      )
+    );
+  }
+
   function PayTab() {
     var state = React.useState(loadCachedPayEntries());
     var entries = state[0], setEntries = state[1];
@@ -121,6 +210,25 @@
       SupabaseAPI.deletePayEntry(id).catch(function () { setSyncStatus('offline'); });
     }
 
+    function handleUpdate(id, fields, callback) {
+      if (String(id).indexOf('local-') === 0) {
+        var next = entries.map(function (e) {
+          return e.id === id ? Object.assign({}, e, { gross: fields.gross, amount: fields.amount }) : e;
+        });
+        setEntries(next); cachePayEntries(next);
+        callback(true);
+        return;
+      }
+      SupabaseAPI.updatePayEntry(id, { gross: fields.gross, amount: fields.amount }).then(function (updated) {
+        var next = entries.map(function (e) { return e.id === id ? updated : e; });
+        setEntries(next); cachePayEntries(next);
+        callback(true);
+      }).catch(function (e) {
+        console.error('Falha ao atualizar pagamento', e);
+        callback(false, 'Sem conexão — tente de novo.');
+      });
+    }
+
     var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
 
     /* ---------- Agrupa por mês ---------- */
@@ -157,30 +265,7 @@
       var mReduction = m.totalGross ? reductionPct(m.totalGross, m.total) : null;
 
       var rows = m.items.slice().reverse().map(function (e) {
-        var rangeLabel = e.periodStart === e.periodEnd
-          ? formatDateLabel(e.periodStart)
-          : (formatDateLabel(e.periodStart) + '–' + formatDateLabel(e.periodEnd));
-        var pct = reductionPct(e.gross, e.amount);
-        var isBonus = e.type === 'Bonus payment';
-
-        return h('div', { key: e.id, style: S.entryRow },
-          h('div', { style: S.entryDate }, formatDateLabel(e.date)),
-          h('div', null,
-            h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 6 } },
-              h('div', { style: S.entryBalance }, formatUSD(e.amount)),
-              e.gross != null ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'de ' + formatUSD(e.gross)) : null
-            ),
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 } },
-              (isBonus ? 'BÔNUS · ' : '') + rangeLabel
-            )
-          ),
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textAlign: 'right' } },
-            pct != null
-              ? h('span', { style: { color: '#FB7185' } }, '-' + pct.toFixed(1) + '%')
-              : h('span', { style: { color: isBonus ? '#FBBF24' : '#4B5563' } }, isBonus ? 'BÔNUS' : '')
-          ),
-          h('button', { style: S.deleteBtn, onClick: function () { handleDelete(e.id); } }, h(Icon, { name: 'trash', size: 13 }))
-        );
+        return h(PayEntryRow, { key: e.id, entry: e, onDelete: handleDelete, onUpdate: handleUpdate });
       });
 
       return h('div', { key: m.key, style: S.card },
