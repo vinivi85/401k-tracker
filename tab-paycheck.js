@@ -57,6 +57,13 @@
     var gross = payReg + payOt + payOt2 + payHol + payWrkHol + payLunch + diffReg + diffOt + diffOt2;
 
     var contrib401k = gross * (num(cfg.contrib401kPct, 4) / 100);
+    var matchLimitPct = num(cfg.matchLimitPct, 4);
+    var profitSharingPct = num(cfg.profitSharingPct, 5);
+    var myContribPct = num(cfg.contrib401kPct, 4);
+    var companyMatch = gross * (Math.min(myContribPct, matchLimitPct) / 100);
+    var profitSharing = gross * (profitSharingPct / 100);
+    var companyTotal = companyMatch + profitSharing;
+    var total401k = contrib401k + companyTotal;
     var preTaxTotal = sumItems(cfg.preTaxItems);
     var postTaxTotal = sumItems(cfg.postTaxItems);
 
@@ -75,7 +82,8 @@
       s2RegDiff: s2RegDiff, s2OtDiff: s2OtDiff, s2Ot2Diff: s2Ot2Diff,
       payReg: payReg, payOt: payOt, payOt2: payOt2, payHol: payHol, payWrkHol: payWrkHol, payLunch: payLunch,
       diffReg: diffReg, diffOt: diffOt, diffOt2: diffOt2,
-      gross: gross, contrib401k: contrib401k, preTaxTotal: preTaxTotal, postTaxTotal: postTaxTotal,
+      gross: gross, contrib401k: contrib401k, companyMatch: companyMatch, profitSharing: profitSharing, companyTotal: companyTotal, total401k: total401k,
+      preTaxTotal: preTaxTotal, postTaxTotal: postTaxTotal,
       ssMedicareBase: ssMedicareBase, federalTaxableBase: federalTaxableBase,
       ss: ss, medicare: medicare, federal: federal,
       totalDeductions: totalDeductions, net: net
@@ -213,11 +221,55 @@
       ),
 
       h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, '401(K) — PERCENTUAL')),
-        h(NumField, { label: 'CONTRIBUIÇÃO 401(K) (% DO GROSS)', value: cfg.contrib401kPct, onChange: function (v) { update('contrib401kPct', v); } }),
-        h('div', { style: Object.assign({}, S.lineItemRow, { marginTop: 4, borderBottom: 'none' }) },
-          h('span', { style: S.lineItemLabel }, 'Valor descontado'),
-          h('span', { style: S.lineItemValue }, formatUSD(r.contrib401k))
+        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, '401(K) — CONTRIBUIÇÕES')),
+
+        h('div', { style: S.lineItemRow },
+          h('span', { style: S.lineItemLabel }, 'Minha contribuição'),
+          h('span', null,
+            h('input', {
+              type: 'number', step: '0.01', value: cfg.contrib401kPct,
+              style: { background: 'transparent', border: 'none', borderBottom: '1px dashed #374151', color: '#9CA3AF', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, textAlign: 'right', width: 40, outline: 'none' },
+              onChange: function (ev) { update('contrib401kPct', ev.target.value); }
+            }),
+            h('span', { style: { color: '#9CA3AF', fontSize: 11, marginRight: 8 } }, '%'),
+            h('span', { style: S.lineItemValue }, formatUSD(r.contrib401k))
+          )
+        ),
+
+        h('div', { style: S.lineItemRow },
+          h('span', { style: S.lineItemLabel }, 'Match da empresa (limite'),
+          h('span', null,
+            h('input', {
+              type: 'number', step: '0.01', value: num(cfg.matchLimitPct, 4),
+              style: { background: 'transparent', border: 'none', borderBottom: '1px dashed #374151', color: '#9CA3AF', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, textAlign: 'right', width: 40, outline: 'none' },
+              onChange: function (ev) { update('matchLimitPct', ev.target.value); }
+            }),
+            h('span', { style: { color: '#9CA3AF', fontSize: 11, marginRight: 8 } }, '%)'),
+            h('span', { style: S.lineItemValue }, formatUSD(r.companyMatch))
+          )
+        ),
+
+        h('div', { style: S.lineItemRow },
+          h('span', { style: S.lineItemLabel }, 'Profit sharing AA ('),
+          h('span', null,
+            h('input', {
+              type: 'number', step: '0.01', value: num(cfg.profitSharingPct, 5),
+              style: { background: 'transparent', border: 'none', borderBottom: '1px dashed #374151', color: '#9CA3AF', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, textAlign: 'right', width: 40, outline: 'none' },
+              onChange: function (ev) { update('profitSharingPct', ev.target.value); }
+            }),
+            h('span', { style: { color: '#9CA3AF', fontSize: 11, marginRight: 8 } }, '% fixo)'),
+            h('span', { style: S.lineItemValue }, formatUSD(r.profitSharing))
+          )
+        ),
+
+        h('div', { style: Object.assign({}, S.lineItemRow, { borderBottom: 'none' }) },
+          h('span', { style: S.lineItemLabel }, 'Total empresa'),
+          h('span', { style: Object.assign({}, S.lineItemValue, { color: '#5EEAD4' }) }, formatUSD(r.companyTotal))
+        ),
+
+        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 10, marginTop: 4 }) },
+          h('span', null, 'TOTAL 401K (EU + EMPRESA)'),
+          h('span', { style: { color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(r.total401k))
         )
       ),
 
