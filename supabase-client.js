@@ -123,6 +123,23 @@ var SupabaseAuth = {
       method: 'POST',
       headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + s.access_token }
     }).catch(function () {});
+  },
+
+  updatePassword: function (accessToken, newPassword) {
+    return fetch(SUPABASE_URL + '/auth/v1/user', {
+      method: 'PUT',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ password: newPassword })
+    }).then(function (resp) {
+      return resp.json().then(function (data) {
+        if (!resp.ok) throw new Error(data.msg || data.error_description || data.error || 'Falha ao atualizar senha.');
+        return data;
+      });
+    });
   }
 };
 
