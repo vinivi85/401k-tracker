@@ -183,6 +183,20 @@ var SupabaseAPI = {
       });
   },
 
+  updatePayEntry: function (id, fields) {
+    return authFetch(SUPABASE_URL + '/rest/v1/pay_entries?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify(fields)
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('Supabase update failed: ' + resp.status);
+      return resp.json();
+    }).then(function (rows) {
+      var r = rows[0];
+      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, type: r.type };
+    });
+  },
+
   /* ---------- Carteiras de investimento ---------- */
 
   fetchWallets: function () {
