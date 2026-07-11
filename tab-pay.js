@@ -69,6 +69,9 @@
     var contribValState = React.useState(e.contrib401k != null ? String(e.contrib401k) : '');
     var contribVal = contribValState[0], setContribVal = contribValState[1];
 
+    var psValState = React.useState(e.profitSharing != null ? String(e.profitSharing) : '');
+    var psVal = psValState[0], setPsVal = psValState[1];
+
     var savingState = React.useState(false);
     var saving = savingState[0], setSaving = savingState[1];
 
@@ -80,23 +83,29 @@
       var net = parseFloat(netVal);
       var gross = grossVal ? parseFloat(grossVal) : null;
       var contrib = contribVal ? parseFloat(contribVal) : null;
+      var ps = psVal ? parseFloat(psVal) : null;
       if (isNaN(net) || net <= 0) { setErr('Net inválido.'); return; }
       if (gross != null && (isNaN(gross) || gross < net)) { setErr('Gross não pode ser menor que o net.'); return; }
       setSaving(true);
-      onUpdate(e.id, { gross: gross, amount: net, contrib401k: contrib }, function (ok, msg) {
+      onUpdate(e.id, { gross: gross, amount: net, contrib401k: contrib, profitSharing: ps }, function (ok, msg) {
         setSaving(false);
         if (ok) setEditing(false);
         else setErr(msg || 'Falha ao salvar.');
       });
     }
 
-    /* Calcula match/profit sharing se tiver gross e contrib */
+    /* Usa valores informados diretamente */
     var gross = e.gross;
     var contrib = e.contrib401k;
+    var psInformed = e.profitSharing;
     var companyMatch = (gross && contrib) ? gross * (Math.min(contrib / gross * 100, matchLimitPct) / 100) : null;
-    var profitSharing = gross ? gross * (profitSharingPct / 100) : null;
-    var companyTotal = (companyMatch != null && profitSharing != null) ? companyMatch + profitSharing : null;
+    var companyTotal = (companyMatch != null && psInformed != null) ? companyMatch + psInformed
+                     : (companyMatch != null) ? companyMatch
+                     : (psInformed != null) ? psInformed : null;
     var myContribPct = (gross && contrib) ? (contrib / gross * 100) : null;
+
+    /* Sugestão de 401k AA contrib com base no % configurado */
+    var psSuggestion = (gross && profitSharingPct) ? gross * profitSharingPct / 100 : null;
 
     var rangeLabel = e.periodStart === e.periodEnd
       ? formatDateLabel(e.periodStart)
@@ -121,9 +130,13 @@
           h('label', { style: S.formLabel }, 'MINHA CONTRIB. 401K ($)'),
           h('input', { type: 'number', step: '0.01', value: contribVal, style: S.input, placeholder: 'ex: 124.80', onChange: function (ev) { setContribVal(ev.target.value); } })
         ),
+        h('div', { style: { flex: 1 } },
+          h('label', { style: S.formLabel }, '401K AA CONTRIB ($)' + (psSuggestion ? ' · sugestão: ' + formatUSD(psSuggestion) : '')),
+          h('input', { type: 'number', step: '0.01', value: psVal, style: S.input, placeholder: psSuggestion ? String(psSuggestion.toFixed(2)) : 'ex: 156.03', onChange: function (ev) { setPsVal(ev.target.value); } })
+        ),
         grossVal && contribVal && parseFloat(grossVal) > 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4' } },
           'Match empresa: ' + formatUSD(parseFloat(grossVal) * (Math.min(parseFloat(contribVal)/parseFloat(grossVal)*100, matchLimitPct)/100)) +
-          ' · Profit sharing: ' + formatUSD(parseFloat(grossVal) * profitSharingPct / 100)
+          (psVal ? ' · AA Contrib: ' + formatUSD(parseFloat(psVal)) : '')
         ) : null,
         grossVal && netVal && parseFloat(grossVal) >= parseFloat(netVal)
           ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24' } },
@@ -248,7 +261,7 @@
         callback(true);
         return;
       }
-      SupabaseAPI.updatePayEntry(id, { gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k }).then(function (updated) {
+      SupabaseAPI.updatePayEntry(id, { gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k, profit_sharing: fields.profitSharing }).then(function (updated) {
         var next = entries.map(function (e) { return e.id === id ? updated : e; });
         setEntries(next); cachePayEntries(next);
         callback(true);
@@ -413,7 +426,7 @@
           h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalCompanyMatch))
         ),
         h('div', { style: S.totalRow },
-          h('span', null, 'PROFIT SHARING (' + profitSharingPct + '%)'),
+          h('span', null, '401K AA CONTRIB (' + profitSharingPct + '%)'),
           h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalProfitSharing))
         ),
         h('div', { style: S.totalRow },
@@ -462,7 +475,7 @@
           newGross && newContrib && parseFloat(newGross) > 0
             ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginBottom: 8 } },
                 'Match empresa: ' + formatUSD(parseFloat(newGross) * (Math.min(parseFloat(newContrib)/parseFloat(newGross)*100, matchLimitPct)/100)) +
-                ' · Profit sharing: ' + formatUSD(parseFloat(newGross) * profitSharingPct / 100)
+                ' · AA Contrib: ' + formatUSD(parseFloat(newGross) * profitSharingPct / 100)
               ) : null,
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'TIPO'),
