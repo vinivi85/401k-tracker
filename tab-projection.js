@@ -10,40 +10,7 @@
   'use strict';
   var h = React.createElement;
 
-  // Tabela real de tiers por tempo de serviço (coluna 1/6/2026), validada em sessão anterior.
-  // Serve como valor padrão; o usuário pode editar e os valores ficam salvos em KEY_PROJECTION.
-  var DEFAULT_SALARY_TIERS = [
-    { yos: '3-4', rate: 23.28 },
-    { yos: '4-5', rate: 24.52 },
-    { yos: '5-6', rate: 26.36 },
-    { yos: '6-7', rate: 27.61 },
-    { yos: '7-8', rate: 28.87 },
-    { yos: '8-9', rate: 30.50 },
-    { yos: '9-10', rate: 32.65 },
-    { yos: '10-11', rate: 40.31 },
-    { yos: '11+', rate: 41.52 }
-  ];
-
   var PAYCHECKS_PER_YEAR = 26; // biweekly
-
-  function getSalaryTiers(cfg) {
-    if (cfg && Array.isArray(cfg.salaryTiers) && cfg.salaryTiers.length > 0) return cfg.salaryTiers;
-    return DEFAULT_SALARY_TIERS;
-  }
-
-  function getCurrentYosIndex(cfg) {
-    var tiers = getSalaryTiers(cfg);
-    var idx = (cfg && typeof cfg.currentYosIndex === 'number') ? cfg.currentYosIndex : 0;
-    if (idx < 0 || idx >= tiers.length) idx = 0;
-    return idx;
-  }
-
-  function rateForYear(tiers, currentIdx, yearOffset) {
-    // yearOffset 0 = hoje. Cada ano avança um tier, até o último (mantém fixo depois)
-    var idx = currentIdx + Math.floor(yearOffset);
-    if (idx >= tiers.length) idx = tiers.length - 1;
-    return num(tiers[idx].rate);
-  }
 
   function getLatestBalance() {
     var entries = loadEntries();
@@ -106,48 +73,43 @@
   }
 
   function ProjectionTab() {
-    var cfgState = React.useState(loadJSON(KEY_PROJECTION, defaultProjectionConfig));
+    var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
 
-    var editState = React.useState(false);
-    var editing = editState[0], setEditing = editState[1];
+    /* Lê progressão salarial do KEY_PAYCHECK também */
+    var projCfgState = React.useState(loadJSON(KEY_PROJECTION, defaultProjectionConfig));
+    var projCfg = projCfgState[0], setProjCfg = projCfgState[1];
 
-    var editingTiersState = React.useState(false);
-    var editingTiers = editingTiersState[0], setEditingTiers = editingTiersState[1];
+    /* Sincroniza config do Supabase ao montar */
+    React.useEffect(function () {
+      var cancelled = false;
+      SupabaseAPI.fetchUserConfig().then(function (remote) {
+        if (cancelled) return;
+        if (remote && Object.keys(remote).length > 0) {
+          var merged = Object.assign({}, defaultPaycheckConfig, remote);
+          setCfg(merged);
+          saveJSON(KEY_PAYCHECK, merged);
+        }
+      }).catch(function () {});
+      return function () { cancelled = true; };
+    }, []);
 
-    var importState = React.useState(false);
-    var showImport = importState[0], setShowImport = importState[1];
-
-    function update(field, value) {
-      var next = Object.assign({}, cfg);
+    function updateProj(field, value) {
+      var next = Object.assign({}, projCfg);
       next[field] = value;
-      setCfg(next);
-      saveJSON(KEY_PROJECTION, next);
-    }
-
-    var salaryTiers = getSalaryTiers(cfg);
-    var currentYosIndex = getCurrentYosIndex(cfg);
-
-    function updateTierRate(idx, value) {
-      var nextTiers = salaryTiers.map(function (t, i) { return i === idx ? Object.assign({}, t, { rate: value }) : t; });
-      update('salaryTiers', nextTiers);
-    }
-
-    function setCurrentTier(idx) {
-      update('currentYosIndex', idx);
-    }
-
-    function resetTiers() {
-      var next = Object.assign({}, cfg, { salaryTiers: DEFAULT_SALARY_TIERS, currentYosIndex: 0 });
-      setCfg(next);
+      setProjCfg(next);
       saveJSON(KEY_PROJECTION, next);
     }
 
     var startBalance = getLatestBalance();
-    var annualReturn = blendedAnnualReturn(cfg);
+
+    /* Lê da config unificada (KEY_PAYCHECK) */
+    var salaryTiers = getSalaryTiers(cfg);
+    var currentYosIndex = getCurrentYosIndex(cfg);
+    var annualReturn = blendedAnnualReturn(projCfg);
 
     /* Lê percentuais de contribuição direto do config do Paycheck */
-    var paycheckCfg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+    var paycheckCfg = cfg;
     var employeePct = num(paycheckCfg.contrib401kPct, 4);
     var matchPct = num(paycheckCfg.matchLimitPct, 4);
     var aaPct = num(paycheckCfg.profitSharingPct, 5);
@@ -162,7 +124,7 @@
       return scaledGross * (totalContribPct / 100);
     }
 
-    var horizons = cfg.horizons || [10, 15, 20, 25, 30];
+    var horizons = projCfg.horizons || [10, 15, 20, 25, 30];
     var monthlyRate = Math.pow(1 + annualReturn, 1 / 12) - 1;
     var projections = horizons.map(function (yrs) {
       var result = projectGrowth(startBalance, yrs, annualReturn, biweeklyContribFn);
@@ -239,42 +201,19 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'PROGRESSÃO SALARIAL (FLEET SERVICE/RAMP)'),
-          h('button', { style: S.ghostBtn, onClick: function () { setEditingTiers(!editingTiers); } }, editingTiers ? 'FECHAR' : 'EDITAR')
+          h('span', { style: S.cardTitle }, 'PROGRESSÃO SALARIAL (FLEET SERVICE/RAMP)')
         ),
-
-        !editingTiers ? h('div', null,
-          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 } },
-            salaryTiers.map(function (t, i) {
-              var isCurrent = i === currentYosIndex;
-              return h('span', {
-                key: i,
-                style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' })
-              }, t.yos + 'a: ' + formatUSD(num(t.rate)));
-            })
-          ),
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
-            'Posição atual destacada: ' + salaryTiers[currentYosIndex].yos + ' anos de empresa. A projeção avança um tier por ano automaticamente.')
-        ) : h('div', { style: S.formBox },
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 10, lineHeight: 1.5 } },
-            'Toque numa faixa para marcá-la como sua posição atual. Edite o valor/hora de cada faixa conforme a tabela oficial mais recente da AA.'),
+        h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 } },
           salaryTiers.map(function (t, i) {
             var isCurrent = i === currentYosIndex;
-            return h('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
-              h('button', {
-                style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' }, { cursor: 'pointer', border: 'none', flexShrink: 0, width: 64 }),
-                onClick: function () { setCurrentTier(i); }
-              }, t.yos + 'a'),
-              h('input', {
-                type: 'number', step: '0.01', value: t.rate, style: Object.assign({}, S.input, { flex: 1 }),
-                onChange: function (ev) { updateTierRate(i, ev.target.value); }
-              }),
-              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4B5563' } }, '/h')
-            );
-          }),
-          h('button', { style: S.ghostBtn, onClick: resetTiers },
-            h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR TABELA PADRÃO')
-        )
+            return h('span', {
+              key: i,
+              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' })
+            }, t.yos + 'a: ' + formatUSD(num(t.rate)));
+          })
+        ),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
+          'Posição atual: ' + salaryTiers[currentYosIndex].yos + ' anos. A projeção avança um tier por ano automaticamente. ⚙ Edite em CONFIG → Progressão Salarial.')
       ),
 
       h('div', { style: S.card },
@@ -288,15 +227,15 @@
         ),
 
         !editing ? h('div', null,
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Alocação US Large Cap Index'), h('span', { style: S.lineItemValue }, cfg.allocPctLargeCap + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap (real, prospecto)'), h('span', { style: S.lineItemValue }, cfg.returnLargeCap + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050 (real, prospecto)'), h('span', { style: S.lineItemValue }, cfg.returnTargetDate + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (vem da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Alocação US Large Cap Index'), h('span', { style: S.lineItemValue }, projCfg.allocPctLargeCap + '%')),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap'), h('span', { style: S.lineItemValue }, projCfg.returnLargeCap + '%')),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050'), h('span', { style: S.lineItemValue }, projCfg.returnTargetDate + '%')),
+          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
           h('div', { style: Object.assign({}, S.lineItemRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 4 }) },
             h('span', { style: S.lineItemLabel }, 'CONTRIBUIÇÃO TOTAL 401K'),
             h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, width: '100%' } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-                h('span', { style: { color: '#6B7280' } }, 'Employee (minha)'), h('span', { style: { color: '#9CA3AF' } }, employeePct + '%')
+                h('span', { style: { color: '#6B7280' } }, 'Employee'), h('span', { style: { color: '#9CA3AF' } }, employeePct + '%')
               ),
               h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
                 h('span', { style: { color: '#6B7280' } }, 'Match AA'), h('span', { style: { color: '#9CA3AF' } }, matchPct + '%')
@@ -309,17 +248,17 @@
               )
             ),
             h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 4 } },
-              'Sincronizado da aba PAYCHECK — altere os % lá para atualizar a projeção.'
+              '⚙ Todos os parâmetros acima — edite em CONFIG'
             )
           )
         ) : h('div', { style: S.formBox },
-          h(NumField, { label: '% ALOCADO EM US LARGE CAP INDEX', value: cfg.allocPctLargeCap, onChange: function (v) { update('allocPctLargeCap', v); } }),
-          h(NumField, { label: 'RETORNO 10YR · LARGE CAP (%)', value: cfg.returnLargeCap, onChange: function (v) { update('returnLargeCap', v); } }),
-          h(NumField, { label: 'RETORNO 10YR · TARGET DATE 2050 (%)', value: cfg.returnTargetDate, onChange: function (v) { update('returnTargetDate', v); } }),
+          h(NumField, { label: '% ALOCADO EM US LARGE CAP INDEX', value: projCfg.allocPctLargeCap, onChange: function (v) { updateProj('allocPctLargeCap', v); } }),
+          h(NumField, { label: 'RETORNO 10YR · LARGE CAP (%)', value: projCfg.returnLargeCap, onChange: function (v) { updateProj('returnLargeCap', v); } }),
+          h(NumField, { label: 'RETORNO 10YR · TARGET DATE 2050 (%)', value: projCfg.returnTargetDate, onChange: function (v) { updateProj('returnTargetDate', v); } }),
           h('div', { style: Object.assign({}, S.importBox, { marginBottom: 0 }) },
-            'Contribuição total: ' + totalContribPct + '% (' + employeePct + '% employee + ' + matchPct + '% match + ' + aaPct + '% 401K AA Contrib). Para alterar, vá em PAYCHECK → card 401(K).\n\nGross biweekly: ' + formatUSD(baseBiweeklyGross) + ' — calculado automaticamente a partir das horas preenchidas na aba PAYCHECK.'
+            'Contribuição total: ' + totalContribPct + '% (' + employeePct + '% employee + ' + matchPct + '% match + ' + aaPct + '% AA Contrib). Edite em CONFIG → 401K.\n\nGross biweekly: ' + formatUSD(baseBiweeklyGross) + ' — calculado automaticamente a partir das horas em PAYCHECK.'
           ),
-          h('button', { style: S.ghostBtn, onClick: function () { setCfg(defaultProjectionConfig); saveJSON(KEY_PROJECTION, defaultProjectionConfig); } },
+          h('button', { style: S.ghostBtn, onClick: function () { setProjCfg(defaultProjectionConfig); saveJSON(KEY_PROJECTION, defaultProjectionConfig); } },
             h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
         )
       ),
