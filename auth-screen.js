@@ -13,6 +13,15 @@
         var kv = part.split('=');
         if (kv.length === 2) params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1]);
       });
+      // Se o token está aqui mas estamos na raiz (não no /401k-tracker),
+      // redireciona pro app com o hash inteiro preservado
+      if (params.access_token && params.type === 'recovery') {
+        var appBase = 'https://vinivi85.github.io/401k-tracker/';
+        if (window.location.pathname === '/' || window.location.pathname === '') {
+          window.location.replace(appBase + window.location.hash);
+          return {};
+        }
+      }
       return params;
     } catch (e) { return {}; }
   }
