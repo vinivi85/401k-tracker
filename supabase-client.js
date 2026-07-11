@@ -295,24 +295,24 @@ var SupabaseAPI = {
       });
   },
 
-  /* ---------- Paycheck config (regras salariais por usuário) ---------- */
+  /* ---------- Config centralizada do usuário ---------- */
 
-  fetchPaycheckConfig: function () {
-    return authFetch(SUPABASE_URL + '/rest/v1/paycheck_configs?select=config').then(function (resp) {
-      if (!resp.ok) throw new Error('Supabase fetch paycheck_config failed: ' + resp.status);
+  fetchUserConfig: function () {
+    return authFetch(SUPABASE_URL + '/rest/v1/user_configs?select=config').then(function (resp) {
+      if (!resp.ok) throw new Error('Supabase fetch user_config failed: ' + resp.status);
       return resp.json();
     }).then(function (rows) {
       return rows.length ? rows[0].config : null;
     });
   },
 
-  savePaycheckConfig: function (config) {
-    return authFetch(SUPABASE_URL + '/rest/v1/paycheck_configs', {
+  saveUserConfig: function (config) {
+    return authFetch(SUPABASE_URL + '/rest/v1/user_configs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify({ user_id: currentUserId(), config: config, updated_at: new Date().toISOString() })
     }).then(function (resp) {
-      if (!resp.ok) throw new Error('Supabase save paycheck_config failed: ' + resp.status);
+      if (!resp.ok) throw new Error('Supabase save user_config failed: ' + resp.status);
       return resp.json();
     });
   }
