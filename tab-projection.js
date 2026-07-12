@@ -218,48 +218,36 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'PARÂMETROS DA PROJEÇÃO'),
-          h('button', { style: S.ghostBtn, onClick: function () { setEditing(!editing); } }, editing ? 'FECHAR' : 'EDITAR')
+          h('span', { style: S.cardTitle }, 'PARÂMETROS DA PROJEÇÃO')
         ),
 
         h('div', { style: S.importBox },
-          'Retornos baseados no histórico real de 10 anos de cada fundo (prospecto NetBenefits, dados de 05/31/2026). Usamos o horizonte de 10 anos em vez de 1 ou 3 anos porque suaviza ciclos de alta e baixa do mercado — mais realista para projeção de décadas. Quer atualizar com dados mais recentes? Mande o print/PDF do prospecto aqui no chat.'
+          'Retornos baseados no histórico real de 10 anos de cada fundo (prospecto NetBenefits, dados de 05/31/2026).'
         ),
 
-        !editing ? h('div', null,
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Alocação US Large Cap Index'), h('span', { style: S.lineItemValue }, projCfg.allocPctLargeCap + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap'), h('span', { style: S.lineItemValue }, projCfg.returnLargeCap + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050'), h('span', { style: S.lineItemValue }, projCfg.returnTargetDate + '%')),
-          h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
-          h('div', { style: Object.assign({}, S.lineItemRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 4 }) },
-            h('span', { style: S.lineItemLabel }, 'CONTRIBUIÇÃO TOTAL 401K'),
-            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, width: '100%' } },
-              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-                h('span', { style: { color: '#6B7280' } }, 'Employee'), h('span', { style: { color: '#9CA3AF' } }, employeePct + '%')
-              ),
-              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-                h('span', { style: { color: '#6B7280' } }, 'Match AA'), h('span', { style: { color: '#9CA3AF' } }, matchPct + '%')
-              ),
-              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-                h('span', { style: { color: '#6B7280' } }, '401K AA Contrib'), h('span', { style: { color: '#9CA3AF' } }, aaPct + '%')
-              ),
-              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, borderTop: '1px solid #1A2333', paddingTop: 4, marginTop: 2 } },
-                h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, 'TOTAL'), h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, totalContribPct + '%')
-              )
+        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Alocação US Large Cap Index'), h('span', { style: S.lineItemValue }, projCfg.allocPctLargeCap + '%')),
+        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap'), h('span', { style: S.lineItemValue }, projCfg.returnLargeCap + '%')),
+        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050'), h('span', { style: S.lineItemValue }, projCfg.returnTargetDate + '%')),
+        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
+        h('div', { style: Object.assign({}, S.lineItemRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 4 }) },
+          h('span', { style: S.lineItemLabel }, 'CONTRIBUIÇÃO TOTAL 401K'),
+          h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, width: '100%' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
+              h('span', { style: { color: '#6B7280' } }, 'Employee'), h('span', { style: { color: '#9CA3AF' } }, employeePct + '%')
             ),
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 4 } },
-              '⚙ Todos os parâmetros acima — edite em CONFIG'
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
+              h('span', { style: { color: '#6B7280' } }, 'Match AA'), h('span', { style: { color: '#9CA3AF' } }, matchPct + '%')
+            ),
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
+              h('span', { style: { color: '#6B7280' } }, '401K AA Contrib'), h('span', { style: { color: '#9CA3AF' } }, aaPct + '%')
+            ),
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, borderTop: '1px solid #1A2333', paddingTop: 4, marginTop: 2 } },
+              h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, 'TOTAL'), h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, totalContribPct + '%')
             )
-          )
-        ) : h('div', { style: S.formBox },
-          h(NumField, { label: '% ALOCADO EM US LARGE CAP INDEX', value: projCfg.allocPctLargeCap, onChange: function (v) { updateProj('allocPctLargeCap', v); } }),
-          h(NumField, { label: 'RETORNO 10YR · LARGE CAP (%)', value: projCfg.returnLargeCap, onChange: function (v) { updateProj('returnLargeCap', v); } }),
-          h(NumField, { label: 'RETORNO 10YR · TARGET DATE 2050 (%)', value: projCfg.returnTargetDate, onChange: function (v) { updateProj('returnTargetDate', v); } }),
-          h('div', { style: Object.assign({}, S.importBox, { marginBottom: 0 }) },
-            'Contribuição total: ' + totalContribPct + '% (' + employeePct + '% employee + ' + matchPct + '% match + ' + aaPct + '% AA Contrib). Edite em CONFIG → 401K.\n\nGross biweekly: ' + formatUSD(baseBiweeklyGross) + ' — calculado automaticamente a partir das horas em PAYCHECK.'
           ),
-          h('button', { style: S.ghostBtn, onClick: function () { setProjCfg(defaultProjectionConfig); saveJSON(KEY_PROJECTION, defaultProjectionConfig); } },
-            h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 4 } },
+            '⚙ Edite todos os parâmetros na aba CONFIG'
+          )
         )
       ),
 
