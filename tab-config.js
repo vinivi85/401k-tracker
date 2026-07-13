@@ -7,6 +7,17 @@
   'use strict';
   var h = React.createElement;
 
+  /* Componente reutilizável de campo numérico */
+  function NumField(props) {
+    return h('div', { style: S.formRow },
+      h('label', { style: S.formLabel }, props.label),
+      h('input', {
+        type: 'number', step: props.step || '0.01', value: props.value, style: S.input,
+        onChange: function (ev) { props.onChange(ev.target.value); }
+      })
+    );
+  }
+
   /* Seção colapsável reutilizável */
   function Section(props) {
     var openState = React.useState(props.defaultOpen !== false);
