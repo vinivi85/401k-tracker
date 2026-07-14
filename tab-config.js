@@ -134,10 +134,50 @@
     else if (syncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SALVO');
     else if (syncStatus === 'offline') syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE');
 
+    var yos = calcYOS(cfg.seniorityDate);
+    var suggestedIdx = suggestTierIndex(yos, salaryTiers);
+    var suggestedTier = salaryTiers[suggestedIdx];
+
     return h(React.Fragment, null,
       h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, margin: '8px 0 -4px' } }, syncBadge),
 
-      /* ---- SALÁRIO & DIFERENCIAIS ---- */
+      /* ---- SENIORITY ---- */
+      h(Section, { title: 'SENIORITY', defaultOpen: true,
+        summary: yos !== null ? yos + ' ano' + (yos !== 1 ? 's' : '') + ' de empresa' : 'informe a data'
+      },
+        h('div', { style: S.formRow },
+          h('label', { style: S.formLabel }, 'DATA DE CONTRATAÇÃO'),
+          h('input', {
+            type: 'date', value: cfg.seniorityDate || '', style: S.input,
+            onChange: function (ev) {
+              var newDate = ev.target.value;
+              var newYos = calcYOS(newDate);
+              var newIdx = suggestTierIndex(newYos, salaryTiers);
+              update('seniorityDate', newDate);
+              /* Atualiza automaticamente a faixa salarial e a taxa base */
+              if (newIdx !== currentYosIndex) {
+                update('currentYosIndex', newIdx);
+                update('baseRate', salaryTiers[newIdx].rate);
+              }
+            }
+          })
+        ),
+        yos !== null ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, marginTop: 8 } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 } },
+            h('span', { style: { color: '#D1D5DB' } }, 'ANOS DE SERVIÇO (YOS)'),
+            h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, yos + ' ano' + (yos !== 1 ? 's' : ''))
+          ),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 } },
+            h('span', { style: { color: '#D1D5DB' } }, 'FAIXA ATUAL'),
+            h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, suggestedTier ? suggestedTier.yos + ' anos · ' + formatUSD(suggestedTier.rate) + '/h' : '—')
+          ),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginTop: 6 } },
+            'Faixa e taxa base atualizadas automaticamente com base na data de contratação.'
+          )
+        ) : h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginTop: 4 } },
+          'Informe a data de contratação para calcular YOS e selecionar a faixa salarial automaticamente.'
+        )
+      ),
       h(Section, { title: 'SALÁRIO & DIFERENCIAIS', summary: formatUSD(num(cfg.baseRate, 23.28)) + '/h' },
         h(NumField, { label: 'TAXA BASE ($/h)', value: cfg.baseRate, onChange: function (v) { update('baseRate', v); } }),
         h(NumField, { label: 'SHIFT 2 REG DIFF ($/h)', value: cfg.shift2RegDiff, onChange: function (v) { update('shift2RegDiff', v); } }),
