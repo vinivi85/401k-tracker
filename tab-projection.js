@@ -30,11 +30,12 @@
   }
 
   function blendedAnnualReturn(cfg) {
-    var pctLarge = num(cfg.allocPctLargeCap, 20.26) / 100;
-    var pctTarget = 1 - pctLarge;
-    var rLarge = num(cfg.returnLargeCap, 10.0) / 100;
-    var rTarget = num(cfg.returnTargetDate, 8.0) / 100;
-    return pctLarge * rLarge + pctTarget * rTarget;
+    var funds = (cfg && Array.isArray(cfg.funds) && cfg.funds.length > 0) ? cfg.funds : defaultProjectionConfig.funds;
+    var totalAlloc = funds.reduce(function (s, f) { return s + num(f.allocPct); }, 0);
+    if (totalAlloc <= 0) return 0.10; // fallback 10%
+    return funds.reduce(function (s, f) {
+      return s + (num(f.allocPct) / totalAlloc) * (num(f.returnPct) / 100);
+    }, 0);
   }
 
   function projectGrowth(startBalance, years, annualReturn, biweeklyContribFn) {
@@ -225,10 +226,21 @@
           'Retornos baseados no histórico real de 10 anos de cada fundo (prospecto NetBenefits, dados de 05/31/2026).'
         ),
 
-        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Alocação US Large Cap Index'), h('span', { style: S.lineItemValue }, projCfg.allocPctLargeCap + '%')),
-        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Large Cap'), h('span', { style: S.lineItemValue }, projCfg.returnLargeCap + '%')),
-        h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Retorno 10yr · Target Date 2050'), h('span', { style: S.lineItemValue }, projCfg.returnTargetDate + '%')),
         h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
+
+        (projCfg.funds || []).map(function (f, i) {
+          return h('div', { key: i, style: S.lineItemRow },
+            h('span', { style: S.lineItemLabel }, f.name || 'Fundo ' + (i+1)),
+            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#9CA3AF' } },
+              num(f.allocPct).toFixed(1) + '% · ' + num(f.returnPct).toFixed(2) + '%/ano'
+            )
+          );
+        }),
+
+        h('div', { style: Object.assign({}, S.lineItemRow, { borderTop: '1px solid #1A2333' }) },
+          h('span', { style: { color: '#5EEAD4', fontFamily: "'JetBrains Mono', monospace", fontSize: 11 } }, 'RETORNO PONDERADO'),
+          h('span', { style: { color: '#5EEAD4', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, (annualReturn * 100).toFixed(2) + '%/ano')
+        ),
         h('div', { style: Object.assign({}, S.lineItemRow, { flexDirection: 'column', alignItems: 'flex-start', gap: 4 }) },
           h('span', { style: S.lineItemLabel }, 'CONTRIBUIÇÃO TOTAL 401K'),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, width: '100%' } },
