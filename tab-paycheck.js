@@ -120,6 +120,13 @@
       next[field] = value;
       setCfg(next);
       saveJSON(KEY_PAYCHECK, next);
+      /* Salva no Supabase com debounce de 1s */
+      clearTimeout(window._paycheckSaveTimer);
+      window._paycheckSaveTimer = setTimeout(function () {
+        SupabaseAPI.saveUserConfig(next).catch(function (e) {
+          console.error('Falha ao salvar config no Supabase', e);
+        });
+      }, 1000);
     }
 
     var r = calcPaycheck(cfg);
