@@ -24,6 +24,7 @@ var h = React.createElement;
   /* ---------- Seed: regras de paycheck (AA Fleet Service/Ramp, Shift 2) ---------- */
   var defaultPaycheckConfig = {
     baseRate: 21.25,
+    seniorityDate: '',         // data de contratação (YYYY-MM-DD) — usada para calcular YOS e sugerir faixa
     shift2RegDiff: 0.51,
     shift2OtDiff: 0.77,      // valor FIXO confirmado no holerite — OT1.5, WRK-HOL, LUNCH-P
     shift2Ot2Diff: 1.02,     // Shift 2 DT diff — específico para horas OT2.0 (Double Time)
@@ -223,6 +224,33 @@ var h = React.createElement;
     idbSet(key, str).catch(function (e) { console.error('idbSet failed', e); });
     // também grava no localStorage como segunda camada de redundância (best-effort)
     try { localStorage.setItem(key, str); } catch (e) {}
+  }
+
+  /* Calcula anos de serviço a partir da data de contratação */
+  function calcYOS(seniorityDate) {
+    if (!seniorityDate) return null;
+    var hire = new Date(seniorityDate + 'T00:00:00');
+    var now = new Date();
+    var years = now.getFullYear() - hire.getFullYear();
+    var m = now.getMonth() - hire.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < hire.getDate())) years--;
+    return Math.max(0, years);
+  }
+
+  /* Retorna o índice da faixa salarial correspondente aos anos de serviço */
+  function suggestTierIndex(yos, tiers) {
+    if (yos === null || !tiers || tiers.length === 0) return 0;
+    for (var i = 0; i < tiers.length; i++) {
+      var yosStr = tiers[i].yos;
+      if (yosStr === '11+' && yos >= 11) return i;
+      var parts = yosStr.split('-');
+      if (parts.length === 2) {
+        var low = parseInt(parts[0], 10);
+        var high = parseInt(parts[1], 10);
+        if (yos >= low && yos < high) return i;
+      }
+    }
+    return tiers.length - 1;
   }
 
   function num(v, fallback) {
