@@ -93,6 +93,8 @@
       window.addEventListener('pointerdown', handleActivity);
       window.addEventListener('keydown', handleActivity);
       window.addEventListener('touchstart', handleActivity);
+      window.addEventListener('input', handleActivity);
+      window.addEventListener('scroll', handleActivity, true);
 
       return function () {
         clearInterval(intervalId);
@@ -100,6 +102,8 @@
         window.removeEventListener('pointerdown', handleActivity);
         window.removeEventListener('keydown', handleActivity);
         window.removeEventListener('touchstart', handleActivity);
+        window.removeEventListener('input', handleActivity);
+        window.removeEventListener('scroll', handleActivity, true);
       };
     }, [hasPin, unlocked]);
 
