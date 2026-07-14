@@ -89,7 +89,7 @@
   }
 
   function InfoBadge(props) {
-    return h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', margin: '4px 0 8px', lineHeight: 1.4 } },
+    return h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', margin: '4px 0 8px', lineHeight: 1.4 } },
       '⚙ ' + props.text + ' — edite em CONFIG'
     );
   }
