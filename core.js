@@ -29,7 +29,7 @@ var h = React.createElement;
 
   /* ---------- Seed: regras de paycheck (AA Fleet Service/Ramp, Shift 2) ---------- */
   var defaultPaycheckConfig = {
-    baseRate: 23.98,
+    baseRate: 21.25,
     shift2RegDiff: 0.51,
     shift2OtDiff: 0.77,      // valor FIXO confirmado no holerite — OT1.5, WRK-HOL, LUNCH-P
     shift2Ot2Diff: 1.02,     // Shift 2 DT diff — específico para horas OT2.0 (Double Time)
@@ -60,7 +60,6 @@ var h = React.createElement;
       { key: 'spouseLife', label: 'Spouse Life', value: 1.65 },
       { key: 'childLife', label: 'Child Life', value: 0.93 },
       { key: 'groupAccident', label: 'Group Accident Ins', value: 2.64 },
-      { key: 'loan401k', label: '401k Loan', value: 20.90 },
       { key: 'unionDues', label: 'Union Dues - TWU', value: 21.49 }
     ]
   };
@@ -68,8 +67,7 @@ var h = React.createElement;
   /* ---------- Seed: configuração de projeção 401k ---------- */
   var defaultProjectionConfig = {
     funds: [
-      { id: 'f1', name: 'US Large Cap Stock Index', allocPct: 20.26, returnPct: 15.67 },
-      { id: 'f2', name: 'Target Date 2050',          allocPct: 79.74, returnPct: 11.27 }
+      { id: 'f1', name: 'US Large Cap Stock Index', allocPct: 100, returnPct: 15.67 }
     ],
     biweeklyGross: 2752.39,
     annualRaisePct: 0,
