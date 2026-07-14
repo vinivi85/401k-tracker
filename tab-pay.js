@@ -190,7 +190,7 @@
       h('div', null,
         h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 6 } },
           h('div', { style: S.entryBalance }, formatUSD(e.amount)),
-          e.gross != null ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'de ' + formatUSD(e.gross)) : null
+          e.gross != null ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB' } }, 'de ' + formatUSD(e.gross)) : null
         ),
         contrib != null ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginTop: 1 } },
           '401K: ' + formatUSD(contrib) + (myContribPct ? ' (' + myContribPct.toFixed(1) + '%)' : '') +
@@ -383,7 +383,7 @@
         m.totalGross ? h('div', { style: S.totalRow },
           h('span', null, 'GROSS'),
           h('div', { style: { textAlign: 'right' } },
-            h('div', { style: { color: '#9CA3AF', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 } }, formatUSD(m.totalGross)),
+            h('div', { style: { color: '#D1D5DB', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 } }, formatUSD(m.totalGross)),
             mReduction ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FB7185' } }, 'redução ' + mReduction.toFixed(1) + '%') : null
           )
         ) : null,
@@ -477,7 +477,7 @@
         ),
         h('div', { style: S.totalRow },
           h('span', null, 'TOTAL EMPRESA'),
-          h('span', { style: { color: '#9CA3AF' } }, formatUSD(totalCompany))
+          h('span', { style: { color: '#D1D5DB' } }, formatUSD(totalCompany))
         ),
         h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #134E4A', paddingTop: 10, marginTop: 4 }) },
           h('span', null, 'TOTAL 401K (EU + EMPRESA)'),
