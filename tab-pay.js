@@ -9,22 +9,7 @@
 
   var MONTH_NAMES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
-  var initialPayEntries = [
-    { id: 'p1',  date: '2026-01-09', periodStart: '2025-12-22', periodEnd: '2026-01-04', amount: 912.87,  gross: null, type: 'Regular payroll run' },
-    { id: 'p2',  date: '2026-01-23', periodStart: '2026-01-05', periodEnd: '2026-01-18', amount: 3302.13, gross: null, type: 'Regular payroll run' },
-    { id: 'p3',  date: '2026-02-06', periodStart: '2026-01-19', periodEnd: '2026-02-01', amount: 2885.24, gross: null, type: 'Regular payroll run' },
-    { id: 'p4',  date: '2026-02-20', periodStart: '2026-02-02', periodEnd: '2026-02-15', amount: 2549.26, gross: null, type: 'Regular payroll run' },
-    { id: 'p5',  date: '2026-02-24', periodStart: '2026-02-24', periodEnd: '2026-02-24', amount: 177.81,  gross: null, type: 'Bonus payment' },
-    { id: 'p6',  date: '2026-03-06', periodStart: '2026-02-16', periodEnd: '2026-03-01', amount: 3034.60, gross: null, type: 'Regular payroll run' },
-    { id: 'p7',  date: '2026-03-20', periodStart: '2026-03-02', periodEnd: '2026-03-15', amount: 2677.92, gross: null, type: 'Regular payroll run' },
-    { id: 'p8',  date: '2026-04-02', periodStart: '2026-03-16', periodEnd: '2026-03-29', amount: 1952.18, gross: null, type: 'Regular payroll run' },
-    { id: 'p9',  date: '2026-04-17', periodStart: '2026-03-30', periodEnd: '2026-04-12', amount: 2705.82, gross: null, type: 'Regular payroll run' },
-    { id: 'p10', date: '2026-05-01', periodStart: '2026-04-13', periodEnd: '2026-04-26', amount: 2642.23, gross: null, type: 'Regular payroll run' },
-    { id: 'p11', date: '2026-05-15', periodStart: '2026-04-27', periodEnd: '2026-05-10', amount: 2727.79, gross: null, type: 'Regular payroll run' },
-    { id: 'p12', date: '2026-05-29', periodStart: '2026-05-11', periodEnd: '2026-05-24', amount: 2511.76, gross: null, type: 'Regular payroll run' },
-    { id: 'p13', date: '2026-06-12', periodStart: '2026-05-25', periodEnd: '2026-06-07', amount: 2144.22, gross: null, type: 'Regular payroll run' },
-    { id: 'p14', date: '2026-06-26', periodStart: '2026-06-08', periodEnd: '2026-06-21', amount: 2008.87, gross: null, type: 'Regular payroll run' }
-  ];
+  var initialPayEntries = []; // novo usuário começa sem pagamentos — dados vêm do Supabase
 
   function loadCachedPayEntries() {
     try {
