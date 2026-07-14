@@ -109,14 +109,14 @@
             h('div', { style: S.walletBalance }, latest ? formatUSD(latest.balance) : '—'),
             latest && prev ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: dayChange >= 0 ? '#5EEAD4' : '#FB7185' } }, (dayChange >= 0 ? '+' : '') + formatUSD(dayChange)) : null
           ),
-          h(Icon, { name: 'chevron', size: 14, color: '#4B5563' })
+          h(Icon, { name: 'chevron', size: 14, color: '#D1D5DB' })
         )
       ),
 
       expanded ? h('div', { style: S.walletBody },
         entries.length > 1 ? h(MiniChart, { data: chartData }) : null,
 
-        latest && first && entries.length > 1 ? h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#6B7280', margin: '8px 0 12px' } },
+        latest && first && entries.length > 1 ? h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#B0B7C3', margin: '8px 0 12px' } },
           h('span', null, 'DESDE O INÍCIO'),
           h('span', { style: { color: totalChange >= 0 ? '#5EEAD4' : '#FB7185', fontWeight: 600 } }, (totalChange >= 0 ? '+' : '') + formatUSD(totalChange))
         ) : null,
@@ -146,7 +146,7 @@
           h('button', { style: S.submitBtn, onClick: handleAdd, disabled: saving }, saving ? 'SALVANDO...' : 'REGISTRAR LEITURA')
         ) : null,
 
-        h('div', { style: S.entryList }, rows.length ? rows : h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4B5563', padding: '8px 0' } }, 'Nenhuma leitura ainda.'))
+        h('div', { style: S.entryList }, rows.length ? rows : h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', padding: '8px 0' } }, 'Nenhuma leitura ainda.'))
       ) : null
     );
   }
@@ -230,7 +230,7 @@
     }
 
     var syncBadge;
-    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
+    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SINCRONIZANDO...');
     else if (syncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
     else syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
 
@@ -438,7 +438,7 @@
     var hasMore = allEntryRows.length > PREVIEW_COUNT;
 
     var trackerSyncBadge;
-    if (trackerSyncStatus === 'syncing') trackerSyncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
+    if (trackerSyncStatus === 'syncing') trackerSyncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SINCRONIZANDO...');
     else if (trackerSyncStatus === 'synced') trackerSyncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
     else trackerSyncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
 
@@ -493,7 +493,7 @@
               h(Icon, { name: 'plus', size: 14 }),
               showForm ? 'CANCELAR' : 'NOVA LEITURA'
             ),
-            hasMore ? h('div', { style: { color: '#4B5563', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
+            hasMore ? h('div', { style: { color: '#D1D5DB', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
               h(Icon, { name: 'chevron', size: 16 })
             ) : null
           )
@@ -515,7 +515,7 @@
         h('div', { style: S.entryList }, visibleRows),
 
         hasMore && !expanded ? h('div', {
-          style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', padding: '8px 0 2px', cursor: 'pointer' },
+          style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', padding: '8px 0 2px', cursor: 'pointer' },
           onClick: function () { setExpanded(true); }
         }, '+ ' + (allEntryRows.length - PREVIEW_COUNT) + ' leituras anteriores') : null
       ),
