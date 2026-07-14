@@ -257,7 +257,7 @@ var h = React.createElement;
     { yos: '11+',   rate: 41.52 }
   ];
 
-  var DEFAULT_YOS_INDEX = 3; // 3-4 anos — padrão para Vinicius; novo usuário escolhe na aba CONFIG
+  var DEFAULT_YOS_INDEX = 0; // 0-1 anos — padrão para novos usuários; cada um escolhe sua faixa na aba CONFIG
 
   function getSalaryTiers(cfg) {
     if (cfg && Array.isArray(cfg.salaryTiers) && cfg.salaryTiers.length > 0) return cfg.salaryTiers;
