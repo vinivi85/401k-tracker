@@ -168,36 +168,86 @@
 
       /* ---- DEDUÇÕES PRÉ-TAX ---- */
       h(Section, { title: 'DEDUÇÕES PRÉ-TAX', summary: formatUSD(totalPreTax), defaultOpen: false },
-        preTaxItems.map(function (item) {
-          return h('div', { key: item.key, style: S.lineItemRow },
-            h('span', { style: S.lineItemLabel }, item.label),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10, lineHeight: 1.6 } },
+          'Medical, Dental, Vision, AD&D etc. — adicione ou remova conforme seus benefícios ativos.'
+        ),
+        preTaxItems.map(function (item, i) {
+          return h('div', { key: item.key || i, style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 } },
             h('input', {
-              type: 'number', step: '0.01', value: item.value,
-              style: Object.assign({}, S.input, { width: 90, textAlign: 'right' }),
-              onChange: function (ev) { updatePreTaxItem(item.key, ev.target.value); }
-            })
+              type: 'text', value: item.label, placeholder: 'Nome do benefício',
+              style: Object.assign({}, S.input, { flex: 1, fontSize: 11 }),
+              onChange: function (ev) {
+                var next = preTaxItems.map(function (it, j) { return j === i ? Object.assign({}, it, { label: ev.target.value }) : it; });
+                update('preTaxItems', next);
+              }
+            }),
+            h('input', {
+              type: 'number', step: '0.01', value: item.value, placeholder: '0.00',
+              style: Object.assign({}, S.input, { width: 80, textAlign: 'right', flexShrink: 0 }),
+              onChange: function (ev) {
+                var next = preTaxItems.map(function (it, j) { return j === i ? Object.assign({}, it, { value: parseFloat(ev.target.value) || 0 }) : it; });
+                update('preTaxItems', next);
+              }
+            }),
+            h('button', { style: S.deleteBtn, onClick: function () {
+              update('preTaxItems', preTaxItems.filter(function (_, j) { return j !== i; }));
+            }}, h(Icon, { name: 'trash', size: 13 }))
           );
         }),
-        h('div', { style: S.totalRow },
+        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
           h('span', null, 'TOTAL'), h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalPreTax))
-        )
+        ),
+        h('button', {
+          style: Object.assign({}, S.addBtn, { marginTop: 10, width: '100%', justifyContent: 'center' }),
+          onClick: function () {
+            update('preTaxItems', preTaxItems.concat([{ key: 'pre_' + Date.now(), label: '', value: 0 }]));
+          }
+        }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR DEDUÇÃO PRÉ-TAX'),
+        h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 6 }), onClick: function () {
+          update('preTaxItems', defaultPaycheckConfig.preTaxItems);
+        }}, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
       ),
 
       /* ---- DEDUÇÕES PÓS-TAX ---- */
       h(Section, { title: 'DEDUÇÕES PÓS-TAX', summary: formatUSD(totalPostTax), defaultOpen: false },
-        postTaxItems.map(function (item) {
-          return h('div', { key: item.key, style: S.lineItemRow },
-            h('span', { style: S.lineItemLabel }, item.label),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10, lineHeight: 1.6 } },
+          'Life Insurance, 401k Loan, Union Dues etc. — adicione ou remova conforme seus descontos ativos.'
+        ),
+        postTaxItems.map(function (item, i) {
+          return h('div', { key: item.key || i, style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 } },
             h('input', {
-              type: 'number', step: '0.01', value: item.value,
-              style: Object.assign({}, S.input, { width: 90, textAlign: 'right' }),
-              onChange: function (ev) { updatePostTaxItem(item.key, ev.target.value); }
-            })
+              type: 'text', value: item.label, placeholder: 'Nome do desconto',
+              style: Object.assign({}, S.input, { flex: 1, fontSize: 11 }),
+              onChange: function (ev) {
+                var next = postTaxItems.map(function (it, j) { return j === i ? Object.assign({}, it, { label: ev.target.value }) : it; });
+                update('postTaxItems', next);
+              }
+            }),
+            h('input', {
+              type: 'number', step: '0.01', value: item.value, placeholder: '0.00',
+              style: Object.assign({}, S.input, { width: 80, textAlign: 'right', flexShrink: 0 }),
+              onChange: function (ev) {
+                var next = postTaxItems.map(function (it, j) { return j === i ? Object.assign({}, it, { value: parseFloat(ev.target.value) || 0 }) : it; });
+                update('postTaxItems', next);
+              }
+            }),
+            h('button', { style: S.deleteBtn, onClick: function () {
+              update('postTaxItems', postTaxItems.filter(function (_, j) { return j !== i; }));
+            }}, h(Icon, { name: 'trash', size: 13 }))
           );
         }),
-        h('div', { style: S.totalRow },
+        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
           h('span', null, 'TOTAL'), h('span', { style: { color: '#5EEAD4' } }, formatUSD(totalPostTax))
-        )
+        ),
+        h('button', {
+          style: Object.assign({}, S.addBtn, { marginTop: 10, width: '100%', justifyContent: 'center' }),
+          onClick: function () {
+            update('postTaxItems', postTaxItems.concat([{ key: 'post_' + Date.now(), label: '', value: 0 }]));
+          }
+        }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR DEDUÇÃO PÓS-TAX'),
+        h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 6 }), onClick: function () {
+          update('postTaxItems', defaultPaycheckConfig.postTaxItems);
+        }}, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
       ),
 
       /* ---- PROJEÇÃO 401K — Fundos ---- */
@@ -293,25 +343,50 @@
       /* ---- PROGRESSÃO SALARIAL ---- */
       h(Section, { title: 'PROGRESSÃO SALARIAL (FLEET SERVICE/RAMP)', defaultOpen: false },
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12, lineHeight: 1.6 } },
-          'Toque em uma faixa para marcá-la como sua posição atual. A projeção avança um tier por ano automaticamente.'
+          'Toque no badge da faixa para marcá-la como sua posição atual. Adicione ou remova faixas conforme a tabela oficial da AA.'
         ),
         salaryTiers.map(function (t, i) {
           var isCurrent = i === currentYosIndex;
           return h('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
             h('button', {
-              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#D1D5DB' }, { cursor: 'pointer', border: 'none', flexShrink: 0, width: 60, fontSize: 9 }),
+              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#D1D5DB' }, { cursor: 'pointer', border: 'none', flexShrink: 0, width: 52, fontSize: 9 }),
               onClick: function () { setCurrentTier(i); }
             }, t.yos + 'a'),
             h('input', {
-              type: 'number', step: '0.01', value: t.rate, style: Object.assign({}, S.input, { flex: 1 }),
-              onChange: function (ev) { updateTierRate(i, ev.target.value); }
+              type: 'text', value: t.yos, placeholder: 'ex: 3-4',
+              style: Object.assign({}, S.input, { width: 56, flexShrink: 0, fontSize: 11 }),
+              onChange: function (ev) {
+                var next = salaryTiers.map(function (s, j) { return j === i ? Object.assign({}, s, { yos: ev.target.value }) : s; });
+                update('salaryTiers', next);
+              }
             }),
-            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } }, '/h')
+            h('input', {
+              type: 'number', step: '0.01', value: t.rate,
+              style: Object.assign({}, S.input, { flex: 1 }),
+              onChange: function (ev) {
+                var next = salaryTiers.map(function (s, j) { return j === i ? Object.assign({}, s, { rate: parseFloat(ev.target.value) || 0 }) : s; });
+                update('salaryTiers', next);
+              }
+            }),
+            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', flexShrink: 0 } }, '/h'),
+            h('button', { style: S.deleteBtn, onClick: function () {
+              var next = salaryTiers.filter(function (_, j) { return j !== i; });
+              update('salaryTiers', next);
+              if (currentYosIndex >= next.length) update('currentYosIndex', Math.max(0, next.length - 1));
+            }}, h(Icon, { name: 'trash', size: 13 }))
           );
         }),
-        h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 8 }), onClick: function () { update('salaryTiers', DEFAULT_SALARY_TIERS); update('currentYosIndex', 0); } },
-          h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR TABELA PADRÃO'
-        )
+        h('button', {
+          style: Object.assign({}, S.addBtn, { marginTop: 10, width: '100%', justifyContent: 'center' }),
+          onClick: function () {
+            var next = salaryTiers.concat([{ yos: '', rate: 0 }]);
+            update('salaryTiers', next);
+          }
+        }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR FAIXA'),
+        h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 6 }), onClick: function () {
+          update('salaryTiers', DEFAULT_SALARY_TIERS);
+          update('currentYosIndex', 0);
+        }}, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR TABELA PADRÃO')
       ),
 
       /* ---- RESET GERAL ---- */
