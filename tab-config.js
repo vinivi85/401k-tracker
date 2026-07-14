@@ -101,6 +101,27 @@
       update('postTaxItems', items);
     }
 
+    function sortTiers(tiers) {
+      return tiers.slice().sort(function (a, b) {
+        function tierVal(yos) {
+          if (!yos) return 999;
+          if (String(yos).indexOf('+') !== -1) return 11;
+          var n = parseInt(String(yos).split('-')[0], 10);
+          return isNaN(n) ? 999 : n;
+        }
+        return tierVal(a.yos) - tierVal(b.yos);
+      });
+    }
+
+    function updateTiers(next) {
+      var sorted = sortTiers(next);
+      var currentYos = salaryTiers[currentYosIndex] ? salaryTiers[currentYosIndex].yos : null;
+      var newIdx = currentYos ? sorted.findIndex(function (t) { return t.yos === currentYos; }) : currentYosIndex;
+      if (newIdx < 0) newIdx = 0;
+      update('salaryTiers', sorted);
+      if (newIdx !== currentYosIndex) update('currentYosIndex', newIdx);
+    }
+
     function updateTierRate(idx, value) {
       var tiers = getSalaryTiers(cfg).map(function (t, i) {
         return i === idx ? Object.assign({}, t, { rate: value }) : t;
@@ -395,7 +416,13 @@
             h('input', {
               type: 'text', value: t.yos, placeholder: 'ex: 3-4',
               style: Object.assign({}, S.input, { width: 56, flexShrink: 0, fontSize: 11 }),
+              onBlur: function (ev) {
+                /* Reordena ao sair do campo de faixa */
+                var next = salaryTiers.map(function (s, j) { return j === i ? Object.assign({}, s, { yos: ev.target.value }) : s; });
+                updateTiers(next);
+              },
               onChange: function (ev) {
+                /* Atualiza valor sem reordenar enquanto digita */
                 var next = salaryTiers.map(function (s, j) { return j === i ? Object.assign({}, s, { yos: ev.target.value }) : s; });
                 update('salaryTiers', next);
               }
@@ -411,16 +438,15 @@
             h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', flexShrink: 0 } }, '/h'),
             h('button', { style: S.deleteBtn, onClick: function () {
               var next = salaryTiers.filter(function (_, j) { return j !== i; });
-              update('salaryTiers', next);
-              if (currentYosIndex >= next.length) update('currentYosIndex', Math.max(0, next.length - 1));
+              updateTiers(next);
             }}, h(Icon, { name: 'trash', size: 13 }))
           );
         }),
         h('button', {
           style: Object.assign({}, S.addBtn, { marginTop: 10, width: '100%', justifyContent: 'center' }),
           onClick: function () {
-            var next = salaryTiers.concat([{ yos: '', rate: 0 }]);
-            update('salaryTiers', next);
+            /* Nova faixa vai pro final e reordena */
+            updateTiers(salaryTiers.concat([{ yos: '', rate: 0 }]));
           }
         }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR FAIXA'),
         h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 6 }), onClick: function () {
