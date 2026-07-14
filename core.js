@@ -29,7 +29,7 @@ var h = React.createElement;
 
   /* ---------- Seed: regras de paycheck (AA Fleet Service/Ramp, Shift 2) ---------- */
   var defaultPaycheckConfig = {
-    baseRate: 23.28,
+    baseRate: 23.98,
     shift2RegDiff: 0.51,
     shift2OtDiff: 0.77,      // valor FIXO confirmado no holerite — OT1.5, WRK-HOL, LUNCH-P
     shift2Ot2Diff: 1.02,     // Shift 2 DT diff — específico para horas OT2.0 (Double Time)
@@ -243,16 +243,21 @@ var h = React.createElement;
      e tab-projection.js
      ============================================================ */
   var DEFAULT_SALARY_TIERS = [
-    { yos: '3-4',  rate: 23.28 },
-    { yos: '4-5',  rate: 24.52 },
-    { yos: '5-6',  rate: 26.36 },
-    { yos: '6-7',  rate: 27.61 },
-    { yos: '7-8',  rate: 28.87 },
-    { yos: '8-9',  rate: 30.50 },
-    { yos: '9-10', rate: 32.65 },
-    { yos: '10-11',rate: 40.31 },
-    { yos: '11+',  rate: 41.52 }
+    { yos: '0-1',   rate: 21.25 },
+    { yos: '1-2',   rate: 21.98 },
+    { yos: '2-3',   rate: 23.03 },
+    { yos: '3-4',   rate: 23.98 },
+    { yos: '4-5',   rate: 25.26 },
+    { yos: '5-6',   rate: 27.15 },
+    { yos: '6-7',   rate: 28.44 },
+    { yos: '7-8',   rate: 29.74 },
+    { yos: '8-9',   rate: 31.42 },
+    { yos: '9-10',  rate: 33.63 },
+    { yos: '10-11', rate: 41.52 },
+    { yos: '11+',   rate: 41.52 }
   ];
+
+  var DEFAULT_YOS_INDEX = 3; // 3-4 anos — padrão para Vinicius; novo usuário escolhe na aba CONFIG
 
   function getSalaryTiers(cfg) {
     if (cfg && Array.isArray(cfg.salaryTiers) && cfg.salaryTiers.length > 0) return cfg.salaryTiers;
@@ -261,8 +266,8 @@ var h = React.createElement;
 
   function getCurrentYosIndex(cfg) {
     var tiers = getSalaryTiers(cfg);
-    var idx = (cfg && typeof cfg.currentYosIndex === 'number') ? cfg.currentYosIndex : 0;
-    if (idx < 0 || idx >= tiers.length) idx = 0;
+    var idx = (cfg && typeof cfg.currentYosIndex === 'number') ? cfg.currentYosIndex : DEFAULT_YOS_INDEX;
+    if (idx < 0 || idx >= tiers.length) idx = DEFAULT_YOS_INDEX;
     return idx;
   }
 
