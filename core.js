@@ -67,14 +67,12 @@ var h = React.createElement;
 
   /* ---------- Seed: configuração de projeção 401k ---------- */
   var defaultProjectionConfig = {
-    allocPctLargeCap: 20.26,        // % no US Large Cap Stock Index
-    returnLargeCap: 15.67,          // retorno real 10 anos (prospecto NetBenefits, AS OF 05/31/2026)
-    returnTargetDate: 11.27,        // retorno real 10 anos (prospecto NetBenefits, AS OF 05/31/2026)
-    employeeContribPct: 4,
-    companyMatchPct: 4,
-    companyExtraPct: 5,
-    biweeklyGross: 2752.39,         // gross biweekly de referência p/ projeção (editável)
-    annualRaisePct: 0,              // aumento anual hipotético além da tabela
+    funds: [
+      { id: 'f1', name: 'US Large Cap Stock Index', allocPct: 20.26, returnPct: 15.67 },
+      { id: 'f2', name: 'Target Date 2050',          allocPct: 79.74, returnPct: 11.27 }
+    ],
+    biweeklyGross: 2752.39,
+    annualRaisePct: 0,
     horizons: [10, 15, 20, 25, 30]
   };
 
