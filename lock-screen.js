@@ -17,7 +17,7 @@
 
   var PIN_LENGTH = 4;
   var SESSION_TOKEN_KEY = '401k-session-token';
-  var INACTIVITY_MS = 5 * 60 * 1000; // 5 minutos
+  var INACTIVITY_MS = 10 * 60 * 1000; // 10 minutos
 
   /* ---------- Token de sessão simples (sem WebAuthn) ---------- */
   function generateSessionToken() {
