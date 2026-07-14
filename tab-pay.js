@@ -215,6 +215,9 @@
     var newContribState = React.useState('');
     var newContrib = newContribState[0], setNewContrib = newContribState[1];
 
+    var newPsState = React.useState('');
+    var newPs = newPsState[0], setNewPs = newPsState[1];
+
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
 
@@ -239,14 +242,15 @@
       var gross = newGross ? parseFloat(newGross) : null;
       if (newGross && (isNaN(gross) || gross < net)) { setError('Gross não pode ser menor que o líquido.'); return; }
       var contrib = newContrib ? parseFloat(newContrib) : null;
+      var ps = newPs ? parseFloat(newPs) : null;
 
-      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: net, gross: gross, contrib401k: contrib, type: newType || 'Regular payroll run' };
+      var draft = { date: newDate, periodStart: newDate, periodEnd: newDate, amount: net, gross: gross, contrib401k: contrib, profitSharing: ps, type: newType || 'Regular payroll run' };
       setSaving(true);
 
       SupabaseAPI.insertPayEntry(draft).then(function (created) {
         var next = entries.concat([created]);
         setEntries(next); cachePayEntries(next);
-        setNewDate(''); setNewNet(''); setNewGross(''); setNewContrib(''); setNewType('Regular payroll run');
+        setNewDate(''); setNewNet(''); setNewGross(''); setNewContrib(''); setNewPs(''); setNewType('Regular payroll run');
         setShowForm(false); setSaving(false);
       }).catch(function () {
         var localEntry = Object.assign({ id: 'local-' + Date.now() }, draft);
@@ -479,6 +483,10 @@
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'MINHA CONTRIB. 401K ($)'),
             h('input', { type: 'number', step: '0.01', placeholder: 'ex: 124.80', value: newContrib, style: S.input, onChange: function (ev) { setNewContrib(ev.target.value); } })
+          ),
+          h('div', { style: S.formRow },
+            h('label', { style: S.formLabel }, '401K AA CONTRIB ($)'),
+            h('input', { type: 'number', step: '0.01', placeholder: 'ex: 135.31', value: newPs, style: S.input, onChange: function (ev) { setNewPs(ev.target.value); } })
           ),
           /* Preview em tempo real */
           newGross && newNet && parseFloat(newGross) >= parseFloat(newNet)
