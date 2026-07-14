@@ -279,8 +279,8 @@
         setEntries(next); cachePayEntries(next);
         callback(true);
       }).catch(function (e) {
-        console.error('Falha ao atualizar pagamento', e);
-        callback(false, 'Sem conexão — tente de novo.');
+        console.error('Falha ao atualizar pagamento:', e.message);
+        callback(false, 'Erro: ' + (e.message || 'sem conexão') + ' — tente de novo.');
       });
     }
 
