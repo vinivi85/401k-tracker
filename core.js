@@ -19,13 +19,7 @@ var h = React.createElement;
   var KEY_AUTH_SESSION = '401k-auth-session';
 
   /* ---------- Seed: histórico de saldo (Tracker) ---------- */
-  var initialEntries = [
-    { id: '1', date: '2026-06-07', balance: 17141.23 },
-    { id: '2', date: '2026-06-15', balance: 17704.06 },
-    { id: '3', date: '2026-06-17', balance: 17873.69 },
-    { id: '4', date: '2026-06-18', balance: 17707.98 },
-    { id: '5', date: '2026-06-19', balance: 17866.49 }
-  ];
+  var initialEntries = []; // novo usuário começa sem leituras — dados vêm do Supabase
 
   /* ---------- Seed: regras de paycheck (AA Fleet Service/Ramp, Shift 2) ---------- */
   var defaultPaycheckConfig = {
