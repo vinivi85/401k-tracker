@@ -27,7 +27,7 @@
         h('span', { style: S.cardTitle }, props.title),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
           props.summary ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4' } }, props.summary) : null,
-          h('div', { style: { color: '#4B5563', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' } },
+          h('div', { style: { color: '#D1D5DB', transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' } },
             h(Icon, { name: 'chevron', size: 16 })
           )
         )
@@ -130,7 +130,7 @@
     var totalPostTax = postTaxItems.reduce(function (s, i) { return s + num(i.value); }, 0);
 
     var syncBadge;
-    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#6B7280' } }, 'SALVANDO...');
+    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SALVANDO...');
     else if (syncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SALVO');
     else if (syncStatus === 'offline') syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE');
 
@@ -161,7 +161,7 @@
         h(NumField, { label: 'SOCIAL SECURITY (%)', value: cfg.ssRatePct, onChange: function (v) { update('ssRatePct', v); } }),
         h(NumField, { label: 'MEDICARE (%)', value: cfg.medicareRatePct, onChange: function (v) { update('medicareRatePct', v); } }),
         h(NumField, { label: 'FEDERAL WITHHOLDING — % EFETIVO', value: cfg.fedWithholdingPct, onChange: function (v) { update('fedWithholdingPct', v); } }),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 4 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 4 } },
           'O federal withholding efetivo varia com o gross. Ajuste se o valor calculado diferir do holerite real.'
         )
       ),
@@ -209,7 +209,7 @@
           return totalAlloc.toFixed(1) + '% · retorno pond. ' + blended.toFixed(2) + '%';
         })()
       },
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 12, lineHeight: 1.6 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12, lineHeight: 1.6 } },
           'Cada fundo precisa ter a participação (% do total aportado) e o retorno anual histórico (lâmina do fundo). A soma das participações deve ser 100%.'
         ),
 
@@ -270,7 +270,7 @@
               h('span', { style: { color: totalAlloc > 100.1 || totalAlloc < 99.9 && funds.length > 0 ? '#FB7185' : '#5EEAD4' } },
                 'TOTAL PARTICIPAÇÃO: ' + totalAlloc.toFixed(2) + '%' + (Math.abs(totalAlloc - 100) > 0.1 && funds.length > 0 ? ' ⚠ deve ser 100%' : '')
               ),
-              h('span', { style: { color: '#9CA3AF' } }, 'RETORNO POND.: ' + blended.toFixed(2) + '%')
+              h('span', { style: { color: '#D1D5DB' } }, 'RETORNO POND.: ' + blended.toFixed(2) + '%')
             ),
 
             /* Botão adicionar fundo */
@@ -292,21 +292,21 @@
 
       /* ---- PROGRESSÃO SALARIAL ---- */
       h(Section, { title: 'PROGRESSÃO SALARIAL (FLEET SERVICE/RAMP)', defaultOpen: false },
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 12, lineHeight: 1.6 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12, lineHeight: 1.6 } },
           'Toque em uma faixa para marcá-la como sua posição atual. A projeção avança um tier por ano automaticamente.'
         ),
         salaryTiers.map(function (t, i) {
           var isCurrent = i === currentYosIndex;
           return h('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
             h('button', {
-              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' }, { cursor: 'pointer', border: 'none', flexShrink: 0, width: 60, fontSize: 9 }),
+              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#D1D5DB' }, { cursor: 'pointer', border: 'none', flexShrink: 0, width: 60, fontSize: 9 }),
               onClick: function () { setCurrentTier(i); }
             }, t.yos + 'a'),
             h('input', {
               type: 'number', step: '0.01', value: t.rate, style: Object.assign({}, S.input, { flex: 1 }),
               onChange: function (ev) { updateTierRate(i, ev.target.value); }
             }),
-            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4B5563' } }, '/h')
+            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } }, '/h')
           );
         }),
         h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 8 }), onClick: function () { update('salaryTiers', DEFAULT_SALARY_TIERS); update('currentYosIndex', 0); } },
@@ -317,7 +317,7 @@
       /* ---- RESET GERAL ---- */
       h('div', { style: S.card },
         h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'RESTAURAR TUDO')),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 12 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12 } },
           'Volta todos os parâmetros para os valores padrão da AA (Shift 2, 2023+). Não afeta seus dados de pagamentos, leituras ou carteiras.'
         ),
         h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: resetAll },
