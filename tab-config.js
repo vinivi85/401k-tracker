@@ -40,6 +40,9 @@
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
 
+    var projCfgState = React.useState(loadJSON(KEY_PROJECTION, defaultProjectionConfig));
+    var projCfg = projCfgState[0], setProjCfg = projCfgState[1];
+
     var syncState = React.useState('idle'); // 'idle' | 'syncing' | 'synced' | 'offline'
     var syncStatus = syncState[0], setSyncStatus = syncState[1];
 
@@ -66,7 +69,6 @@
       next[field] = value;
       setCfg(next);
       saveJSON(KEY_PAYCHECK, next);
-      /* Salva no Supabase com debounce simples */
       clearTimeout(window._configSaveTimer);
       window._configSaveTimer = setTimeout(function () {
         setSyncStatus('syncing');
@@ -76,6 +78,13 @@
           setSyncStatus('offline');
         });
       }, 800);
+    }
+
+    function updateProj(field, value) {
+      var next = Object.assign({}, projCfg);
+      next[field] = value;
+      setProjCfg(next);
+      saveJSON(KEY_PROJECTION, next);
     }
 
     function updatePreTaxItem(key, value) {
@@ -191,14 +200,94 @@
         )
       ),
 
-      /* ---- PROJEÇÃO ---- */
-      h(Section, { title: 'PROJEÇÃO 401K', defaultOpen: false },
-        h(NumField, { label: '% ALOCADO EM US LARGE CAP INDEX', value: cfg.allocPctLargeCap, onChange: function (v) { update('allocPctLargeCap', v); } }),
-        h(NumField, { label: 'RETORNO 10YR · LARGE CAP (%)', value: cfg.returnLargeCap, onChange: function (v) { update('returnLargeCap', v); } }),
-        h(NumField, { label: 'RETORNO 10YR · TARGET DATE 2050 (%)', value: cfg.returnTargetDate, onChange: function (v) { update('returnTargetDate', v); } }),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 4 } },
-          'Retornos baseados no histórico real de 10 anos (prospecto NetBenefits, 05/31/2026).'
-        )
+      /* ---- PROJEÇÃO 401K — Fundos ---- */
+      h(Section, { title: 'PROJEÇÃO 401K — FUNDOS', defaultOpen: false,
+        summary: (function () {
+          var funds = projCfg.funds || [];
+          var totalAlloc = funds.reduce(function (s, f) { return s + num(f.allocPct); }, 0);
+          var blended = funds.reduce(function (s, f) { return s + (num(f.allocPct) / (totalAlloc || 1)) * num(f.returnPct); }, 0);
+          return totalAlloc.toFixed(1) + '% · retorno pond. ' + blended.toFixed(2) + '%';
+        })()
+      },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 12, lineHeight: 1.6 } },
+          'Cada fundo precisa ter a participação (% do total aportado) e o retorno anual histórico (lâmina do fundo). A soma das participações deve ser 100%.'
+        ),
+
+        (function () {
+          var funds = projCfg.funds || [];
+          var totalAlloc = funds.reduce(function (s, f) { return s + num(f.allocPct); }, 0);
+          var blended = funds.length && totalAlloc > 0
+            ? funds.reduce(function (s, f) { return s + (num(f.allocPct) / totalAlloc) * num(f.returnPct); }, 0)
+            : 0;
+
+          return h('div', null,
+            funds.map(function (fund, i) {
+              return h('div', { key: fund.id, style: { background: '#0B1120', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid #1F2937' } },
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
+                  h('input', {
+                    type: 'text', value: fund.name,
+                    placeholder: 'Nome do fundo',
+                    style: Object.assign({}, S.input, { flex: 1, marginRight: 8, fontSize: 11 }),
+                    onChange: function (ev) {
+                      var next = funds.map(function (f, j) { return j === i ? Object.assign({}, f, { name: ev.target.value }) : f; });
+                      updateProj('funds', next);
+                    }
+                  }),
+                  h('button', { style: Object.assign({}, S.deleteBtn, { flexShrink: 0 }), onClick: function () {
+                    var next = funds.filter(function (_, j) { return j !== i; });
+                    updateProj('funds', next);
+                  }}, h(Icon, { name: 'trash', size: 13 }))
+                ),
+                h('div', { style: { display: 'flex', gap: 10 } },
+                  h('div', { style: { flex: 1 } },
+                    h('label', { style: S.formLabel }, 'PARTICIPAÇÃO (%)'),
+                    h('input', {
+                      type: 'number', step: '0.01', value: fund.allocPct,
+                      style: S.input,
+                      onChange: function (ev) {
+                        var next = funds.map(function (f, j) { return j === i ? Object.assign({}, f, { allocPct: parseFloat(ev.target.value) || 0 }) : f; });
+                        updateProj('funds', next);
+                      }
+                    })
+                  ),
+                  h('div', { style: { flex: 1 } },
+                    h('label', { style: S.formLabel }, 'RETORNO ANUAL (%)'),
+                    h('input', {
+                      type: 'number', step: '0.01', value: fund.returnPct,
+                      style: S.input,
+                      onChange: function (ev) {
+                        var next = funds.map(function (f, j) { return j === i ? Object.assign({}, f, { returnPct: parseFloat(ev.target.value) || 0 }) : f; });
+                        updateProj('funds', next);
+                      }
+                    })
+                  )
+                )
+              );
+            }),
+
+            /* Total e retorno ponderado */
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, borderTop: '1px solid #1A2333', paddingTop: 10, marginTop: 4, display: 'flex', justifyContent: 'space-between' } },
+              h('span', { style: { color: totalAlloc > 100.1 || totalAlloc < 99.9 && funds.length > 0 ? '#FB7185' : '#5EEAD4' } },
+                'TOTAL PARTICIPAÇÃO: ' + totalAlloc.toFixed(2) + '%' + (Math.abs(totalAlloc - 100) > 0.1 && funds.length > 0 ? ' ⚠ deve ser 100%' : '')
+              ),
+              h('span', { style: { color: '#9CA3AF' } }, 'RETORNO POND.: ' + blended.toFixed(2) + '%')
+            ),
+
+            /* Botão adicionar fundo */
+            h('button', {
+              style: Object.assign({}, S.addBtn, { marginTop: 12, width: '100%', justifyContent: 'center' }),
+              onClick: function () {
+                var next = funds.concat([{ id: 'f' + Date.now(), name: '', allocPct: 0, returnPct: 0 }]);
+                updateProj('funds', next);
+              }
+            }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR FUNDO'),
+
+            /* Reset */
+            h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 8 }), onClick: function () {
+              updateProj('funds', defaultProjectionConfig.funds);
+            }}, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR PADRÃO')
+          );
+        })()
       ),
 
       /* ---- PROGRESSÃO SALARIAL ---- */
