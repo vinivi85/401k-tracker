@@ -196,7 +196,7 @@
             })
           )
         ),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 10, lineHeight: 1.5 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 10, lineHeight: 1.5 } },
           'REND./MÊS = quanto o saldo projetado naquele ano renderia por mês, na taxa de retorno usada, se você parasse de aportar a partir daquele ponto.')
       ),
 
@@ -209,11 +209,11 @@
             var isCurrent = i === currentYosIndex;
             return h('span', {
               key: i,
-              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#9CA3AF' })
+              style: Object.assign({}, S.tierBadge, isCurrent ? {} : { background: '#1F2937', color: '#D1D5DB' })
             }, t.yos + 'a: ' + formatUSD(num(t.rate)));
           })
         ),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 8 } },
           'Posição atual: ' + salaryTiers[currentYosIndex].yos + ' anos. A projeção avança um tier por ano automaticamente. ⚙ Edite em CONFIG → Progressão Salarial.')
       ),
 
@@ -231,7 +231,7 @@
         (projCfg.funds || []).map(function (f, i) {
           return h('div', { key: i, style: S.lineItemRow },
             h('span', { style: S.lineItemLabel }, f.name || 'Fundo ' + (i+1)),
-            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#9CA3AF' } },
+            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } },
               num(f.allocPct).toFixed(1) + '% · ' + num(f.returnPct).toFixed(2) + '%/ano'
             )
           );
@@ -245,19 +245,19 @@
           h('span', { style: S.lineItemLabel }, 'CONTRIBUIÇÃO TOTAL 401K'),
           h('div', { style: { display: 'flex', flexDirection: 'column', gap: 2, width: '100%' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-              h('span', { style: { color: '#6B7280' } }, 'Employee'), h('span', { style: { color: '#9CA3AF' } }, employeePct + '%')
+              h('span', { style: { color: '#B0B7C3' } }, 'Employee'), h('span', { style: { color: '#D1D5DB' } }, employeePct + '%')
             ),
             h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-              h('span', { style: { color: '#6B7280' } }, 'Match AA'), h('span', { style: { color: '#9CA3AF' } }, matchPct + '%')
+              h('span', { style: { color: '#B0B7C3' } }, 'Match AA'), h('span', { style: { color: '#D1D5DB' } }, matchPct + '%')
             ),
             h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10 } },
-              h('span', { style: { color: '#6B7280' } }, '401K AA Contrib'), h('span', { style: { color: '#9CA3AF' } }, aaPct + '%')
+              h('span', { style: { color: '#B0B7C3' } }, '401K AA Contrib'), h('span', { style: { color: '#D1D5DB' } }, aaPct + '%')
             ),
             h('div', { style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, borderTop: '1px solid #1A2333', paddingTop: 4, marginTop: 2 } },
               h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, 'TOTAL'), h('span', { style: { color: '#5EEAD4', fontWeight: 700 } }, totalContribPct + '%')
             )
           ),
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 4 } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 4 } },
             '⚙ Edite todos os parâmetros na aba CONFIG'
           )
         )
