@@ -156,7 +156,7 @@ var SupabaseAPI = {
           id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end,
           amount: parseFloat(r.amount), type: r.type,
           gross: r.gross != null ? parseFloat(r.gross) : null,
-          contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null,
+          contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null,
           profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null
         };
       });
@@ -171,7 +171,7 @@ var SupabaseAPI = {
         pay_date: entry.date, period_start: entry.periodStart, period_end: entry.periodEnd,
         amount: entry.amount, type: entry.type, user_id: currentUserId(),
         gross: entry.gross != null ? entry.gross : null,
-        contrib_401k: entry.contrib401k != null ? entry.contrib401k : null,
+        contrib401k: entry.contrib401k != null ? entry.contrib401k : null,
         profit_sharing: entry.profitSharing != null ? entry.profitSharing : null
       })
     }).then(function (resp) {
@@ -183,7 +183,7 @@ var SupabaseAPI = {
         id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end,
         amount: parseFloat(r.amount), type: r.type,
         gross: r.gross != null ? parseFloat(r.gross) : null,
-        contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null,
+        contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null,
         profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null
       };
     });
@@ -198,16 +198,13 @@ var SupabaseAPI = {
   },
 
   updatePayEntry: function (id, fields) {
-    /* Traduz nomes JS → nomes de coluna do banco */
     var dbFields = {};
-    if (fields.date      != null) dbFields.pay_date      = fields.date;
-    if (fields.type      != null) dbFields.type           = fields.type;
-    if (fields.amount    != null) dbFields.amount         = fields.amount;
-    if (fields.gross     != null) dbFields.gross          = fields.gross;
-    if (fields.contrib401k  != null) dbFields.contrib_401k   = fields.contrib401k;
+    if (fields.date          != null) dbFields.pay_date      = fields.date;
+    if (fields.type          != null) dbFields.type           = fields.type;
+    if (fields.amount        != null) dbFields.amount         = fields.amount;
+    if (fields.gross         != null) dbFields.gross          = fields.gross;
+    if (fields.contrib401k   != null) dbFields.contrib401k    = fields.contrib401k;
     if (fields.profitSharing != null) dbFields.profit_sharing = fields.profitSharing;
-    /* Permite também receber já com nomes do banco */
-    if (fields.contrib_401k  != null) dbFields.contrib_401k   = fields.contrib_401k;
     if (fields.profit_sharing != null) dbFields.profit_sharing = fields.profit_sharing;
 
     return authFetch(SUPABASE_URL + '/rest/v1/pay_entries?id=eq.' + encodeURIComponent(id), {
@@ -227,7 +224,7 @@ var SupabaseAPI = {
           id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end,
           amount: parseFloat(r.amount),
           gross: r.gross != null ? parseFloat(r.gross) : null,
-          contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null,
+          contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null,
           profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null,
           type: r.type
         };
