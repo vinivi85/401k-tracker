@@ -200,9 +200,11 @@ var SupabaseAPI = {
   updatePayEntry: function (id, fields) {
     /* Traduz nomes JS → nomes de coluna do banco */
     var dbFields = {};
-    if (fields.amount    != null) dbFields.amount        = fields.amount;
+    if (fields.date      != null) dbFields.pay_date      = fields.date;
+    if (fields.type      != null) dbFields.type           = fields.type;
+    if (fields.amount    != null) dbFields.amount         = fields.amount;
     if (fields.gross     != null) dbFields.gross          = fields.gross;
-    if (fields.contrib401k != null) dbFields.contrib_401k = fields.contrib401k;
+    if (fields.contrib401k  != null) dbFields.contrib_401k   = fields.contrib401k;
     if (fields.profitSharing != null) dbFields.profit_sharing = fields.profitSharing;
     /* Permite também receber já com nomes do banco */
     if (fields.contrib_401k  != null) dbFields.contrib_401k   = fields.contrib_401k;
