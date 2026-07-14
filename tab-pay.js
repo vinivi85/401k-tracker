@@ -69,6 +69,12 @@
     var contribValState = React.useState(e.contrib401k != null ? String(e.contrib401k) : '');
     var contribVal = contribValState[0], setContribVal = contribValState[1];
 
+    var dateValState = React.useState(e.date || '');
+    var dateVal = dateValState[0], setDateVal = dateValState[1];
+
+    var typeValState = React.useState(e.type || 'Regular payroll run');
+    var typeVal = typeValState[0], setTypeVal = typeValState[1];
+
     var psValState = React.useState(e.profitSharing != null ? String(e.profitSharing) : '');
     var psVal = psValState[0], setPsVal = psValState[1];
 
@@ -84,10 +90,11 @@
       var gross = grossVal ? parseFloat(grossVal) : null;
       var contrib = contribVal ? parseFloat(contribVal) : null;
       var ps = psVal ? parseFloat(psVal) : null;
+      if (!dateVal) { setErr('Selecione a data.'); return; }
       if (isNaN(net) || net <= 0) { setErr('Net inválido.'); return; }
       if (gross != null && (isNaN(gross) || gross < net)) { setErr('Gross não pode ser menor que o net.'); return; }
       setSaving(true);
-      onUpdate(e.id, { gross: gross, amount: net, contrib401k: contrib, profitSharing: ps }, function (ok, msg) {
+      onUpdate(e.id, { date: dateVal, gross: gross, amount: net, contrib401k: contrib, profitSharing: ps, type: typeVal }, function (ok, msg) {
         setSaving(false);
         if (ok) setEditing(false);
         else setErr(msg || 'Falha ao salvar.');
@@ -117,7 +124,22 @@
       return h('div', { style: { padding: '10px 0 12px', borderBottom: '1px solid #1A2333' } },
         /* Cabeçalho com data */
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 10 } },
-          formatDateLabel(e.date) + ' · ' + rangeLabel
+          'Editando pagamento'
+        ),
+
+        /* Linha 0: DATA + TIPO */
+        h('div', { style: { display: 'flex', gap: 10, marginBottom: 8 } },
+          h('div', { style: { flex: 1 } },
+            h('label', { style: S.formLabel }, 'DATA DO PAGAMENTO'),
+            h('input', { type: 'date', value: dateVal, style: S.input, onChange: function (ev) { setDateVal(ev.target.value); } })
+          ),
+          h('div', { style: { flex: 1 } },
+            h('label', { style: S.formLabel }, 'TIPO'),
+            h('select', { value: typeVal, style: S.input, onChange: function (ev) { setTypeVal(ev.target.value); } },
+              h('option', { value: 'Regular payroll run' }, 'Regular payroll run'),
+              h('option', { value: 'Bonus payment' }, 'Bonus payment')
+            )
+          )
         ),
 
         /* Linha 1: GROSS + NET */
@@ -272,13 +294,20 @@
     function handleUpdate(id, fields, callback) {
       if (String(id).indexOf('local-') === 0) {
         var next = entries.map(function (e) {
-          return e.id === id ? Object.assign({}, e, { gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k }) : e;
+          return e.id === id ? Object.assign({}, e, { date: fields.date || e.date, type: fields.type || e.type, gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k }) : e;
         });
         setEntries(next); cachePayEntries(next);
         callback(true);
         return;
       }
-      SupabaseAPI.updatePayEntry(id, { gross: fields.gross, amount: fields.amount, contrib401k: fields.contrib401k, profit_sharing: fields.profitSharing }).then(function (updated) {
+      SupabaseAPI.updatePayEntry(id, {
+        date: fields.date,
+        type: fields.type,
+        gross: fields.gross,
+        amount: fields.amount,
+        contrib401k: fields.contrib401k,
+        profitSharing: fields.profitSharing
+      }).then(function (updated) {
         var next = entries.map(function (e) { return e.id === id ? updated : e; });
         setEntries(next); cachePayEntries(next);
         callback(true);
