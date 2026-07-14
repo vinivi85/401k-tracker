@@ -123,7 +123,7 @@
     if (editing) {
       return h('div', { style: { padding: '10px 0 12px', borderBottom: '1px solid #1A2333' } },
         /* Cabeçalho com data */
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 10 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10 } },
           'Editando pagamento'
         ),
 
@@ -180,7 +180,7 @@
         /* Botões */
         h('div', { style: { display: 'flex', gap: 8 } },
           h('button', { style: S.submitBtn, onClick: handleSave, disabled: saving }, saving ? 'SALVANDO...' : 'SALVAR'),
-          h('button', { style: Object.assign({}, S.addBtn, { color: '#6B7280', borderColor: '#374151' }), onClick: function () { setEditing(false); setErr(''); } }, 'CANCELAR')
+          h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151' }), onClick: function () { setEditing(false); setErr(''); } }, 'CANCELAR')
         )
       );
     }
@@ -196,14 +196,14 @@
           '401K: ' + formatUSD(contrib) + (myContribPct ? ' (' + myContribPct.toFixed(1) + '%)' : '') +
           (companyTotal != null ? ' · empresa: ' + formatUSD(companyTotal) : '')
         ) : null,
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 1 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 1 } },
           (isBonus ? 'BÔNUS · ' : '') + rangeLabel
         )
       ),
       h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, textAlign: 'right' } },
         pct != null
           ? h('span', { style: { color: '#FB7185' } }, '-' + pct.toFixed(1) + '%')
-          : h('span', { style: { color: '#4B5563' } }, e.gross == null ? 'SEM GROSS' : (isBonus ? 'BÔNUS' : ''))
+          : h('span', { style: { color: '#D1D5DB' } }, e.gross == null ? 'SEM GROSS' : (isBonus ? 'BÔNUS' : ''))
       ),
       h('div', { style: { display: 'flex', gap: 4 } },
         h('button', { style: Object.assign({}, S.deleteBtn, { color: '#5EEAD4' }), onClick: function () { setEditing(true); } }, h(Icon, { name: 'edit', size: 13 })),
@@ -392,7 +392,7 @@
     });
 
     var syncBadge;
-    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#6B7280' } }, 'SINCRONIZANDO...');
+    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SINCRONIZANDO...');
     else if (syncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
     else syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
 
@@ -442,7 +442,7 @@
             w2Reduction.toFixed(2) + '%'
           )
         ),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 8 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 8 } },
           'Soma de impostos + deduções ÷ gross. Registre o gross em cada pagamento para manter atualizado.'
         )
       ) : null,
