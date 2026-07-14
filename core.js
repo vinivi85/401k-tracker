@@ -341,7 +341,7 @@ var h = React.createElement;
     var data = props.data;
     var width = props.width || 320, height = props.height || 180, padX = 30, padY = 20;
     var lineColor = props.color || '#5EEAD4';
-    if (!data || data.length === 0) return h('div', { style: { color: '#6B7280', fontSize: 12, fontFamily: 'JetBrains Mono, monospace', padding: 20, textAlign: 'center' } }, 'Sem dados');
+    if (!data || data.length === 0) return h('div', { style: { color: '#B0B7C3', fontSize: 12, fontFamily: 'JetBrains Mono, monospace', padding: 20, textAlign: 'center' } }, 'Sem dados');
 
     var values = data.map(function (d) { return d.value; });
     var min = Math.min.apply(null, values);
@@ -368,7 +368,7 @@ var h = React.createElement;
 
     var labels = data.map(function (d, i) {
       if (data.length > 6 && i % Math.ceil(data.length / 6) !== 0 && i !== data.length - 1) return null;
-      return h('text', { key: 'lbl' + i, x: xAt(i), y: height - 4, fontSize: 9, fill: '#6B7280', textAnchor: 'middle', fontFamily: 'JetBrains Mono, monospace' }, d.label);
+      return h('text', { key: 'lbl' + i, x: xAt(i), y: height - 4, fontSize: 9, fill: '#9CA3AF', textAnchor: 'middle', fontFamily: 'JetBrains Mono, monospace' }, d.label);
     });
 
     return h('svg', { width: '100%', height: height, viewBox: '0 0 ' + width + ' ' + height, preserveAspectRatio: 'xMidYMid meet' },
@@ -388,44 +388,44 @@ var h = React.createElement;
     scrollArea: { flex: 1, paddingBottom: 90, overflowY: 'auto' },
     headerStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #1F2937', position: 'sticky', top: 0, background: '#0B1120', zIndex: 10 },
     headerLeft: { display: 'flex', alignItems: 'center', gap: 8 },
-    headerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, color: '#9CA3AF' },
-    headerRight: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', letterSpacing: 1 },
+    headerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, color: '#D1D5DB' },
+    headerRight: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', letterSpacing: 1 },
 
     card: { margin: '14px 16px 0', padding: '16px', background: '#111827', border: '1px solid #1F2937', borderRadius: 16 },
     cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    cardTitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, color: '#9CA3AF' },
-    cardSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4B5563' },
+    cardTitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, color: '#D1D5DB' },
+    cardSub: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' },
 
     gaugeCard: { margin: '20px 16px 0', padding: '24px 20px', background: 'linear-gradient(160deg, #111827 0%, #0B1120 100%)', border: '1px solid #1F2937', borderRadius: 16 },
-    gaugeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: '#6B7280', marginBottom: 6 },
+    gaugeLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 2, color: '#B0B7C3', marginBottom: 6 },
     gaugeValue: { fontFamily: "'JetBrains Mono', monospace", fontSize: 38, fontWeight: 700, color: '#F9FAFB', letterSpacing: -1, lineHeight: 1.1 },
     gaugeValueSm: { fontFamily: "'JetBrains Mono', monospace", fontSize: 28, fontWeight: 700, color: '#F9FAFB', letterSpacing: -0.5, lineHeight: 1.1 },
-    gaugeDate: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#4B5563', letterSpacing: 1, marginTop: 4, marginBottom: 18 },
+    gaugeDate: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', letterSpacing: 1, marginTop: 4, marginBottom: 18 },
 
     deltaRow: { display: 'flex', alignItems: 'stretch', gap: 16 },
     deltaBox: { flex: 1 },
     deltaDivider: { width: 1, background: '#1F2937' },
-    deltaLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#6B7280', marginBottom: 4 },
+    deltaLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#B0B7C3', marginBottom: 4 },
     deltaValue: { fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
     deltaPct: { fontSize: 11, opacity: 0.7, marginLeft: 2 },
 
     addBtn: { display: 'flex', alignItems: 'center', gap: 4, background: '#134E4A', color: '#5EEAD4', border: '1px solid #115E59', borderRadius: 8, padding: '6px 10px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, cursor: 'pointer' },
-    ghostBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#6B7280', border: '1px solid #1F2937', borderRadius: 8, padding: '6px 10px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, cursor: 'pointer' },
+    ghostBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#B0B7C3', border: '1px solid #1F2937', borderRadius: 8, padding: '6px 10px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 0.5, cursor: 'pointer' },
 
     formBox: { background: '#0B1120', border: '1px solid #1F2937', borderRadius: 12, padding: 14, marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 },
     formRow: { display: 'flex', flexDirection: 'column', gap: 4 },
     formRow2: { display: 'flex', gap: 10 },
-    formLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#6B7280' },
+    formLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, color: '#B0B7C3' },
     input: { background: '#111827', border: '1px solid #374151', borderRadius: 8, padding: '10px 12px', color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontSize: 14, outline: 'none', WebkitAppearance: 'none', width: '100%' },
     errorText: { color: '#FB7185', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" },
     submitBtn: { background: '#5EEAD4', color: '#0B1120', border: 'none', borderRadius: 8, padding: '10px', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 12, letterSpacing: 1, cursor: 'pointer', marginTop: 2 },
 
     entryList: { display: 'flex', flexDirection: 'column', gap: 2 },
     entryRow: { display: 'grid', gridTemplateColumns: '64px 1fr 100px 24px', alignItems: 'center', padding: '10px 4px', borderBottom: '1px solid #1A2333', gap: 8 },
-    entryDate: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#9CA3AF' },
+    entryDate: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#D1D5DB' },
     entryBalance: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: '#F9FAFB' },
     entryDiff: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, textAlign: 'right' },
-    deleteBtn: { background: 'transparent', border: 'none', color: '#4B5563', cursor: 'pointer', padding: 4, display: 'flex' },
+    deleteBtn: { background: 'transparent', border: 'none', color: '#D1D5DB', cursor: 'pointer', padding: 4, display: 'flex' },
 
     footer: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#374151', letterSpacing: 1, margin: '20px 0' },
 
@@ -438,15 +438,15 @@ var h = React.createElement;
     sectionLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: 1.5, color: '#5EEAD4', marginTop: 6, marginBottom: 8 },
     grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
     lineItemRow: { display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #1A2333', fontFamily: "'JetBrains Mono', monospace", fontSize: 12 },
-    lineItemLabel: { color: '#9CA3AF' },
+    lineItemLabel: { color: '#D1D5DB' },
     lineItemValue: { color: '#F9FAFB', fontWeight: 600 },
     totalRow: { display: 'flex', justifyContent: 'space-between', padding: '10px 0 4px', fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700 },
-    importBox: { background: '#0B1120', border: '1px dashed #374151', borderRadius: 12, padding: 14, marginBottom: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#6B7280', lineHeight: 1.6 },
+    importBox: { background: '#0B1120', border: '1px dashed #374151', borderRadius: 12, padding: 14, marginBottom: 14, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#B0B7C3', lineHeight: 1.6 },
 
     /* Projection specific */
     tierBadge: { display: 'inline-flex', alignItems: 'center', gap: 4, background: '#134E4A', color: '#5EEAD4', borderRadius: 6, padding: '3px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600 },
     table: { width: '100%', borderCollapse: 'collapse', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, tableLayout: 'fixed' },
-    th: { textAlign: 'left', color: '#6B7280', fontSize: 8, letterSpacing: 0.5, padding: '6px 2px', borderBottom: '1px solid #1F2937' },
+    th: { textAlign: 'left', color: '#B0B7C3', fontSize: 8, letterSpacing: 0.5, padding: '6px 2px', borderBottom: '1px solid #1F2937' },
     td: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#E5E7EB', fontSize: 10 },
     tdBold: { padding: '8px 2px', borderBottom: '1px solid #1A2333', color: '#F9FAFB', fontWeight: 700, fontSize: 10 },
 
@@ -455,19 +455,19 @@ var h = React.createElement;
     walletHeaderLeft: { display: 'flex', alignItems: 'center', gap: 8 },
     walletName: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 700, color: '#F9FAFB' },
     walletBalance: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: '#5EEAD4' },
-    walletMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#4B5563', marginTop: 2 },
+    walletMeta: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 2 },
     walletBody: { marginTop: 12, paddingTop: 12, borderTop: '1px solid #1A2333' },
     smallAddBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#5EEAD4', border: '1px solid #115E59', borderRadius: 6, padding: '5px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 0.5, cursor: 'pointer' },
 
     /* Lock screen specific */
     lockScreen: { minHeight: '100vh', background: '#0B1120', color: '#E5E7EB', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: 480, margin: '0 auto', padding: '0 24px' },
-    lockTitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 2, color: '#6B7280', marginTop: 16, marginBottom: 28 },
+    lockTitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 2, color: '#B0B7C3', marginTop: 16, marginBottom: 28 },
     pinDots: { display: 'flex', gap: 16, marginBottom: 36 },
     pinDot: { width: 14, height: 14, borderRadius: '50%', border: '1.5px solid #374151' },
     pinDotFilled: { width: 14, height: 14, borderRadius: '50%', background: '#5EEAD4', border: '1.5px solid #5EEAD4' },
     pinDotError: { width: 14, height: 14, borderRadius: '50%', background: '#FB7185', border: '1.5px solid #FB7185' },
     keypad: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18, width: '100%', maxWidth: 280 },
     keypadBtn: { aspectRatio: '1', borderRadius: '50%', background: '#111827', border: '1px solid #1F2937', color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontSize: 22, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-    keypadBtnGhost: { aspectRatio: '1', borderRadius: '50%', background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    keypadBtnGhost: { aspectRatio: '1', borderRadius: '50%', background: 'transparent', border: 'none', color: '#B0B7C3', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
     lockError: { color: '#FB7185', fontSize: 12, fontFamily: "'JetBrains Mono', monospace", marginTop: -16, marginBottom: 20 }
   };
