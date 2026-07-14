@@ -194,7 +194,7 @@ var SupabaseAPI = {
       return resp.json();
     }).then(function (rows) {
       var r = rows[0];
-      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null, type: r.type };
+      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib401k != null ? parseFloat(r.contrib401k) : null, profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null, type: r.type };
     });
   },
 
