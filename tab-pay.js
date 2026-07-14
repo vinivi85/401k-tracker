@@ -114,35 +114,48 @@
     var isBonus = e.type === 'Bonus payment';
 
     if (editing) {
-      return h('div', { style: Object.assign({}, S.entryRow, { flexDirection: 'column', alignItems: 'stretch', gap: 8, paddingBottom: 10 }) },
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, formatDateLabel(e.date) + ' · ' + rangeLabel),
-        h('div', { style: { display: 'flex', gap: 8 } },
+      return h('div', { style: { padding: '10px 0 12px', borderBottom: '1px solid #1A2333' } },
+        /* Cabeçalho com data */
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 10 } },
+          formatDateLabel(e.date) + ' · ' + rangeLabel
+        ),
+
+        /* Linha 1: GROSS + NET */
+        h('div', { style: { display: 'flex', gap: 10, marginBottom: 8 } },
           h('div', { style: { flex: 1 } },
-            h('label', { style: S.formLabel }, 'GROSS'),
-            h('input', { type: 'number', step: '0.01', value: grossVal, style: S.input, placeholder: 'ex: 3120.50', onChange: function (ev) { setGrossVal(ev.target.value); } })
+            h('label', { style: S.formLabel }, 'GROSS ($)'),
+            h('input', { type: 'number', step: '0.01', value: grossVal, style: S.input, placeholder: '3120.50', onChange: function (ev) { setGrossVal(ev.target.value); } })
           ),
           h('div', { style: { flex: 1 } },
-            h('label', { style: S.formLabel }, 'NET'),
+            h('label', { style: S.formLabel }, 'NET ($)'),
             h('input', { type: 'number', step: '0.01', value: netVal, style: S.input, onChange: function (ev) { setNetVal(ev.target.value); } })
           )
         ),
-        h('div', { style: { flex: 1 } },
-          h('label', { style: S.formLabel }, 'MINHA CONTRIB. 401K ($)'),
-          h('input', { type: 'number', step: '0.01', value: contribVal, style: S.input, placeholder: 'ex: 124.80', onChange: function (ev) { setContribVal(ev.target.value); } })
+
+        /* Linha 2: MINHA CONTRIB 401K + 401K AA CONTRIB */
+        h('div', { style: { display: 'flex', gap: 10, marginBottom: 8 } },
+          h('div', { style: { flex: 1 } },
+            h('label', { style: S.formLabel }, 'MINHA CONTRIB 401K ($)'),
+            h('input', { type: 'number', step: '0.01', value: contribVal, style: S.input, placeholder: '124.80', onChange: function (ev) { setContribVal(ev.target.value); } })
+          ),
+          h('div', { style: { flex: 1 } },
+            h('label', { style: S.formLabel }, '401K AA CONTRIB ($)' + (psSuggestion ? ' ~' + formatUSD(psSuggestion) : '')),
+            h('input', { type: 'number', step: '0.01', value: psVal, style: S.input, placeholder: psSuggestion ? psSuggestion.toFixed(2) : '156.03', onChange: function (ev) { setPsVal(ev.target.value); } })
+          )
         ),
-        h('div', { style: { flex: 1 } },
-          h('label', { style: S.formLabel }, '401K AA CONTRIB ($)' + (psSuggestion ? ' · sugestão: ' + formatUSD(psSuggestion) : '')),
-          h('input', { type: 'number', step: '0.01', value: psVal, style: S.input, placeholder: psSuggestion ? String(psSuggestion.toFixed(2)) : 'ex: 156.03', onChange: function (ev) { setPsVal(ev.target.value); } })
-        ),
-        grossVal && contribVal && parseFloat(grossVal) > 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4' } },
+
+        /* Preview em tempo real */
+        (grossVal && contribVal && parseFloat(grossVal) > 0) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginBottom: 4 } },
           'Match empresa: ' + formatUSD(parseFloat(grossVal) * (Math.min(parseFloat(contribVal)/parseFloat(grossVal)*100, matchLimitPct)/100)) +
           (psVal ? ' · AA Contrib: ' + formatUSD(parseFloat(psVal)) : '')
         ) : null,
-        grossVal && netVal && parseFloat(grossVal) >= parseFloat(netVal)
-          ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24' } },
-              'Redução: ' + reductionPct(parseFloat(grossVal), parseFloat(netVal)).toFixed(2) + '%'
-            ) : null,
+        (grossVal && netVal && parseFloat(grossVal) >= parseFloat(netVal)) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24', marginBottom: 6 } },
+          'Redução: ' + reductionPct(parseFloat(grossVal), parseFloat(netVal)).toFixed(2) + '%'
+        ) : null,
+
         err ? h('div', { style: S.errorText }, err) : null,
+
+        /* Botões */
         h('div', { style: { display: 'flex', gap: 8 } },
           h('button', { style: S.submitBtn, onClick: handleSave, disabled: saving }, saving ? 'SALVANDO...' : 'SALVAR'),
           h('button', { style: Object.assign({}, S.addBtn, { color: '#6B7280', borderColor: '#374151' }), onClick: function () { setEditing(false); setErr(''); } }, 'CANCELAR')
