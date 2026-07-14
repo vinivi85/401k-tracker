@@ -152,7 +152,13 @@ var SupabaseAPI = {
       return resp.json();
     }).then(function (rows) {
       return rows.map(function (r) {
-        return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null, type: r.type };
+        return {
+          id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end,
+          amount: parseFloat(r.amount), type: r.type,
+          gross: r.gross != null ? parseFloat(r.gross) : null,
+          contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null,
+          profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null
+        };
       });
     });
   },
@@ -165,14 +171,21 @@ var SupabaseAPI = {
         pay_date: entry.date, period_start: entry.periodStart, period_end: entry.periodEnd,
         amount: entry.amount, type: entry.type, user_id: currentUserId(),
         gross: entry.gross != null ? entry.gross : null,
-        contrib_401k: entry.contrib401k != null ? entry.contrib401k : null
+        contrib_401k: entry.contrib401k != null ? entry.contrib401k : null,
+        profit_sharing: entry.profitSharing != null ? entry.profitSharing : null
       })
     }).then(function (resp) {
-      if (!resp.ok) throw new Error('Supabase insert failed: ' + resp.status);
+      if (!resp.ok) return resp.text().then(function (t) { throw new Error('insert failed ' + resp.status + ': ' + t.slice(0,100)); });
       return resp.json();
     }).then(function (rows) {
       var r = rows[0];
-      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null, type: r.type };
+      return {
+        id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end,
+        amount: parseFloat(r.amount), type: r.type,
+        gross: r.gross != null ? parseFloat(r.gross) : null,
+        contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null,
+        profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null
+      };
     });
   },
 
@@ -185,10 +198,20 @@ var SupabaseAPI = {
   },
 
   updatePayEntry: function (id, fields) {
+    /* Traduz nomes JS → nomes de coluna do banco */
+    var dbFields = {};
+    if (fields.amount    != null) dbFields.amount        = fields.amount;
+    if (fields.gross     != null) dbFields.gross          = fields.gross;
+    if (fields.contrib401k != null) dbFields.contrib_401k = fields.contrib401k;
+    if (fields.profitSharing != null) dbFields.profit_sharing = fields.profitSharing;
+    /* Permite também receber já com nomes do banco */
+    if (fields.contrib_401k  != null) dbFields.contrib_401k   = fields.contrib_401k;
+    if (fields.profit_sharing != null) dbFields.profit_sharing = fields.profit_sharing;
+
     return authFetch(SUPABASE_URL + '/rest/v1/pay_entries?id=eq.' + encodeURIComponent(id), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-      body: JSON.stringify(fields)
+      body: JSON.stringify(dbFields)
     }).then(function (resp) {
       if (!resp.ok) {
         return resp.text().then(function (txt) {
@@ -197,18 +220,25 @@ var SupabaseAPI = {
       }
       return resp.json();
     }).then(function (rows) {
+      function mapRow(r) {
+        return {
+          id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end,
+          amount: parseFloat(r.amount),
+          gross: r.gross != null ? parseFloat(r.gross) : null,
+          contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null,
+          profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null,
+          type: r.type
+        };
+      }
       if (!rows || rows.length === 0) {
-        // Registro não encontrado ou bloqueado por RLS — faz GET pra buscar o estado atual
         return authFetch(SUPABASE_URL + '/rest/v1/pay_entries?id=eq.' + encodeURIComponent(id) + '&select=*')
           .then(function (r2) { return r2.json(); })
           .then(function (r2rows) {
-            if (!r2rows || r2rows.length === 0) throw new Error('Registro não encontrado no banco (id: ' + id + ')');
-            var r = r2rows[0];
-            return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null, profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null, type: r.type };
+            if (!r2rows || r2rows.length === 0) throw new Error('Registro não encontrado (id: ' + id + ')');
+            return mapRow(r2rows[0]);
           });
       }
-      var r = rows[0];
-      return { id: r.id, date: r.pay_date, periodStart: r.period_start, periodEnd: r.period_end, amount: parseFloat(r.amount), gross: r.gross != null ? parseFloat(r.gross) : null, contrib401k: r.contrib_401k != null ? parseFloat(r.contrib_401k) : null, profitSharing: r.profit_sharing != null ? parseFloat(r.profit_sharing) : null, type: r.type };
+      return mapRow(rows[0]);
     });
   },
 
