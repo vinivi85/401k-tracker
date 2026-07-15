@@ -1,4 +1,4 @@
-const CACHE_NAME = '401k-tracker-v52';
+const CACHE_NAME = '401k-tracker-v53';
 const ASSETS = [
   './',
   './index.html',
