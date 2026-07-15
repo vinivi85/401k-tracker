@@ -450,6 +450,9 @@
           }
         }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR FAIXA'),
         h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 6 }), onClick: function () {
+          updateTiers(salaryTiers);
+        }}, h(Icon, { name: 'chart', size: 12 }), 'ORDENAR'),
+        h('button', { style: Object.assign({}, S.ghostBtn, { marginTop: 6 }), onClick: function () {
           update('salaryTiers', DEFAULT_SALARY_TIERS);
           update('currentYosIndex', 0);
         }}, h(Icon, { name: 'reset', size: 12 }), 'RESTAURAR TABELA PADRÃO')
