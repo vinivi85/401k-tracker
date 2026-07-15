@@ -115,11 +115,23 @@
 
     function updateTiers(next) {
       var sorted = sortTiers(next);
+      /* Mantém a faixa selecionada pelo nome após reordenar */
       var currentYos = salaryTiers[currentYosIndex] ? salaryTiers[currentYosIndex].yos : null;
-      var newIdx = currentYos ? sorted.findIndex(function (t) { return t.yos === currentYos; }) : currentYosIndex;
+      var newIdx = currentYos
+        ? sorted.findIndex(function (t) { return t.yos === currentYos; })
+        : currentYosIndex;
       if (newIdx < 0) newIdx = 0;
-      update('salaryTiers', sorted);
-      if (newIdx !== currentYosIndex) update('currentYosIndex', newIdx);
+      /* Atualiza os dois campos de uma vez para evitar conflito de estado */
+      var next2 = Object.assign({}, cfg, { salaryTiers: sorted, currentYosIndex: newIdx });
+      setCfg(next2);
+      saveJSON(KEY_PAYCHECK, next2);
+      clearTimeout(window._configSaveTimer);
+      window._configSaveTimer = setTimeout(function () {
+        setSyncStatus('syncing');
+        SupabaseAPI.saveUserConfig(next2).then(function () {
+          setSyncStatus('synced');
+        }).catch(function () { setSyncStatus('offline'); });
+      }, 800);
     }
 
     function updateTierRate(idx, value) {
