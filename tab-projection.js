@@ -77,11 +77,11 @@
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
 
-    /* Lê progressão salarial do KEY_PAYCHECK também */
+    /* projCfg: apenas horizontes — tudo mais (fundos, tiers) vem de cfg (KEY_PAYCHECK/Supabase) */
     var projCfgState = React.useState(loadJSON(KEY_PROJECTION, defaultProjectionConfig));
     var projCfg = projCfgState[0], setProjCfg = projCfgState[1];
 
-    /* Sincroniza config do Supabase ao montar */
+    /* Sincroniza config do Supabase ao montar — inclui fundos, tiers, etc */
     React.useEffect(function () {
       var cancelled = false;
       SupabaseAPI.fetchUserConfig().then(function (remote) {
@@ -104,10 +104,13 @@
 
     var startBalance = getLatestBalance();
 
+    /* Usa fundos do cfg (Supabase) — com fallback para projCfg para compatibilidade */
+    var fundsForReturn = (cfg.funds && cfg.funds.length > 0) ? cfg : projCfg;
+
     /* Lê da config unificada (KEY_PAYCHECK) */
     var salaryTiers = getSalaryTiers(cfg);
     var currentYosIndex = getCurrentYosIndex(cfg);
-    var annualReturn = blendedAnnualReturn(projCfg);
+    var annualReturn = blendedAnnualReturn(fundsForReturn);
 
     /* Lê percentuais de contribuição direto do config do Paycheck */
     var paycheckCfg = cfg;
@@ -228,7 +231,7 @@
 
         h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
 
-        (projCfg.funds || []).map(function (f, i) {
+        (fundsForReturn.funds || []).map(function (f, i) {
           return h('div', { key: i, style: S.lineItemRow },
             h('span', { style: S.lineItemLabel }, f.name || 'Fundo ' + (i+1)),
             h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } },
