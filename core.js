@@ -61,9 +61,7 @@ var h = React.createElement;
 
   /* ---------- Seed: configuração de projeção 401k ---------- */
   var defaultProjectionConfig = {
-    funds: [
-      { id: 'f1', name: 'US Large Cap Stock Index', allocPct: 100, returnPct: 15.67 }
-    ],
+    funds: [],  // novo usuário começa sem fundos — adiciona os seus em CONFIG → Projeção 401K
     biweeklyGross: 2752.39,
     annualRaisePct: 0,
     horizons: [10, 15, 20, 25, 30]
