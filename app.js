@@ -42,14 +42,11 @@
     /* ---------- Estado de bloqueio (PIN / biometria) ---------- */
     var rawLockConfig = loadLockConfig();
 
-    // Migração: se o PIN foi criado com 6 dígitos (PIN_LENGTH antigo),
-    // limpa o config e força o usuário a criar um PIN novo de 4 dígitos.
+    // Migração: se o PIN foi criado com 6 dígitos (PIN_LENGTH antigo), limpa
     if (rawLockConfig.pinHash && rawLockConfig.pinLength && rawLockConfig.pinLength !== PIN_LENGTH) {
       rawLockConfig = { pinHash: null, biometricEnabled: false, credentialId: null };
       saveLockConfig(rawLockConfig);
     }
-    // Se não tem pinLength gravado, o PIN foi criado antes dessa flag existir (6 dígitos).
-    // Força re-cadastro também.
     if (rawLockConfig.pinHash && !rawLockConfig.pinLength) {
       rawLockConfig = { pinHash: null, biometricEnabled: false, credentialId: null };
       saveLockConfig(rawLockConfig);
@@ -59,9 +56,27 @@
     var lockConfig = lockConfigState[0], setLockConfig = lockConfigState[1];
 
     var hasPin = !!lockConfig.pinHash;
-    // Se tem PIN, só abre direto se o token de sessão ainda for válido (menos de 5 min de inatividade)
     var unlockedState = React.useState(!hasPin || isSessionValid());
     var unlocked = unlockedState[0], setUnlocked = unlockedState[1];
+
+    /* Ao logar, busca PIN do Supabase se não tiver localmente */
+    React.useEffect(function () {
+      if (!session) return;
+      SupabaseAPI.fetchUserConfig().then(function (remote) {
+        if (!remote) return;
+        var remotePinHash = remote.pinHash;
+        var remotePinLength = remote.pinLength;
+        if (remotePinHash && remotePinLength === PIN_LENGTH) {
+          var current = loadLockConfig();
+          if (!current.pinHash) {
+            /* Tem PIN no banco mas não localmente — aplica sem pedir pra criar */
+            var synced = { pinHash: remotePinHash, pinLength: remotePinLength, biometricEnabled: false, credentialId: null };
+            setLockConfig(synced);
+            saveLockConfig(synced);
+          }
+        }
+      }).catch(function () {});
+    }, [session]);
 
     var securityState = React.useState(false);
     var showSecurity = securityState[0], setShowSecurity = securityState[1];
@@ -107,9 +122,18 @@
       };
     }, [hasPin, unlocked]);
 
+    function savePinToSupabase(cfg) {
+      SupabaseAPI.fetchUserConfig().then(function (remote) {
+        var merged = Object.assign({}, remote || {}, { pinHash: cfg.pinHash, pinLength: cfg.pinLength });
+        return SupabaseAPI.saveUserConfig(merged);
+      }).catch(function (e) { console.error('Falha ao salvar PIN no Supabase', e); });
+    }
+
     function handlePinSetupDone(newConfig) {
-      setLockConfig(newConfig);
-      saveLockConfig(newConfig);
+      var withLength = Object.assign({}, newConfig, { pinLength: PIN_LENGTH });
+      setLockConfig(withLength);
+      saveLockConfig(withLength);
+      savePinToSupabase(withLength);
       setUnlocked(true);
     }
 
@@ -153,7 +177,7 @@
     if (showSecurity) {
       return h(window.SecurityPanel, {
         lockConfig: lockConfig,
-        onChange: function (cfg) { setLockConfig(cfg); saveLockConfig(cfg); },
+        onChange: function (cfg) { setLockConfig(cfg); saveLockConfig(cfg); savePinToSupabase(cfg); },
         onClose: function () { setShowSecurity(false); },
         userEmail: session.user.email,
         onSignOut: handleSignOut
