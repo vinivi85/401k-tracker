@@ -56,6 +56,12 @@
           var merged = Object.assign({}, defaultPaycheckConfig, remote);
           setCfg(merged);
           saveJSON(KEY_PAYCHECK, merged);
+          /* Sincroniza fundos e horizons com projCfg também */
+          if (remote.funds) {
+            var mergedProj = Object.assign({}, loadJSON(KEY_PROJECTION, defaultProjectionConfig), { funds: remote.funds });
+            setProjCfg(mergedProj);
+            saveJSON(KEY_PROJECTION, mergedProj);
+          }
         }
         setSyncStatus('synced');
       }).catch(function () {
@@ -85,6 +91,16 @@
       next[field] = value;
       setProjCfg(next);
       saveJSON(KEY_PROJECTION, next);
+      /* Se for fundos, salva no Supabase também (dentro de user_configs) */
+      if (field === 'funds') {
+        clearTimeout(window._configSaveTimer);
+        window._configSaveTimer = setTimeout(function () {
+          SupabaseAPI.fetchUserConfig().then(function (remote) {
+            var merged = Object.assign({}, remote || {}, { funds: value });
+            return SupabaseAPI.saveUserConfig(merged);
+          }).catch(function () {});
+        }, 800);
+      }
     }
 
     function updatePreTaxItem(key, value) {
