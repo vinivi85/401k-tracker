@@ -409,7 +409,7 @@ var h = React.createElement;
   var S = {
     app: { minHeight: '100vh', background: '#0B1120', color: '#E5E7EB', fontFamily: "'Inter', sans-serif", margin: '0 auto', maxWidth: 480, display: 'flex', flexDirection: 'column' },
     scrollArea: { flex: 1, paddingBottom: 90, overflowY: 'auto' },
-    headerStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #1F2937', position: 'sticky', top: 0, background: '#0B1120', zIndex: 10 },
+    headerStrip: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'calc(env(safe-area-inset-top) + 12px) 20px 12px', borderBottom: '1px solid #1F2937', position: 'sticky', top: 0, background: '#0B1120', zIndex: 10 },
     headerLeft: { display: 'flex', alignItems: 'center', gap: 8 },
     headerLabel: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, letterSpacing: 1.5, color: '#D1D5DB' },
     headerRight: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', letterSpacing: 1 },
@@ -483,7 +483,7 @@ var h = React.createElement;
     smallAddBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'transparent', color: '#5EEAD4', border: '1px solid #115E59', borderRadius: 6, padding: '5px 8px', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 0.5, cursor: 'pointer' },
 
     /* Lock screen specific */
-    lockScreen: { minHeight: '100vh', background: '#0B1120', color: '#E5E7EB', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: 480, margin: '0 auto', padding: '0 24px' },
+    lockScreen: { minHeight: '100vh', background: '#0B1120', color: '#E5E7EB', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', maxWidth: 480, margin: '0 auto', padding: 'env(safe-area-inset-top) 24px env(safe-area-inset-bottom)' },
     lockTitle: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 2, color: '#B0B7C3', marginTop: 16, marginBottom: 28 },
     pinDots: { display: 'flex', gap: 16, marginBottom: 36 },
     pinDot: { width: 14, height: 14, borderRadius: '50%', border: '1.5px solid #374151' },
