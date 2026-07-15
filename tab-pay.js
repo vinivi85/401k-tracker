@@ -304,8 +304,20 @@
 
     var sorted = entries.slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
 
-    /* Lê config do paycheck pra usar matchLimitPct e profitSharingPct */
-    var paycheckCfg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+    /* Lê config do paycheck do Supabase pra usar matchLimitPct e profitSharingPct */
+    var paycheckCfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
+    var paycheckCfg = paycheckCfgState[0], setPaycheckCfg = paycheckCfgState[1];
+
+    React.useEffect(function () {
+      SupabaseAPI.fetchUserConfig().then(function (remote) {
+        if (remote && Object.keys(remote).length > 0) {
+          var merged = Object.assign({}, defaultPaycheckConfig, remote);
+          setPaycheckCfg(merged);
+          saveJSON(KEY_PAYCHECK, merged);
+        }
+      }).catch(function () {});
+    }, []);
+
     var matchLimitPct = num(paycheckCfg.matchLimitPct, 4);
     var profitSharingPct = num(paycheckCfg.profitSharingPct, 5);
 
