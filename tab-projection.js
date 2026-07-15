@@ -104,22 +104,21 @@
 
     var startBalance = getLatestBalance();
 
-    /* Usa fundos do cfg (Supabase) — com fallback para projCfg para compatibilidade */
-    var fundsForReturn = (cfg.funds && cfg.funds.length > 0) ? cfg : projCfg;
+    /* Usa cfg do Supabase (já carregado no useEffect) em vez de KEY_PAYCHECK local */
+    var baseBiweeklyGross = (function () {
+      try { return window.calcPaycheck(cfg).gross; } catch (e) { return 0; }
+    })();
 
     /* Lê da config unificada (KEY_PAYCHECK) */
     var salaryTiers = getSalaryTiers(cfg);
     var currentYosIndex = getCurrentYosIndex(cfg);
-    var annualReturn = blendedAnnualReturn(fundsForReturn);
+    var annualReturn = blendedAnnualReturn(cfg);
 
-    /* Lê percentuais de contribuição direto do config do Paycheck */
-    var paycheckCfg = cfg;
-    var employeePct = num(paycheckCfg.contrib401kPct, 4);
-    var matchPct = num(paycheckCfg.matchLimitPct, 4);
-    var aaPct = num(paycheckCfg.profitSharingPct, 5);
+    /* Lê percentuais de contribuição direto do config do Paycheck (Supabase) */
+    var employeePct = num(cfg.contrib401kPct, 4);
+    var matchPct = num(cfg.matchLimitPct, 4);
+    var aaPct = num(cfg.profitSharingPct, 5);
     var totalContribPct = employeePct + matchPct + aaPct;
-
-    var baseBiweeklyGross = getCurrentPaycheckGross();
     var baseRateRef = num(salaryTiers[currentYosIndex].rate);
 
     function biweeklyContribFn(yearOffset) {
@@ -231,7 +230,7 @@
 
         h('div', { style: S.lineItemRow }, h('span', { style: S.lineItemLabel }, 'Gross biweekly (da aba PAYCHECK)'), h('span', { style: S.lineItemValue }, formatUSD(baseBiweeklyGross))),
 
-        (fundsForReturn.funds || []).map(function (f, i) {
+        (cfg.funds || []).map(function (f, i) {
           return h('div', { key: i, style: S.lineItemRow },
             h('span', { style: S.lineItemLabel }, f.name || 'Fundo ' + (i+1)),
             h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } },
