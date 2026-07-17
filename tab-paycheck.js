@@ -201,19 +201,26 @@
       unionDues:     'Union Dues - TWU'
     };
 
-    function checkItems(items, map) {
+    function checkItems(items, map, type) {
       (items || []).forEach(function (item) {
         var key = Object.keys(map).find(function (k) { return map[k] === item.label; });
         if (!key) return;
         var newVal = extracted.deductions[key];
-        if (newVal === undefined || newVal === null) return;
+        /* Dedução ausente no pay stub (não encontrada ou zerada) */
+        if (newVal === undefined || newVal === null || newVal === 0) {
+          if (num(item.value) > 0) {
+            changes.push({ key: key, label: item.label, oldVal: num(item.value), newVal: 0, type: type, action: 'remove' });
+          }
+          return;
+        }
+        /* Valor diferente */
         if (Math.abs(num(item.value) - newVal) > 0.01) {
-          changes.push({ key: key, label: item.label, oldVal: num(item.value), newVal: newVal, type: items === cfg.preTaxItems ? 'pre' : 'post' });
+          changes.push({ key: key, label: item.label, oldVal: num(item.value), newVal: newVal, type: type, action: 'update' });
         }
       });
     }
-    checkItems(cfg.preTaxItems, preMap);
-    checkItems(cfg.postTaxItems, postMap);
+    checkItems(cfg.preTaxItems, preMap, 'pre');
+    checkItems(cfg.postTaxItems, postMap, 'post');
     return changes;
   }
 
@@ -223,25 +230,43 @@
     var onConfirm = props.onConfirm;
     var onSkip = props.onSkip;
 
+    var updates = changes.filter(function (c) { return c.action === 'update'; });
+    var removals = changes.filter(function (c) { return c.action === 'remove'; });
+
     return h('div', { style: {
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0,0,0,0.75)', zIndex: 999,
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
     }},
       h('div', { style: { background: '#111827', borderRadius: 16, padding: 20, maxWidth: 400, width: '100%', border: '1px solid #1F2937' } },
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4', fontWeight: 700, marginBottom: 12 } }, 'DEDUÇÕES ALTERADAS'),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4', fontWeight: 700, marginBottom: 12 } }, 'DEDUÇÕES ALTERADAS NO PAY STUB'),
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', marginBottom: 12 } },
-          'O pay stub mostra valores diferentes dos atuais em CONFIG. Deseja atualizar?'
+          'Deseja atualizar o CONFIG com as alterações abaixo?'
         ),
-        changes.map(function (c, i) {
-          return h('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: '6px 0', borderBottom: '1px solid #1A2333' } },
-            h('span', { style: { color: '#D1D5DB' } }, c.label),
-            h('span', null,
-              h('span', { style: { color: '#B0B7C3', textDecoration: 'line-through', marginRight: 8 } }, formatUSD(c.oldVal)),
-              h('span', { style: { color: '#5EEAD4' } }, formatUSD(c.newVal))
-            )
-          );
-        }),
+
+        updates.length > 0 ? h('div', { style: { marginBottom: 10 } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 4 } }, 'VALORES ALTERADOS:'),
+          updates.map(function (c, i) {
+            return h('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: '5px 0', borderBottom: '1px solid #1A2333' } },
+              h('span', { style: { color: '#D1D5DB' } }, c.label),
+              h('span', null,
+                h('span', { style: { color: '#B0B7C3', textDecoration: 'line-through', marginRight: 8 } }, formatUSD(c.oldVal)),
+                h('span', { style: { color: '#5EEAD4' } }, formatUSD(c.newVal))
+              )
+            );
+          })
+        ) : null,
+
+        removals.length > 0 ? h('div', { style: { marginBottom: 10 } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 4, marginTop: updates.length > 0 ? 10 : 0 } }, 'NÃO ENCONTRADAS NO PAY STUB (REMOVER):'),
+          removals.map(function (c, i) {
+            return h('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: '5px 0', borderBottom: '1px solid #1A2333' } },
+              h('span', { style: { color: '#FB7185' } }, c.label),
+              h('span', { style: { color: '#FB7185' } }, formatUSD(c.oldVal) + ' → REMOVER')
+            );
+          })
+        ) : null,
+
         h('div', { style: { display: 'flex', gap: 10, marginTop: 16 } },
           h('button', { style: S.submitBtn, onClick: onConfirm }, 'SIM, ATUALIZAR CONFIG'),
           h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151', flex: 1 }), onClick: onSkip }, 'NÃO, SÓ AS HORAS')
@@ -365,14 +390,28 @@
 
     function applyDeductionChanges(changes) {
       var next = Object.assign({}, cfg);
-      next.preTaxItems = (cfg.preTaxItems || []).map(function (item) {
-        var ch = changes.find(function (c) { return c.label === item.label && c.type === 'pre'; });
-        return ch ? Object.assign({}, item, { value: ch.newVal }) : item;
-      });
-      next.postTaxItems = (cfg.postTaxItems || []).map(function (item) {
-        var ch = changes.find(function (c) { return c.label === item.label && c.type === 'post'; });
-        return ch ? Object.assign({}, item, { value: ch.newVal }) : item;
-      });
+      /* Filtra removals e updates separadamente */
+      var removals = changes.filter(function (c) { return c.action === 'remove'; });
+      var updates   = changes.filter(function (c) { return c.action === 'update'; });
+
+      next.preTaxItems = (cfg.preTaxItems || [])
+        .filter(function (item) {
+          return !removals.find(function (c) { return c.label === item.label && c.type === 'pre'; });
+        })
+        .map(function (item) {
+          var ch = updates.find(function (c) { return c.label === item.label && c.type === 'pre'; });
+          return ch ? Object.assign({}, item, { value: ch.newVal }) : item;
+        });
+
+      next.postTaxItems = (cfg.postTaxItems || [])
+        .filter(function (item) {
+          return !removals.find(function (c) { return c.label === item.label && c.type === 'post'; });
+        })
+        .map(function (item) {
+          var ch = updates.find(function (c) { return c.label === item.label && c.type === 'post'; });
+          return ch ? Object.assign({}, item, { value: ch.newVal }) : item;
+        });
+
       setCfg(next);
       saveJSON(KEY_PAYCHECK, next);
       clearTimeout(window._paycheckSaveTimer);
