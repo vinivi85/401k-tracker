@@ -198,7 +198,7 @@
 
     React.useEffect(function () {
       if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
-        setVersionInfo({ version: 'v61', buildDate: '2026-07-17' });
+        setVersionInfo({ version: 'v63', buildDate: '2026-07-17 08:46 UTC' });
         return;
       }
       var mc = new MessageChannel();
@@ -208,7 +208,7 @@
       navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
       /* Fallback após 1s se o SW não responder */
       setTimeout(function () {
-        setVersionInfo(function (v) { return v || { version: 'v61', buildDate: '2026-07-17' }; });
+        setVersionInfo(function (v) { return v || { version: 'v63', buildDate: '2026-07-17 08:46 UTC' }; });
       }, 1000);
     }, []);
 
