@@ -1,15 +1,17 @@
 /* =========================================================
    TAB: PAYCHECK — cálculo e visualização do contracheque
-   Todos os parâmetros (taxas, deduções, 401k%) vêm da aba CONFIG.
-   Aqui só se lançam as horas da quinzena.
+   Parâmetros vêm da aba CONFIG. Import de pay stub via PDF + Gemini AI.
    ========================================================= */
 (function () {
   'use strict';
   var h = React.createElement;
 
+  var GEMINI_API_KEY = window.__GEMINI_KEY || '';
+  var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY;
+
   /* ---------- Cálculo do contracheque ---------- */
   function calcPaycheck(cfg) {
-    var base = num(cfg.baseRate, 23.28);
+    var base = num(cfg.baseRate, 21.25);
     var otRate = base * 1.5;
     var ot2Rate = base * 2;
     var holRate = base;
@@ -19,19 +21,19 @@
     var s2OtDiff   = num(cfg.shift2OtDiff, 0.77);
     var s2Ot2Diff  = num(cfg.shift2Ot2Diff, 1.02);
 
-    var regHours   = num(cfg.regHours, 0);
-    var otHours    = num(cfg.otHours, 0);
-    var ot2Hours   = num(cfg.ot2Hours, 0);
-    var holHours   = num(cfg.holHours, 0);
+    var regHours    = num(cfg.regHours, 0);
+    var otHours     = num(cfg.otHours, 0);
+    var ot2Hours    = num(cfg.ot2Hours, 0);
+    var holHours    = num(cfg.holHours, 0);
     var wrkHolHours = num(cfg.wrkHolHours, 0);
-    var lunchHours = num(cfg.lunchPenaltyHours, 0);
+    var lunchHours  = num(cfg.lunchPenaltyHours, 0);
 
-    var payReg    = regHours   * base;
-    var payOt     = otHours    * otRate;
-    var payOt2    = ot2Hours   * ot2Rate;
-    var payHol    = holHours   * holRate;
+    var payReg    = regHours    * base;
+    var payOt     = otHours     * otRate;
+    var payOt2    = ot2Hours    * ot2Rate;
+    var payHol    = holHours    * holRate;
     var payWrkHol = wrkHolHours * wrkHolRate;
-    var payLunch  = lunchHours * otRate;
+    var payLunch  = lunchHours  * otRate;
 
     var regLikeHours = regHours + holHours;
     var otLikeHours  = otHours + wrkHolHours + lunchHours;
@@ -43,23 +45,23 @@
 
     var gross = payReg + payOt + payOt2 + payHol + payWrkHol + payLunch + diffReg + diffOt + diffOt2;
 
-    var contrib401k    = gross * (num(cfg.contrib401kPct, 4) / 100);
-    var matchLimitPct  = num(cfg.matchLimitPct, 4);
+    var contrib401k     = gross * (num(cfg.contrib401kPct, 4) / 100);
+    var matchLimitPct   = num(cfg.matchLimitPct, 4);
     var profitSharingPct = num(cfg.profitSharingPct, 5);
-    var myContribPct   = num(cfg.contrib401kPct, 4);
-    var companyMatch   = gross * (Math.min(myContribPct, matchLimitPct) / 100);
-    var profitSharing  = gross * (profitSharingPct / 100);
-    var companyTotal   = companyMatch + profitSharing;
-    var total401k      = contrib401k + companyTotal;
+    var myContribPct    = num(cfg.contrib401kPct, 4);
+    var companyMatch    = gross * (Math.min(myContribPct, matchLimitPct) / 100);
+    var profitSharing   = gross * (profitSharingPct / 100);
+    var companyTotal    = companyMatch + profitSharing;
+    var total401k       = contrib401k + companyTotal;
 
     var sumItems = function (items) { return (items || []).reduce(function (s, i) { return s + num(i.value); }, 0); };
     var preTaxTotal  = sumItems(cfg.preTaxItems);
     var postTaxTotal = sumItems(cfg.postTaxItems);
 
-    var ssMedicareBase    = gross - preTaxTotal;
+    var ssMedicareBase     = gross - preTaxTotal;
     var federalTaxableBase = ssMedicareBase - contrib401k;
-    var ss      = ssMedicareBase    * (num(cfg.ssRatePct, 6.2)          / 100);
-    var medicare = ssMedicareBase   * (num(cfg.medicareRatePct, 1.45)   / 100);
+    var ss       = ssMedicareBase    * (num(cfg.ssRatePct, 6.2)          / 100);
+    var medicare = ssMedicareBase    * (num(cfg.medicareRatePct, 1.45)   / 100);
     var federal  = federalTaxableBase > 0 ? federalTaxableBase * (num(cfg.fedWithholdingPct, 1.2316) / 100) : 0;
 
     var totalDeductions = contrib401k + preTaxTotal + ss + medicare + federal + postTaxTotal;
@@ -89,17 +91,233 @@
   }
 
   function InfoBadge(props) {
-    return h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', margin: '4px 0 8px', lineHeight: 1.4 } },
+    return h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', margin: '4px 0 8px', lineHeight: 1.4 } },
       '⚙ ' + props.text + ' — edite em CONFIG'
     );
   }
 
+  /* ---------- Extrai texto do PDF via pdfjs-dist ---------- */
+  function extractPdfText(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var typedArray = new Uint8Array(e.target.result);
+        var pdfjsLib = window['pdfjs-dist/build/pdf'];
+        if (!pdfjsLib) { reject(new Error('pdfjs não carregado')); return; }
+        pdfjsLib.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.getDocument({ data: typedArray }).promise.then(function (pdf) {
+          var pages = [];
+          var total = pdf.numPages;
+          for (var i = 1; i <= total; i++) {
+            pages.push(pdf.getPage(i).then(function (page) {
+              return page.getTextContent().then(function (tc) {
+                return tc.items.map(function (it) { return it.str; }).join(' ');
+              });
+            }));
+          }
+          Promise.all(pages).then(function (texts) {
+            resolve(texts.join('\n'));
+          }).catch(reject);
+        }).catch(reject);
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /* ---------- Interpreta texto do pay stub via Gemini ---------- */
+  function parsePayStubWithGemini(text) {
+    var prompt = [
+      'You are parsing an American Airlines pay stub. Extract these values from the text and return ONLY a JSON object, no markdown, no explanation.',
+      '',
+      'JSON fields:',
+      '- paymentDate: string "YYYY-MM-DD" (Payment Date field)',
+      '- periodStart: string "YYYY-MM-DD" (first date of Pay Period)',
+      '- periodEnd: string "YYYY-MM-DD" (second date of Pay Period)',
+      '- gross: number (Current Gross Earnings total)',
+      '- net: number (Net Pay / Deposit Amount)',
+      '- regHours: number (Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours)',
+      '- otHours: number (Overtime hours + Hol Worked OT 1.5 hours + Shift 2 OT hours)',
+      '- ot2Hours: number (Doubletime hours + Shift 2 DT hours)',
+      '- holHours: number (Holiday Premium hours NOT worked)',
+      '- wrkHolHours: number (Hol Worked OT 1.5 as holiday pay, only if labeled WRK-HOL)',
+      '- lunchHours: number (Lunch penalty hours if any)',
+      '- contrib401k: number (401k Company Contrib current amount, labeled "401k Company Contrib.")',
+      '- profitSharing: number (AAG Profit Sharing current amount if any, else 0)',
+      '- deductions: object with these keys and their CURRENT values:',
+      '  - medicalCoverage: number',
+      '  - dentalCoverage: number',
+      '  - visionCoverage: number',
+      '  - employeeADD: number',
+      '  - spouseADD: number',
+      '  - childADD: number',
+      '  - employeeLife: number',
+      '  - spouseLife: number',
+      '  - childLife: number',
+      '  - groupAccident: number',
+      '  - loan401k: number (401k Loan if present, else 0)',
+      '  - unionDues: number (Union Dues TWU)',
+      '',
+      'If a value is not found, use 0. Return only the JSON.',
+      '',
+      'PAY STUB TEXT:',
+      text.slice(0, 6000)
+    ].join('\n');
+
+    return fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+      })
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
+      return resp.json();
+    }).then(function (data) {
+      var raw = data.candidates[0].content.parts[0].text;
+      var clean = raw.replace(/```json|```/g, '').trim();
+      return JSON.parse(clean);
+    });
+  }
+
+  /* ---------- Compara deduções extraídas com config atual ---------- */
+  function compareDeductions(extracted, cfg) {
+    var changes = [];
+    var preMap = {
+      medicalCoverage: 'Medical Coverage',
+      dentalCoverage:  'Dental Coverage',
+      visionCoverage:  'Vision Coverage',
+      employeeADD:     'Employee AD&D',
+      spouseADD:       'Spouse AD&D',
+      childADD:        'Child AD&D'
+    };
+    var postMap = {
+      employeeLife:  'Employee Life',
+      spouseLife:    'Spouse Life',
+      childLife:     'Child Life',
+      groupAccident: 'Group Accident Ins',
+      loan401k:      '401k Loan',
+      unionDues:     'Union Dues - TWU'
+    };
+
+    function checkItems(items, map) {
+      (items || []).forEach(function (item) {
+        var key = Object.keys(map).find(function (k) { return map[k] === item.label; });
+        if (!key) return;
+        var newVal = extracted.deductions[key];
+        if (newVal === undefined || newVal === null) return;
+        if (Math.abs(num(item.value) - newVal) > 0.01) {
+          changes.push({ key: key, label: item.label, oldVal: num(item.value), newVal: newVal, type: items === cfg.preTaxItems ? 'pre' : 'post' });
+        }
+      });
+    }
+    checkItems(cfg.preTaxItems, preMap);
+    checkItems(cfg.postTaxItems, postMap);
+    return changes;
+  }
+
+  /* ---------- Modal de confirmação de deduções ---------- */
+  function DeductionModal(props) {
+    var changes = props.changes;
+    var onConfirm = props.onConfirm;
+    var onSkip = props.onSkip;
+
+    return h('div', { style: {
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.75)', zIndex: 999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+    }},
+      h('div', { style: { background: '#111827', borderRadius: 16, padding: 20, maxWidth: 400, width: '100%', border: '1px solid #1F2937' } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4', fontWeight: 700, marginBottom: 12 } }, 'DEDUÇÕES ALTERADAS'),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', marginBottom: 12 } },
+          'O pay stub mostra valores diferentes dos atuais em CONFIG. Deseja atualizar?'
+        ),
+        changes.map(function (c, i) {
+          return h('div', { key: i, style: { display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: '6px 0', borderBottom: '1px solid #1A2333' } },
+            h('span', { style: { color: '#D1D5DB' } }, c.label),
+            h('span', null,
+              h('span', { style: { color: '#B0B7C3', textDecoration: 'line-through', marginRight: 8 } }, formatUSD(c.oldVal)),
+              h('span', { style: { color: '#5EEAD4' } }, formatUSD(c.newVal))
+            )
+          );
+        }),
+        h('div', { style: { display: 'flex', gap: 10, marginTop: 16 } },
+          h('button', { style: S.submitBtn, onClick: onConfirm }, 'SIM, ATUALIZAR CONFIG'),
+          h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151', flex: 1 }), onClick: onSkip }, 'NÃO, SÓ AS HORAS')
+        )
+      )
+    );
+  }
+
+  /* ---------- Modal de adicionar no Pay ---------- */
+  function AddToPayModal(props) {
+    var data = props.data;
+    var onConfirm = props.onConfirm;
+    var onSkip = props.onSkip;
+    var saving = props.saving;
+
+    return h('div', { style: {
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0,0,0,0.75)', zIndex: 999,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+    }},
+      h('div', { style: { background: '#111827', borderRadius: 16, padding: 20, maxWidth: 400, width: '100%', border: '1px solid #1F2937' } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4', fontWeight: 700, marginBottom: 12 } }, 'ADICIONAR NA ABA PAY?'),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', marginBottom: 12 } },
+          'Deseja registrar este pagamento na aba Pay com os valores extraídos?'
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'DATA'), h('span', { style: { color: '#5EEAD4' } }, data.paymentDate || '—')
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'GROSS'), h('span', { style: { color: '#D1D5DB' } }, formatUSD(data.gross || 0))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'NET'), h('span', { style: { color: '#5EEAD4' } }, formatUSD(data.net || 0))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, 'MINHA 401K'), h('span', { style: { color: '#D1D5DB' } }, formatUSD(data.contrib401k || 0))
+        ),
+        h('div', { style: S.totalRow },
+          h('span', null, '401K AA CONTRIB'), h('span', { style: { color: '#D1D5DB' } }, formatUSD(data.profitSharing || 0))
+        ),
+        h('div', { style: { display: 'flex', gap: 10, marginTop: 16 } },
+          h('button', { style: S.submitBtn, onClick: onConfirm, disabled: saving }, saving ? 'SALVANDO...' : 'SIM, ADICIONAR NO PAY'),
+          h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151', flex: 1 }), onClick: onSkip }, 'NÃO')
+        )
+      )
+    );
+  }
+
+  /* ===== COMPONENTE PRINCIPAL ===== */
   function PaycheckTab() {
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
 
-    var showImportState = React.useState(false);
-    var showImport = showImportState[0], setShowImport = showImportState[1];
+    /* Estados do import */
+    var importingState = React.useState(false);
+    var importing = importingState[0], setImporting = importingState[1];
+    var importMsgState = React.useState('');
+    var importMsg = importMsgState[0], setImportMsg = importMsgState[1];
+    var importErrState = React.useState('');
+    var importErr = importErrState[0], setImportErr = importErrState[1];
+
+    /* Modal de deduções */
+    var dedChangesState = React.useState(null);
+    var dedChanges = dedChangesState[0], setDedChanges = dedChangesState[1];
+    var pendingImportState = React.useState(null);
+    var pendingImport = pendingImportState[0], setPendingImport = pendingImportState[1];
+
+    /* Modal de adicionar no Pay */
+    var addToPayState = React.useState(null);
+    var addToPayData = addToPayState[0], setAddToPayData = addToPayState[1];
+    var addingToPayState = React.useState(false);
+    var addingToPay = addingToPayState[0], setAddingToPay = addingToPayState[1];
+
+    /* Data do pagamento */
+    var payDateState = React.useState('');
+    var payDate = payDateState[0], setPayDate = payDateState[1];
 
     /* Sincroniza config do Supabase ao montar */
     React.useEffect(function () {
@@ -120,13 +338,129 @@
       next[field] = value;
       setCfg(next);
       saveJSON(KEY_PAYCHECK, next);
-      /* Salva no Supabase com debounce de 1s */
       clearTimeout(window._paycheckSaveTimer);
       window._paycheckSaveTimer = setTimeout(function () {
         SupabaseAPI.saveUserConfig(next).catch(function (e) {
           console.error('Falha ao salvar config no Supabase', e);
         });
       }, 1000);
+    }
+
+    function applyHours(parsed) {
+      var next = Object.assign({}, cfg, {
+        regHours:          parsed.regHours    || 0,
+        otHours:           parsed.otHours     || 0,
+        ot2Hours:          parsed.ot2Hours    || 0,
+        holHours:          parsed.holHours    || 0,
+        wrkHolHours:       parsed.wrkHolHours || 0,
+        lunchPenaltyHours: parsed.lunchHours  || 0
+      });
+      setCfg(next);
+      saveJSON(KEY_PAYCHECK, next);
+      clearTimeout(window._paycheckSaveTimer);
+      window._paycheckSaveTimer = setTimeout(function () {
+        SupabaseAPI.saveUserConfig(next).catch(function () {});
+      }, 1000);
+    }
+
+    function applyDeductionChanges(changes) {
+      var next = Object.assign({}, cfg);
+      next.preTaxItems = (cfg.preTaxItems || []).map(function (item) {
+        var ch = changes.find(function (c) { return c.label === item.label && c.type === 'pre'; });
+        return ch ? Object.assign({}, item, { value: ch.newVal }) : item;
+      });
+      next.postTaxItems = (cfg.postTaxItems || []).map(function (item) {
+        var ch = changes.find(function (c) { return c.label === item.label && c.type === 'post'; });
+        return ch ? Object.assign({}, item, { value: ch.newVal }) : item;
+      });
+      setCfg(next);
+      saveJSON(KEY_PAYCHECK, next);
+      clearTimeout(window._paycheckSaveTimer);
+      window._paycheckSaveTimer = setTimeout(function () {
+        SupabaseAPI.saveUserConfig(next).catch(function () {});
+      }, 1000);
+    }
+
+    function handleFileImport(ev) {
+      var file = ev.target.files[0];
+      if (!file) return;
+      ev.target.value = '';
+      setImporting(true);
+      setImportMsg('Extraindo texto do PDF...');
+      setImportErr('');
+
+      extractPdfText(file).then(function (text) {
+        setImportMsg('Interpretando com IA...');
+        return parsePayStubWithGemini(text);
+      }).then(function (parsed) {
+        setImporting(false);
+        setImportMsg('');
+
+        /* Preenche data do pagamento */
+        if (parsed.paymentDate) setPayDate(parsed.paymentDate);
+
+        /* Aplica horas */
+        applyHours(parsed);
+
+        /* Verifica deduções */
+        var changes = compareDeductions(parsed, cfg);
+        if (changes.length > 0) {
+          setPendingImport(parsed);
+          setDedChanges(changes);
+        } else {
+          /* Sem mudanças de deduções — vai direto pro modal do Pay */
+          if (parsed.gross || parsed.net) {
+            setAddToPayData(parsed);
+          }
+        }
+      }).catch(function (e) {
+        setImporting(false);
+        setImportMsg('');
+        setImportErr('Erro ao processar: ' + e.message);
+      });
+    }
+
+    function handleDedConfirm() {
+      applyDeductionChanges(dedChanges);
+      var parsed = pendingImport;
+      setDedChanges(null);
+      setPendingImport(null);
+      if (parsed && (parsed.gross || parsed.net)) {
+        setAddToPayData(parsed);
+      }
+    }
+
+    function handleDedSkip() {
+      var parsed = pendingImport;
+      setDedChanges(null);
+      setPendingImport(null);
+      if (parsed && (parsed.gross || parsed.net)) {
+        setAddToPayData(parsed);
+      }
+    }
+
+    function handleAddToPay() {
+      var d = addToPayData;
+      setAddingToPay(true);
+      var entry = {
+        date: d.paymentDate || payDate || new Date().toISOString().slice(0, 10),
+        periodStart: d.periodStart || d.paymentDate || payDate,
+        periodEnd: d.periodEnd || d.paymentDate || payDate,
+        amount: d.net || 0,
+        gross: d.gross || null,
+        contrib401k: d.contrib401k || null,
+        profitSharing: d.profitSharing || null,
+        type: 'Regular payroll run'
+      };
+      SupabaseAPI.insertPayEntry(entry).then(function () {
+        setAddingToPay(false);
+        setAddToPayData(null);
+        setImportMsg('✓ Adicionado na aba Pay!');
+        setTimeout(function () { setImportMsg(''); }, 3000);
+      }).catch(function (e) {
+        setAddingToPay(false);
+        setImportErr('Erro ao salvar no Pay: ' + e.message);
+      });
     }
 
     var r = calcPaycheck(cfg);
@@ -145,6 +479,16 @@
     if (r.diffOt2  > 0) lineItems.push(['Shift 2 DT diff ('  + cfg.ot2Hours + 'h × ' + formatUSD(r.s2Ot2Diff) + ')', r.diffOt2]);
 
     return h(React.Fragment, null,
+
+      /* Modais */
+      dedChanges ? h(DeductionModal, { changes: dedChanges, onConfirm: handleDedConfirm, onSkip: handleDedSkip }) : null,
+      addToPayData ? h(AddToPayModal, { data: addToPayData, onConfirm: handleAddToPay, onSkip: function () { setAddToPayData(null); }, saving: addingToPay }) : null,
+
+      /* Input file hidden */
+      h('input', {
+        id: 'paystub-file-input', type: 'file', accept: '.pdf', style: { display: 'none' },
+        onChange: handleFileImport
+      }),
 
       /* ---- Prévia ---- */
       h('div', { style: S.gaugeCard },
@@ -168,13 +512,23 @@
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA'),
-          h('button', { style: S.ghostBtn, onClick: function () { setShowImport(!showImport); } },
-            h(Icon, { name: 'chart', size: 12 }), 'IMPORTAR')
+          h('button', {
+            style: Object.assign({}, S.addBtn, importing ? { opacity: 0.6 } : {}),
+            onClick: function () { if (!importing) document.getElementById('paystub-file-input').click(); },
+            disabled: importing
+          }, h(Icon, { name: 'receipt', size: 14 }), importing ? importMsg : 'IMPORTAR PAY STUB')
         ),
-        showImport ? h('div', { style: S.importBox },
-          'Para atualizar com base no seu último paycheck: tire print ou PDF do Pay Statement e mande no chat com a Claude. ',
-          'Ela lê os valores (horas, deduções, impostos) e te devolve os números prontos para colar nos campos.'
-        ) : null,
+
+        /* Status do import */
+        importMsg && !importing ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 8 } }, importMsg) : null,
+        importErr ? h('div', { style: S.errorText }, importErr) : null,
+
+        /* Data do pagamento */
+        h('div', { style: S.formRow },
+          h('label', { style: S.formLabel }, 'DATA DO PAGAMENTO'),
+          h('input', { type: 'date', value: payDate, style: S.input, onChange: function (ev) { setPayDate(ev.target.value); } })
+        ),
+
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'REG / TRP (h)',          value: cfg.regHours,          step: '0.01', onChange: function (v) { update('regHours', v); } }),
           h(NumField, { label: 'OT 1.5 / MANDO-OT (h)', value: cfg.otHours,          step: '0.01', onChange: function (v) { update('otHours', v); } })
@@ -186,7 +540,15 @@
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'WRK-HOL (h)', value: cfg.wrkHolHours,      step: '0.01', onChange: function (v) { update('wrkHolHours', v); } }),
           h(NumField, { label: 'LUNCH-P (h)', value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } })
-        )
+        ),
+
+        /* Botão adicionar no Pay manual (quando tem data) */
+        payDate ? h('button', {
+          style: Object.assign({}, S.addBtn, { marginTop: 10, width: '100%', justifyContent: 'center' }),
+          onClick: function () {
+            setAddToPayData({ paymentDate: payDate, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross });
+          }
+        }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR NO PAY') : null
       ),
 
       /* ---- Detalhamento bruto ---- */
