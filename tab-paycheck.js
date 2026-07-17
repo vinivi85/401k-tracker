@@ -7,7 +7,7 @@
   var h = React.createElement;
 
   var GEMINI_API_KEY = window.__GEMINI_KEY || '';
-  var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY;
+  var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=' + GEMINI_API_KEY;
 
   /* ---------- Cálculo do contracheque ---------- */
   function calcPaycheck(cfg) {
@@ -164,21 +164,27 @@
       text.slice(0, 6000)
     ].join('\n');
 
-    return fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 1024 }
-      })
-    }).then(function (resp) {
-      if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
-      return resp.json();
-    }).then(function (data) {
-      var raw = data.candidates[0].content.parts[0].text;
-      var clean = raw.replace(/```json|```/g, '').trim();
-      return JSON.parse(clean);
-    });
+    function attemptFetch(retries) {
+      return fetch(GEMINI_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+        })
+      }).then(function (resp) {
+        if (resp.status === 429 && retries > 0) {
+          return new Promise(function (res) { setTimeout(res, 3000); }).then(function () { return attemptFetch(retries - 1); });
+        }
+        if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
+        return resp.json();
+      }).then(function (data) {
+        var raw = data.candidates[0].content.parts[0].text;
+        var clean = raw.replace(/```json|```/g, '').trim();
+        return JSON.parse(clean);
+      });
+    }
+    return attemptFetch(3);
   }
 
   /* ---------- Compara deduções extraídas com config atual ---------- */
