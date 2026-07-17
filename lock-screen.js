@@ -191,6 +191,33 @@
     );
   }
 
+  /* ---------- Componente de versão do app ---------- */
+  function AppVersion() {
+    var versionState = React.useState(null);
+    var versionInfo = versionState[0], setVersionInfo = versionState[1];
+
+    React.useEffect(function () {
+      if (!navigator.serviceWorker || !navigator.serviceWorker.controller) {
+        setVersionInfo({ version: 'v61', buildDate: '2026-07-17' });
+        return;
+      }
+      var mc = new MessageChannel();
+      mc.port1.onmessage = function (ev) {
+        if (ev.data) setVersionInfo(ev.data);
+      };
+      navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
+      /* Fallback após 1s se o SW não responder */
+      setTimeout(function () {
+        setVersionInfo(function (v) { return v || { version: 'v61', buildDate: '2026-07-17' }; });
+      }, 1000);
+    }, []);
+
+    if (!versionInfo) return null;
+    return h('span', null,
+      'BUILD ' + versionInfo.version + ' · ' + versionInfo.buildDate
+    );
+  }
+
   /* ---------- Painel de segurança ---------- */
   function SecurityPanel(props) {
     var lockConfig = props.lockConfig;
@@ -240,7 +267,10 @@
           status ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4', marginTop: 10 } }, status) : null
         ),
 
-        h('div', { style: S.footer }, 'SESSÃO LOCAL · TIMEOUT 5 MINUTOS DE INATIVIDADE')
+        h('div', { style: Object.assign({}, S.footer, { marginTop: 8 }) },
+          h(AppVersion, null)
+        ),
+        h('div', { style: S.footer }, 'SESSÃO LOCAL · TIMEOUT 10 MINUTOS DE INATIVIDADE')
       )
     );
   }
