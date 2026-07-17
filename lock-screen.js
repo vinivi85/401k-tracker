@@ -267,10 +267,10 @@
           status ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4', marginTop: 10 } }, status) : null
         ),
 
-        h('div', { style: Object.assign({}, S.footer, { marginTop: 8 }) },
+        h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#F9FAFB', letterSpacing: 1, marginTop: 8 } },
           h(AppVersion, null)
         ),
-        h('div', { style: S.footer }, 'SESSÃO LOCAL · TIMEOUT 10 MINUTOS DE INATIVIDADE')
+        h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', letterSpacing: 1, marginBottom: 8 } }, 'SESSÃO LOCAL · TIMEOUT 10 MINUTOS DE INATIVIDADE')
       )
     );
   }
