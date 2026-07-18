@@ -170,7 +170,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+          generationConfig: { temperature: 0, maxOutputTokens: 2048, responseMimeType: 'application/json' }
         })
       }).then(function (resp) {
         if (resp.status === 429 && retries > 0) {
