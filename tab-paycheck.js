@@ -182,7 +182,7 @@
           generationConfig: { temperature: 0, maxOutputTokens: 2048 }
         })
       }).then(function (resp) {
-        if (resp.status === 429 && retries > 0) {
+        if ((resp.status === 429 || resp.status === 503) && retries > 0) {
           return new Promise(function (res) { setTimeout(res, 3000); }).then(function () { return attemptFetch(retries - 1); });
         }
         if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
