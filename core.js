@@ -35,6 +35,8 @@ var h = React.createElement;
     medicareRatePct: 1.45,
     fedWithholdingPct: 1.2316,  // efetivo aproximado, editável (varia bastante com o gross)
     regHours: 80,
+    sickHours: 0,
+    vacationHours: 0,
     otHours: 0,
     ot2Hours: 0,
     holHours: 0,
