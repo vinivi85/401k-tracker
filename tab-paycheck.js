@@ -185,7 +185,7 @@
         // Extract JSON object — find first { and last }
         var start = clean.indexOf('{');
         var end = clean.lastIndexOf('}');
-        if (start === -1 || end === -1) throw new Error('Gemini did not return JSON. Got: ' + clean.slice(0, 80));
+        if (start === -1 || end === -1) throw new Error('Gemini retornou: ' + clean.slice(0, 150));
         return JSON.parse(clean.slice(start, end + 1));
       });
     }
@@ -440,7 +440,8 @@
       setImportErr('');
 
       extractPdfText(file).then(function (text) {
-        setImportMsg('Interpretando com IA...');
+        setImportMsg('Interpretando com IA... (' + text.length + ' chars extraídos)');
+        console.log('PDF TEXT EXTRACTED:', text.slice(0, 500));
         return parsePayStubWithGemini(text);
       }).then(function (parsed) {
         setImporting(false);
