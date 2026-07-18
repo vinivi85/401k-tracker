@@ -402,6 +402,15 @@ var SupabaseAPI = {
     }).then(function (data) {
       return SUPABASE_URL + data.signedURL;
     });
+  },
+
+  deletePayStub: function (path) {
+    return authFetch(SUPABASE_URL + '/storage/v1/object/paystubs/' + encodeURIComponent(path), {
+      method: 'DELETE'
+    }).then(function (resp) {
+      if (!resp.ok) return resp.text().then(function (t) { throw new Error('Delete failed ' + resp.status + ': ' + t.slice(0, 80)); });
+      return true;
+    });
   }
 };
 
