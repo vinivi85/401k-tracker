@@ -128,7 +128,7 @@
   /* ---------- Interpreta texto do pay stub via Gemini ---------- */
   function parsePayStubWithGemini(text) {
     var prompt = [
-      'You are parsing an American Airlines pay stub. Extract these values from the text and return ONLY a JSON object, no markdown, no explanation.',
+      'You are parsing an American Airlines pay stub. IMPORTANT: Your entire response must be valid JSON only. Do not include any text, explanation, markdown, or code blocks. Start your response with { and end with }. No backticks. Extract these values from the text and return ONLY a JSON object, no markdown, no explanation.',
       '',
       'JSON fields:',
       '- paymentDate: string "YYYY-MM-DD" (Payment Date field)',
@@ -170,7 +170,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 2048, responseMimeType: 'application/json' }
+          generationConfig: { temperature: 0, maxOutputTokens: 2048 }
         })
       }).then(function (resp) {
         if (resp.status === 429 && retries > 0) {
@@ -180,8 +180,13 @@
         return resp.json();
       }).then(function (data) {
         var raw = data.candidates[0].content.parts[0].text;
-        var clean = raw.replace(/```json|```/g, '').trim();
-        return JSON.parse(clean);
+        // Strip markdown fences if present
+        var clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        // Extract JSON object — find first { and last }
+        var start = clean.indexOf('{');
+        var end = clean.lastIndexOf('}');
+        if (start === -1 || end === -1) throw new Error('Gemini did not return JSON. Got: ' + clean.slice(0, 80));
+        return JSON.parse(clean.slice(start, end + 1));
       });
     }
     return attemptFetch(3);
