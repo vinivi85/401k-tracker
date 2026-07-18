@@ -440,6 +440,16 @@
       }).catch(function (e) { console.error('Delete failed:', e); });
     }
 
+    function checkAndAddToPay(data) {
+      var dateToCheck = data.paymentDate || payDate || '';
+      if (!dateToCheck) { setAddToPayData(data); return; }
+      SupabaseAPI.fetchPayEntries().then(function (entries) {
+        var exists = entries.some(function (e) { return e.date === dateToCheck; });
+        if (exists) { setDupWarning(dateToCheck); }
+        else { setAddToPayData(data); }
+      }).catch(function () { setAddToPayData(data); });
+    }
+
     function clearAllHours() {
       var cleared = Object.assign({}, cfg, {
         regHours: 0, sickHours: 0, vacationHours: 0, additionalHours: 0,
@@ -592,12 +602,7 @@
       setPendingImport(null);
       if (parsed && (parsed.gross || parsed.net)) {
         var d2check = parsed.paymentDate || '';
-        if (d2check) {
-          SupabaseAPI.fetchPayEntries().then(function (entries) {
-            var ex2 = entries.some(function (e) { return e.date === d2check; });
-            if (ex2) { setDupWarning(d2check); } else { setAddToPayData(parsed); }
-          }).catch(function () { setAddToPayData(parsed); });
-        } else { setAddToPayData(parsed); }
+        checkAndAddToPay(parsed);
       }
     }
 
@@ -606,13 +611,7 @@
       setDedChanges(null);
       setPendingImport(null);
       if (parsed && (parsed.gross || parsed.net)) {
-        var d3check = parsed.paymentDate || '';
-        if (d3check) {
-          SupabaseAPI.fetchPayEntries().then(function (entries) {
-            var ex3 = entries.some(function (e) { return e.date === d3check; });
-            if (ex3) { setDupWarning(d3check); } else { setAddToPayData(parsed); }
-          }).catch(function () { setAddToPayData(parsed); });
-        } else { setAddToPayData(parsed); }
+        checkAndAddToPay(parsed);
       }
     }
 
@@ -710,7 +709,7 @@
 
       /* ---- Prévia ---- */
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'PRÉVIA · PRÓXIMO PAYCHECK'),
+        h('div', { style: S.gaugeLabel }, (periodStart && periodEnd) ? ('PERÍODO: ' + formatDateLabel(periodStart) + ' – ' + formatDateLabel(periodEnd)) : 'PRÉVIA · PRÓXIMO PAYCHECK'),
         h('div', { style: S.deltaRow },
           h('div', { style: S.deltaBox },
             h('div', { style: S.deltaLabel }, 'BRUTO (GROSS)'),
@@ -759,12 +758,18 @@
       /* ---- Horas ---- */
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA'),
+          h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA')
+        ),
+        h('div', { style: { display: 'flex', gap: 8, marginBottom: 12 } },
           h('button', {
-            style: Object.assign({}, S.addBtn, importing ? { opacity: 0.6 } : {}),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }, importing ? { opacity: 0.6 } : {}),
             onClick: function () { if (!importing) document.getElementById('paystub-file-input').click(); },
             disabled: importing
-          }, h(Icon, { name: 'receipt', size: 14 }), importing ? importMsg : 'IMPORTAR PAY STUB')
+          }, h(Icon, { name: 'receipt', size: 14 }), importing ? importMsg : 'IMPORTAR PAY STUB'),
+          h('button', {
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', color: '#FB7185', borderColor: '#7F1D1D' }),
+            onClick: clearAllHours
+          }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
         ),
 
         /* Status do import */
@@ -793,14 +798,9 @@
           h(NumField, { label: 'ADDITIONAL HRS (h)',     value: cfg.additionalHours,   step: '0.01', onChange: function (v) { update('additionalHours', v); } }),
           h(NumField, { label: 'VACATION (h)',           value: cfg.vacationHours,     step: '0.01', onChange: function (v) { update('vacationHours', v); } })
         ),
-        h('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end' } },
-          h('div', { style: { flex: 1 } },
-            h(NumField, { label: 'LUNCH-P (h)', value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } })
-          ),
-          h('button', {
-            style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 2 }),
-            onClick: clearAllHours
-          }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
+        h('div', { style: S.formRow2 },
+          h(NumField, { label: 'LUNCH-P (h)', value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } }),
+          h('div', { style: { flex: 1 } })
         ),
 
       ),
