@@ -37,6 +37,7 @@ var h = React.createElement;
     regHours: 80,
     sickHours: 0,
     vacationHours: 0,
+    additionalHours: 0,
     otHours: 0,
     ot2Hours: 0,
     holHours: 0,
