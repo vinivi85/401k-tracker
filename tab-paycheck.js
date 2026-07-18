@@ -140,6 +140,7 @@
       '- periodStart: string "YYYY-MM-DD" (first date of Pay Period)',
       '- periodEnd: string "YYYY-MM-DD" (second date of Pay Period)',
       '- gross: number (Current Gross Earnings total)',
+      '- hoursWorked: number (Hours Worked total shown in header)',
       '- net: number (Net Pay / Deposit Amount)',
       '- regHours: number (Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours — do NOT include Additional Hours here)',
       '- sickHours: number (Sick Pay hours)',
@@ -373,6 +374,12 @@
     /* Data do pagamento */
     var payDateState = React.useState('');
     var payDate = payDateState[0], setPayDate = payDateState[1];
+    var periodStartState = React.useState('');
+    var periodStart = periodStartState[0], setPeriodStart = periodStartState[1];
+    var periodEndState = React.useState('');
+    var periodEnd = periodEndState[0], setPeriodEnd = periodEndState[1];
+    var hoursWorkedState = React.useState(null);
+    var hoursWorked = hoursWorkedState[0], setHoursWorked = hoursWorkedState[1];
 
     /* Sincroniza config do Supabase ao montar */
     React.useEffect(function () {
@@ -469,8 +476,11 @@
         setImporting(false);
         setImportMsg('');
 
-        /* Preenche data do pagamento */
+        /* Preenche data do pagamento, período e horas */
         if (parsed.paymentDate) setPayDate(parsed.paymentDate);
+        if (parsed.periodStart) setPeriodStart(parsed.periodStart);
+        if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
+        if (parsed.hoursWorked) setHoursWorked(parsed.hoursWorked);
 
         /* Aplica horas */
         applyHours(parsed);
@@ -580,8 +590,13 @@
             h('div', { style: Object.assign({}, S.gaugeValueSm, { color: '#5EEAD4' }) }, formatUSD(r.net))
           )
         ),
-        h('div', { style: Object.assign({}, S.gaugeDate, { marginTop: 14, marginBottom: 0 }) },
-          'TOTAL DESCONTOS: ' + formatUSD(r.totalDeductions))
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 } },
+          h('div', { style: S.gaugeDate }, 'TOTAL DESCONTOS: ' + formatUSD(r.totalDeductions)),
+          hoursWorked ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } }, hoursWorked + 'h TRABALHADAS') : null
+        ),
+        (periodStart && periodEnd) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginTop: 4 } },
+          'PERÍODO: ' + formatDateLabel(periodStart) + ' – ' + formatDateLabel(periodEnd)
+        ) : null
       ),
 
       /* ---- Horas ---- */
