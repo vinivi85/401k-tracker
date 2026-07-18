@@ -130,6 +130,59 @@
     });
   }
 
+  /* ---------- Interpreta Work Summary via Gemini Vision ---------- */
+  function parseWorkSummaryWithGemini(imageFile) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var base64 = e.target.result.split(',')[1];
+        var mimeType = imageFile.type || 'image/jpeg';
+
+        var prompt = 'This is a Work Summary table from American Airlines employee portal. ' +
+          'Extract the hours from the table and return ONLY valid JSON. ' +
+          'Sum hours by category: ' +
+          'regHours = WRK REG + TRP REG + SWAPON REG (all REG column rows). ' +
+          'otHours = WRK OT1.5 + MANDO-OT OT1.5 (all OT1.5 column rows). ' +
+          'ot2Hours = WRK OT2.0 + MANDO-OT OT2.0 (all OT2.0 column rows). ' +
+          'Return JSON: {"regHours": number, "otHours": number, "ot2Hours": number, ' +
+          '"sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, ' +
+          '"lunchHours": 0, "additionalHours": 0}';
+
+        var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + (window.__GEMINI_KEY || '');
+
+        function attempt(retries) {
+          return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: base64 } }
+              ]}],
+              generationConfig: { temperature: 0, maxOutputTokens: 512 }
+            })
+          }).then(function (resp) {
+            if ((resp.status === 429 || resp.status === 503) && retries > 0) {
+              return new Promise(function (res) { setTimeout(res, 3000); }).then(function () { return attempt(retries - 1); });
+            }
+            if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
+            return resp.json();
+          }).then(function (data) {
+            var raw = data.candidates[0].content.parts[0].text;
+            var clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+            try { return JSON.parse(clean); } catch (e) {}
+            var s = clean.indexOf('{'), e2 = clean.lastIndexOf('}');
+            if (s !== -1 && e2 > s) return JSON.parse(clean.slice(s, e2 + 1));
+            return JSON.parse('{' + clean + '}');
+          });
+        }
+        attempt(3).then(resolve).catch(reject);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(imageFile);
+    });
+  }
+
   /* ---------- Interpreta texto do pay stub via Gemini ---------- */
   function parsePayStubWithGemini(text) {
     var prompt = [
@@ -353,6 +406,8 @@
 
     /* Estados do import */
     var importingState = React.useState(false);
+    var importingWSState = React.useState(false);
+    var importingWS = importingWSState[0], setImportingWS = importingWSState[1];
     var importing = importingState[0], setImporting = importingState[1];
     var importMsgState = React.useState('');
     var importMsg = importMsgState[0], setImportMsg = importMsgState[1];
@@ -539,6 +594,77 @@
       }, 1000);
     }
 
+    function handleWorkSummaryImport(ev) {
+      var file = ev.target.files[0];
+      if (!file) return;
+      ev.target.value = '';
+      setImportingWS(true);
+      setImportErr('');
+
+      /* Read image as base64 */
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var base64 = e.target.result.split(',')[1];
+        var mimeType = file.type || 'image/jpeg';
+
+        var prompt = 'This is a Work Summary table from the American Airlines employee portal. Extract hours and return ONLY valid JSON starting with {. No markdown. Sum by category: regHours = WRK REG + TRP REG + SWAPON REG. otHours = WRK OT1.5 + MANDO-OT OT1.5. ot2Hours = WRK OT2.0 + MANDO-OT OT2.0. Return: {"regHours": number, "otHours": number, "ot2Hours": number, "sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, "lunchHours": 0, "additionalHours": 0}';
+
+        fetch(GEMINI_URL.replace(':generateContent', ':generateContent'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [
+              { inline_data: { mime_type: mimeType, data: base64 } },
+              { text: prompt }
+            ]}],
+            generationConfig: { temperature: 0, maxOutputTokens: 256 }
+          })
+        }).then(function (resp) {
+          if ((resp.status === 429 || resp.status === 503) ) {
+            return new Promise(function (res) { setTimeout(res, 3000); }).then(function () {
+              return fetch(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: base64 } }, { text: prompt }]}], generationConfig: { temperature: 0, maxOutputTokens: 256 } }) });
+            });
+          }
+          return resp;
+        }).then(function (resp) {
+          if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
+          return resp.json();
+        }).then(function (data) {
+          var raw = data.candidates[0].content.parts[0].text;
+          var start = raw.indexOf('{');
+          var end = raw.lastIndexOf('}');
+          var parsed = JSON.parse(raw.slice(start, end + 1));
+          setImportingWS(false);
+
+          /* Clear and apply hours */
+          var next = Object.assign({}, cfg, {
+            regHours:    parsed.regHours  || 0,
+            otHours:     parsed.otHours   || 0,
+            ot2Hours:    parsed.ot2Hours  || 0,
+            /* Keep other fields as-is */
+            sickHours:       0,
+            vacationHours:   0,
+            additionalHours: 0,
+            holHours:        0,
+            wrkHolHours:     0,
+            lunchPenaltyHours: 0
+          });
+          setCfg(next);
+          saveJSON(KEY_PAYCHECK, next);
+          clearTimeout(window._paycheckSaveTimer);
+          window._paycheckSaveTimer = setTimeout(function () {
+            SupabaseAPI.saveUserConfig(next).catch(function () {});
+          }, 1000);
+          setImportMsg('✓ Work Summary importado! REG: ' + (parsed.regHours || 0) + 'h · OT1.5: ' + (parsed.otHours || 0) + 'h · OT2.0: ' + (parsed.ot2Hours || 0) + 'h');
+          setTimeout(function () { setImportMsg(''); }, 4000);
+        }).catch(function (e) {
+          setImportingWS(false);
+          setImportErr('Erro Work Summary: ' + e.message);
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
     function handleFileImport(ev) {
       var file = ev.target.files[0];
       if (!file) return;
@@ -709,8 +835,12 @@
 
       /* Input file hidden */
       h('input', {
-        id: 'paystub-file-input', type: 'file', accept: '.pdf', style: { display: 'none' },
+        id: 'paystub-file-input', type: 'file', accept: '.pdf,image/*', style: { display: 'none' },
         onChange: handleFileImport
+      }),
+      h('input', {
+        id: 'worksummary-file-input', type: 'file', accept: 'image/*', style: { display: 'none' },
+        onChange: handleWorkSummaryImport
       }),
 
       /* ---- Prévia ---- */
@@ -766,7 +896,7 @@
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA')
         ),
-        h('div', { style: { display: 'flex', gap: 8, marginBottom: 12 } },
+        h('div', { style: { display: 'flex', gap: 8, marginBottom: 8 } },
           h('button', {
             style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }, importing ? { opacity: 0.6 } : {}),
             onClick: function () { if (!importing) document.getElementById('paystub-file-input').click(); },
@@ -777,6 +907,11 @@
             onClick: clearAllHours
           }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
         ),
+        h('button', {
+          style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center', marginBottom: 12 }, importingWS ? { opacity: 0.6 } : {}),
+          onClick: function () { if (!importingWS) document.getElementById('worksummary-file-input').click(); },
+          disabled: importingWS
+        }, h(Icon, { name: 'chart', size: 14 }), importingWS ? 'PROCESSANDO...' : 'IMPORTAR WORK SUMMARY'),
 
         /* Status do import */
         importMsg && !importing ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 8 } }, importMsg) : null,
