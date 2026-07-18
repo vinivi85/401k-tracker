@@ -372,6 +372,18 @@
     var addingToPay = addingToPayState[0], setAddingToPay = addingToPayState[1];
 
     /* Data do pagamento */
+    /* Paycheck Viewer */
+    var stubsState = React.useState([]);
+    var stubs = stubsState[0], setStubs = stubsState[1];
+    var selectedStubState = React.useState('');
+    var selectedStub = selectedStubState[0], setSelectedStub = selectedStubState[1];
+    var viewerUrlState = React.useState(null);
+    var viewerUrl = viewerUrlState[0], setViewerUrl = viewerUrlState[1];
+    var stubsLoadingState = React.useState(false);
+    var stubsLoading = stubsLoadingState[0], setStubsLoading = stubsLoadingState[1];
+    var viewerLoadingState = React.useState(false);
+    var viewerLoading = viewerLoadingState[0], setViewerLoading = viewerLoadingState[1];
+
     var payDateState = React.useState('');
     var payDate = payDateState[0], setPayDate = payDateState[1];
     var periodStartState = React.useState('');
@@ -380,6 +392,13 @@
     var periodEnd = periodEndState[0], setPeriodEnd = periodEndState[1];
     var hoursWorkedState = React.useState(null);
     var hoursWorked = hoursWorkedState[0], setHoursWorked = hoursWorkedState[1];
+
+    /* Carrega lista de pay stubs salvos */
+    React.useEffect(function () {
+      SupabaseAPI.listPayStubs().then(function (list) {
+        setStubs(list);
+      }).catch(function () {});
+    }, []);
 
     /* Sincroniza config do Supabase ao montar */
     React.useEffect(function () {
@@ -394,6 +413,18 @@
       }).catch(function () {});
       return function () { cancelled = true; };
     }, []);
+
+    function openPayStubViewer(stub) {
+      setViewerLoading(true);
+      setViewerUrl(null);
+      SupabaseAPI.getPayStubUrl(stub.path).then(function (url) {
+        setViewerUrl(url);
+        setViewerLoading(false);
+      }).catch(function (e) {
+        setViewerLoading(false);
+        console.error('Failed to get stub URL:', e);
+      });
+    }
 
     function clearAllHours() {
       var cleared = Object.assign({}, cfg, {
@@ -509,6 +540,19 @@
         /* Aplica horas */
         applyHours(parsed);
 
+        /* Upload do PDF para o Supabase Storage */
+        (function () {
+          var payDate = parsed.paymentDate || '';
+          var dateParts = payDate.split('-');
+          var dateStr = dateParts.length === 3 ? dateParts[1] + dateParts[2] + dateParts[0] : Date.now().toString();
+          var fileName = 'Paycheck-' + dateStr + '.pdf';
+          SupabaseAPI.uploadPayStub(file, fileName).then(function () {
+            return SupabaseAPI.listPayStubs();
+          }).then(function (list) {
+            setStubs(list);
+          }).catch(function (e) { console.error('Upload paystub failed:', e); });
+        })();
+
         /* Verifica deduções */
         var changes = compareDeductions(parsed, cfg);
         if (changes.length > 0) {
@@ -593,6 +637,23 @@
       /* Modais */
       dedChanges ? h(DeductionModal, { changes: dedChanges, onConfirm: handleDedConfirm, onSkip: handleDedSkip }) : null,
       addToPayData ? h(AddToPayModal, { data: addToPayData, onConfirm: handleAddToPay, onSkip: function () { setAddToPayData(null); }, saving: addingToPay }) : null,
+
+      /* PDF Viewer Modal */
+      viewerUrl ? h('div', { style: {
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.92)', zIndex: 999,
+        display: 'flex', flexDirection: 'column'
+      }},
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#111827', borderBottom: '1px solid #1F2937' } },
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4' } }, selectedStub),
+          h('button', { style: { background: 'transparent', border: 'none', color: '#FB7185', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, cursor: 'pointer', padding: 8 }, onClick: function () { setViewerUrl(null); } }, '✕ FECHAR')
+        ),
+        h('iframe', {
+          src: viewerUrl,
+          style: { flex: 1, border: 'none', width: '100%' },
+          title: 'Pay Stub Viewer'
+        })
+      ) : null,
 
       /* Input file hidden */
       h('input', {
@@ -775,6 +836,36 @@
       h('div', { style: Object.assign({}, S.card, { background: 'linear-gradient(160deg, #134E4A 0%, #111827 100%)' }) },
         h('div', { style: S.totalRow },
           h('span', { style: { color: '#5EEAD4' } }, 'NET PAY'), h('span', { style: { color: '#5EEAD4' } }, formatUSD(r.net))
+        )
+      ),
+
+      /* ---- PAYCHECK VIEWER ---- */
+      h('div', { style: S.card },
+        h('div', { style: S.cardHeader },
+          h('span', { style: S.cardTitle }, 'PAYCHECK VIEWER'),
+          stubsLoading ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3' } }, 'CARREGANDO...') : null
+        ),
+        stubs.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#B0B7C3', padding: '8px 0' } },
+          'Nenhum pay stub importado ainda. Importe um PDF para salvá-lo aqui.'
+        ) : h('div', null,
+          h('select', {
+            value: selectedStub,
+            style: Object.assign({}, S.input, { width: '100%', marginBottom: 10 }),
+            onChange: function (ev) { setSelectedStub(ev.target.value); setViewerUrl(null); }
+          },
+            h('option', { value: '' }, 'Selecione um pay stub...'),
+            stubs.map(function (s) {
+              return h('option', { key: s.path, value: s.name }, s.name.replace('.pdf', ''));
+            })
+          ),
+          selectedStub ? h('button', {
+            style: Object.assign({}, S.submitBtn, { width: '100%' }),
+            onClick: function () {
+              var stub = stubs.find(function (s) { return s.name === selectedStub; });
+              if (stub) openPayStubViewer(stub);
+            },
+            disabled: viewerLoading
+          }, viewerLoading ? 'CARREGANDO PDF...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 14 }), ' VISUALIZAR')) : null
         )
       ),
 
