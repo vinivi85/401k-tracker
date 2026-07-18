@@ -426,6 +426,18 @@
       });
     }
 
+    function deleteStub() {
+      var stub = stubs.find(function (s) { return s.name === selectedStub; });
+      if (!stub) return;
+      SupabaseAPI.deletePayStub(stub.path).then(function () {
+        setSelectedStub('');
+        setViewerUrl(null);
+        return SupabaseAPI.listPayStubs();
+      }).then(function (list) {
+        setStubs(list);
+      }).catch(function (e) { console.error('Delete failed:', e); });
+    }
+
     function clearAllHours() {
       var cleared = Object.assign({}, cfg, {
         regHours: 0, sickHours: 0, vacationHours: 0, additionalHours: 0,
@@ -848,15 +860,22 @@
         stubs.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#B0B7C3', padding: '8px 0' } },
           'Nenhum pay stub importado ainda. Importe um PDF para salvá-lo aqui.'
         ) : h('div', null,
-          h('select', {
-            value: selectedStub,
-            style: Object.assign({}, S.input, { width: '100%', marginBottom: 10 }),
-            onChange: function (ev) { setSelectedStub(ev.target.value); setViewerUrl(null); }
-          },
-            h('option', { value: '' }, 'Selecione um pay stub...'),
-            stubs.map(function (s) {
-              return h('option', { key: s.path, value: s.name }, s.name.replace('.pdf', ''));
-            })
+          h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 } },
+            h('select', {
+              value: selectedStub,
+              style: Object.assign({}, S.input, { flex: 1, margin: 0 }),
+              onChange: function (ev) { setSelectedStub(ev.target.value); setViewerUrl(null); }
+            },
+              h('option', { value: '' }, 'Selecione um pay stub...'),
+              stubs.map(function (s) {
+                return h('option', { key: s.path, value: s.name }, s.name.replace('.pdf', ''));
+              })
+            ),
+            selectedStub ? h('button', {
+              style: S.deleteBtn,
+              onClick: deleteStub,
+              title: 'Deletar arquivo'
+            }, h(Icon, { name: 'trash', size: 15 })) : null
           ),
           selectedStub ? h('button', {
             style: Object.assign({}, S.submitBtn, { width: '100%' }),
