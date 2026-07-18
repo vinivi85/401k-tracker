@@ -687,13 +687,25 @@
             h('div', { style: Object.assign({}, S.gaugeValueSm, { color: '#5EEAD4' }) }, formatUSD(r.net))
           )
         ),
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 } },
-          h('div', { style: S.gaugeDate }, 'TOTAL DESCONTOS: ' + formatUSD(r.totalDeductions)),
-          hoursWorked ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } }, hoursWorked + 'h TRABALHADAS') : null
-        ),
-        (periodStart && periodEnd) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginTop: 4 } },
-          'PERÍODO: ' + formatDateLabel(periodStart) + ' – ' + formatDateLabel(periodEnd)
-        ) : null
+        /* Botão adicionar no Pay — fixo no card de prévia */
+        h('div', { style: { marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' } },
+          h('div', { style: { flex: 1 } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+              h('div', { style: S.gaugeDate }, 'TOTAL DESCONTOS: ' + formatUSD(r.totalDeductions)),
+              hoursWorked ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' } }, hoursWorked + 'h TRABALHADAS') : null
+            ),
+            (periodStart && periodEnd) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginTop: 4 } },
+              'PERÍODO: ' + formatDateLabel(periodStart) + ' – ' + formatDateLabel(periodEnd)
+            ) : null
+          ),
+          h('button', {
+            style: Object.assign({}, S.addBtn, { flexShrink: 0, background: '#134E4A', borderColor: '#5EEAD4', color: '#5EEAD4' }),
+            onClick: function () {
+              setAddToPayData({ paymentDate: payDate, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross });
+            },
+            title: 'Adicionar na aba Pay'
+          }, h(Icon, { name: 'plus', size: 16 }))
+        )
       ),
 
       /* ---- Horas ---- */
@@ -743,13 +755,6 @@
           }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
         ),
 
-        /* Botão adicionar no Pay manual (quando tem data) */
-        payDate ? h('button', {
-          style: Object.assign({}, S.addBtn, { marginTop: 10, width: '100%', justifyContent: 'center' }),
-          onClick: function () {
-            setAddToPayData({ paymentDate: payDate, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross });
-          }
-        }, h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR NO PAY') : null
       ),
 
       /* ---- Detalhamento bruto ---- */
