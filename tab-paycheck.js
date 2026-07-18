@@ -370,6 +370,8 @@
     var addToPayData = addToPayState[0], setAddToPayData = addToPayState[1];
     var addingToPayState = React.useState(false);
     var addingToPay = addingToPayState[0], setAddingToPay = addingToPayState[1];
+    var dupWarningState = React.useState(null); // data duplicada encontrada
+    var dupWarning = dupWarningState[0], setDupWarning = dupWarningState[1];
 
     /* Data do pagamento */
     /* Paycheck Viewer */
@@ -589,7 +591,13 @@
       setDedChanges(null);
       setPendingImport(null);
       if (parsed && (parsed.gross || parsed.net)) {
-        setAddToPayData(parsed);
+        var d2check = parsed.paymentDate || '';
+        if (d2check) {
+          SupabaseAPI.fetchPayEntries().then(function (entries) {
+            var ex2 = entries.some(function (e) { return e.date === d2check; });
+            if (ex2) { setDupWarning(d2check); } else { setAddToPayData(parsed); }
+          }).catch(function () { setAddToPayData(parsed); });
+        } else { setAddToPayData(parsed); }
       }
     }
 
@@ -598,7 +606,13 @@
       setDedChanges(null);
       setPendingImport(null);
       if (parsed && (parsed.gross || parsed.net)) {
-        setAddToPayData(parsed);
+        var d3check = parsed.paymentDate || '';
+        if (d3check) {
+          SupabaseAPI.fetchPayEntries().then(function (entries) {
+            var ex3 = entries.some(function (e) { return e.date === d3check; });
+            if (ex3) { setDupWarning(d3check); } else { setAddToPayData(parsed); }
+          }).catch(function () { setAddToPayData(parsed); });
+        } else { setAddToPayData(parsed); }
       }
     }
 
@@ -648,6 +662,27 @@
 
       /* Modais */
       dedChanges ? h(DeductionModal, { changes: dedChanges, onConfirm: handleDedConfirm, onSkip: handleDedSkip }) : null,
+      dupWarning ? h('div', { style: {
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.75)', zIndex: 999,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+      }},
+        h('div', { style: { background: '#111827', borderRadius: 16, padding: 20, maxWidth: 380, width: '100%', border: '1px solid #7F1D1D' } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#FB7185', fontWeight: 700, marginBottom: 10 } }, '⚠ PAGAMENTO JÁ EXISTE'),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', marginBottom: 16 } },
+            'Já existe um lançamento na aba Pay com a data ' + dupWarning + '. Adicionar novamente pode gerar duplicidade.'
+          ),
+          h('div', { style: { display: 'flex', gap: 10 } },
+            h('button', { style: Object.assign({}, S.submitBtn, { background: '#7F1D1D', flex: 1 }), onClick: function () {
+              var d = { paymentDate: dupWarning, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross };
+              setDupWarning(null);
+              setAddToPayData(d);
+            }}, 'ADICIONAR MESMO ASSIM'),
+            h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151', flex: 1 }), onClick: function () { setDupWarning(null); } }, 'CANCELAR')
+          )
+        )
+      ) : null,
+
       addToPayData ? h(AddToPayModal, { data: addToPayData, onConfirm: handleAddToPay, onSkip: function () { setAddToPayData(null); }, saving: addingToPay }) : null,
 
       /* PDF Viewer Modal */
@@ -701,7 +736,20 @@
           h('button', {
             style: Object.assign({}, S.addBtn, { flexShrink: 0, background: '#134E4A', borderColor: '#5EEAD4', color: '#5EEAD4' }),
             onClick: function () {
-              setAddToPayData({ paymentDate: payDate, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross });
+              var dateToCheck = payDate || new Date().toISOString().slice(0, 10);
+              var data = { paymentDate: dateToCheck, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross };
+              /* Verifica duplicidade antes de abrir o modal */
+              SupabaseAPI.fetchPayEntries().then(function (entries) {
+                var exists = entries.some(function (e) { return e.date === dateToCheck; });
+                if (exists) {
+                  setDupWarning(dateToCheck);
+                } else {
+                  setAddToPayData(data);
+                }
+              }).catch(function () {
+                /* Se falhar a verificação, abre o modal mesmo assim */
+                setAddToPayData(data);
+              });
             },
             title: 'Adicionar na aba Pay'
           }, h(Icon, { name: 'plus', size: 16 }))
