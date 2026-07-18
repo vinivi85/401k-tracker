@@ -602,19 +602,19 @@
 
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'REG / TRP (h)',          value: cfg.regHours,          step: '0.01', onChange: function (v) { update('regHours', v); } }),
-          h(NumField, { label: 'OT 1.5 / MANDO-OT (h)', value: cfg.otHours,          step: '0.01', onChange: function (v) { update('otHours', v); } })
+          h(NumField, { label: 'SICK (h)',               value: cfg.sickHours,         step: '0.01', onChange: function (v) { update('sickHours', v); } })
         ),
         h('div', { style: S.formRow2 },
-          h(NumField, { label: 'SICK (h)',             value: cfg.sickHours,          step: '0.01', onChange: function (v) { update('sickHours', v); } }),
-          h(NumField, { label: 'VACATION (h)',         value: cfg.vacationHours,      step: '0.01', onChange: function (v) { update('vacationHours', v); } })
+          h(NumField, { label: 'VACATION (h)',           value: cfg.vacationHours,     step: '0.01', onChange: function (v) { update('vacationHours', v); } }),
+          h(NumField, { label: 'LUNCH-P (h)',            value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } })
         ),
         h('div', { style: S.formRow2 },
-          h(NumField, { label: 'OT 2.0 / MANDO-OT (h)', value: cfg.ot2Hours,          step: '0.01', onChange: function (v) { update('ot2Hours', v); } }),
-          h(NumField, { label: 'HOL (h)',     value: cfg.holHours,          step: '0.01', onChange: function (v) { update('holHours', v); } })
+          h(NumField, { label: 'OT 1.5 / MANDO-OT (h)', value: cfg.otHours,           step: '0.01', onChange: function (v) { update('otHours', v); } }),
+          h(NumField, { label: 'OT 2.0 / MANDO-OT (h)', value: cfg.ot2Hours,          step: '0.01', onChange: function (v) { update('ot2Hours', v); } })
         ),
         h('div', { style: S.formRow2 },
-          h(NumField, { label: 'WRK-HOL (h)', value: cfg.wrkHolHours,      step: '0.01', onChange: function (v) { update('wrkHolHours', v); } }),
-          h(NumField, { label: 'LUNCH-P (h)', value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } })
+          h(NumField, { label: 'HOL (h)',                value: cfg.holHours,          step: '0.01', onChange: function (v) { update('holHours', v); } }),
+          h(NumField, { label: 'WRK-HOL (h)',            value: cfg.wrkHolHours,       step: '0.01', onChange: function (v) { update('wrkHolHours', v); } })
         ),
 
         /* Botão adicionar no Pay manual (quando tem data) */
