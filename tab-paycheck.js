@@ -395,6 +395,23 @@
       return function () { cancelled = true; };
     }, []);
 
+    function clearAllHours() {
+      var cleared = Object.assign({}, cfg, {
+        regHours: 0, sickHours: 0, vacationHours: 0, additionalHours: 0,
+        otHours: 0, ot2Hours: 0, holHours: 0, wrkHolHours: 0, lunchPenaltyHours: 0
+      });
+      setCfg(cleared);
+      saveJSON(KEY_PAYCHECK, cleared);
+      setPayDate('');
+      setPeriodStart('');
+      setPeriodEnd('');
+      setHoursWorked(null);
+      clearTimeout(window._paycheckSaveTimer);
+      window._paycheckSaveTimer = setTimeout(function () {
+        SupabaseAPI.saveUserConfig(cleared).catch(function () {});
+      }, 1000);
+    }
+
     function update(field, value) {
       var next = Object.assign({}, cfg);
       next[field] = value;
@@ -409,6 +426,7 @@
     }
 
     function applyHours(parsed) {
+      /* Limpa horas anteriores antes de aplicar */
       var next = Object.assign({}, cfg, {
         regHours:          parsed.regHours    || 0,
         sickHours:         parsed.sickHours       || 0,
@@ -475,6 +493,12 @@
       }).then(function (parsed) {
         setImporting(false);
         setImportMsg('');
+
+        /* Limpa dados anteriores antes de aplicar o import */
+        setPayDate('');
+        setPeriodStart('');
+        setPeriodEnd('');
+        setHoursWorked(null);
 
         /* Preenche data do pagamento, período e horas */
         if (parsed.paymentDate) setPayDate(parsed.paymentDate);
@@ -636,8 +660,14 @@
           h(NumField, { label: 'ADDITIONAL HRS (h)',     value: cfg.additionalHours,   step: '0.01', onChange: function (v) { update('additionalHours', v); } }),
           h(NumField, { label: 'VACATION (h)',           value: cfg.vacationHours,     step: '0.01', onChange: function (v) { update('vacationHours', v); } })
         ),
-        h('div', { style: { maxWidth: '50%', paddingRight: 4 } },
-          h(NumField, { label: 'LUNCH-P (h)',            value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } })
+        h('div', { style: { display: 'flex', gap: 8, alignItems: 'flex-end' } },
+          h('div', { style: { flex: 1 } },
+            h(NumField, { label: 'LUNCH-P (h)', value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } })
+          ),
+          h('button', {
+            style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D', flexShrink: 0, alignSelf: 'flex-end', marginBottom: 2 }),
+            onClick: clearAllHours
+          }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
         ),
 
         /* Botão adicionar no Pay manual (quando tem data) */
