@@ -358,6 +358,50 @@ var SupabaseAPI = {
       if (!resp.ok) throw new Error('Supabase save user_config failed: ' + resp.status);
       return resp.json();
     });
+  },
+
+  /* ---------- Storage — Pay Stubs ---------- */
+
+  uploadPayStub: function (file, fileName) {
+    var uid = currentUserId();
+    var path = uid + '/' + fileName;
+    return authFetch(SUPABASE_URL + '/storage/v1/object/paystubs/' + encodeURIComponent(path), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
+      body: file
+    }).then(function (resp) {
+      if (!resp.ok) return resp.text().then(function (t) { throw new Error('Upload failed ' + resp.status + ': ' + t.slice(0, 80)); });
+      return path;
+    });
+  },
+
+  listPayStubs: function () {
+    var uid = currentUserId();
+    return authFetch(SUPABASE_URL + '/storage/v1/object/list/paystubs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix: uid + '/', limit: 100, sortBy: { column: 'name', order: 'desc' } })
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('List failed: ' + resp.status);
+      return resp.json();
+    }).then(function (items) {
+      return (items || []).filter(function (i) { return i.name && i.name.endsWith('.pdf'); }).map(function (i) {
+        return { name: i.name.replace(uid + '/', ''), path: uid + '/' + i.name.replace(uid + '/', '') };
+      });
+    });
+  },
+
+  getPayStubUrl: function (path) {
+    return authFetch(SUPABASE_URL + '/storage/v1/object/sign/paystubs/' + encodeURIComponent(path), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresIn: 3600 })
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('Sign failed: ' + resp.status);
+      return resp.json();
+    }).then(function (data) {
+      return SUPABASE_URL + data.signedURL;
+    });
   }
 };
 
