@@ -443,10 +443,16 @@
     function checkAndAddToPay(data) {
       var dateToCheck = data.paymentDate || payDate || '';
       if (!dateToCheck) { setAddToPayData(data); return; }
+      /* Força busca fresca do Supabase — não usa cache local */
       SupabaseAPI.fetchPayEntries().then(function (entries) {
-        var exists = entries.some(function (e) { return e.date === dateToCheck; });
-        if (exists) { setDupWarning(dateToCheck); }
-        else { setAddToPayData(data); }
+        var exists = entries.some(function (e) {
+          return e.date === dateToCheck || e.date === dateToCheck.replace(/\//g, '-');
+        });
+        if (exists) {
+          setDupWarning({ date: dateToCheck, data: data });
+        } else {
+          setAddToPayData(data);
+        }
       }).catch(function () { setAddToPayData(data); });
     }
 
@@ -669,15 +675,15 @@
         h('div', { style: { background: '#111827', borderRadius: 16, padding: 20, maxWidth: 380, width: '100%', border: '1px solid #7F1D1D' } },
           h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#FB7185', fontWeight: 700, marginBottom: 10 } }, '⚠ PAGAMENTO JÁ EXISTE'),
           h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', marginBottom: 16 } },
-            'Já existe um lançamento na aba Pay com a data ' + dupWarning + '. Adicionar novamente pode gerar duplicidade.'
+            'Já existe um lançamento na aba Pay com a data ' + (dupWarning ? dupWarning.date : '') + '. Deseja atualizar os valores existentes?'
           ),
           h('div', { style: { display: 'flex', gap: 10 } },
-            h('button', { style: Object.assign({}, S.submitBtn, { background: '#7F1D1D', flex: 1 }), onClick: function () {
-              var d = { paymentDate: dupWarning, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross };
+            h('button', { style: Object.assign({}, S.submitBtn, { background: '#0F766E', flex: 1 }), onClick: function () {
+              var d = dupWarning ? dupWarning.data : null;
               setDupWarning(null);
-              setAddToPayData(d);
-            }}, 'ADICIONAR MESMO ASSIM'),
-            h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151', flex: 1 }), onClick: function () { setDupWarning(null); } }, 'CANCELAR')
+              if (d) setAddToPayData(d);
+            }}, 'SIM, ATUALIZAR'),
+            h('button', { style: Object.assign({}, S.addBtn, { color: '#B0B7C3', borderColor: '#374151', flex: 1 }), onClick: function () { setDupWarning(null); } }, 'NÃO')
           )
         )
       ) : null,
@@ -736,7 +742,7 @@
             style: Object.assign({}, S.addBtn, { flexShrink: 0, background: '#134E4A', borderColor: '#5EEAD4', color: '#5EEAD4' }),
             onClick: function () {
               var dateToCheck = payDate || new Date().toISOString().slice(0, 10);
-              var data = { paymentDate: dateToCheck, gross: r.gross, net: r.net, contrib401k: num(cfg.contrib401kPct, 4) / 100 * r.gross, profitSharing: num(cfg.profitSharingPct, 5) / 100 * r.gross };
+              var data = { paymentDate: dateToCheck, gross: r.gross, net: r.net, contrib401k: r.contrib401k, profitSharing: r.profitSharing };
               /* Verifica duplicidade antes de abrir o modal */
               SupabaseAPI.fetchPayEntries().then(function (entries) {
                 var exists = entries.some(function (e) { return e.date === dateToCheck; });
