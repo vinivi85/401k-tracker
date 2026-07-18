@@ -22,20 +22,23 @@
     var s2Ot2Diff  = num(cfg.shift2Ot2Diff, 1.02);
 
     var regHours    = num(cfg.regHours, 0);
+    var sickHours   = num(cfg.sickHours, 0);
+    var vacationHours = num(cfg.vacationHours, 0);
+    var totalRegHours = regHours + sickHours + vacationHours;
     var otHours     = num(cfg.otHours, 0);
     var ot2Hours    = num(cfg.ot2Hours, 0);
     var holHours    = num(cfg.holHours, 0);
     var wrkHolHours = num(cfg.wrkHolHours, 0);
     var lunchHours  = num(cfg.lunchPenaltyHours, 0);
 
-    var payReg    = regHours    * base;
+    var payReg    = totalRegHours * base;
     var payOt     = otHours     * otRate;
     var payOt2    = ot2Hours    * ot2Rate;
     var payHol    = holHours    * holRate;
     var payWrkHol = wrkHolHours * wrkHolRate;
     var payLunch  = lunchHours  * otRate;
 
-    var regLikeHours = regHours + holHours;
+    var regLikeHours = totalRegHours + holHours;
     var otLikeHours  = otHours + wrkHolHours + lunchHours;
     var ot2LikeHours = ot2Hours;
 
@@ -136,7 +139,9 @@
       '- periodEnd: string "YYYY-MM-DD" (second date of Pay Period)',
       '- gross: number (Current Gross Earnings total)',
       '- net: number (Net Pay / Deposit Amount)',
-      '- regHours: number (Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours)',
+      '- regHours: number (Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours + Additional Hours)',
+      '- sickHours: number (Sick Pay hours)',
+      '- vacationHours: number (Vacation Pay hours)',
       '- otHours: number (Overtime hours + Hol Worked OT 1.5 hours + Shift 2 OT hours)',
       '- ot2Hours: number (Doubletime hours + Shift 2 DT hours)',
       '- holHours: number (Holiday Premium hours NOT worked)',
@@ -396,6 +401,8 @@
     function applyHours(parsed) {
       var next = Object.assign({}, cfg, {
         regHours:          parsed.regHours    || 0,
+        sickHours:         parsed.sickHours   || 0,
+        vacationHours:     parsed.vacationHours || 0,
         otHours:           parsed.otHours     || 0,
         ot2Hours:          parsed.ot2Hours    || 0,
         holHours:          parsed.holHours    || 0,
@@ -530,13 +537,15 @@
     var postTaxItems = cfg.postTaxItems || [];
 
     var lineItems = [];
-    if (num(cfg.regHours) > 0)          lineItems.push(['WRK REG ('   + cfg.regHours   + 'h × ' + formatUSD(r.base)      + ')', r.payReg]);
+    if (num(cfg.regHours) > 0)          lineItems.push(['WRK REG ('   + cfg.regHours   + 'h × ' + formatUSD(r.base)      + ')', num(cfg.regHours) * r.base]);
+    if (num(cfg.sickHours) > 0)         lineItems.push(['SICK ('       + cfg.sickHours   + 'h × ' + formatUSD(r.base)      + ')', num(cfg.sickHours) * r.base]);
+    if (num(cfg.vacationHours) > 0)     lineItems.push(['VACATION ('   + cfg.vacationHours + 'h × ' + formatUSD(r.base)     + ')', num(cfg.vacationHours) * r.base]);
     if (num(cfg.otHours) > 0)           lineItems.push(['WRK OT1.5 (' + cfg.otHours    + 'h × ' + formatUSD(r.otRate)    + ')', r.payOt]);
     if (num(cfg.ot2Hours) > 0)          lineItems.push(['WRK OT2.0 (' + cfg.ot2Hours   + 'h × ' + formatUSD(r.ot2Rate)   + ')', r.payOt2]);
     if (num(cfg.holHours) > 0)          lineItems.push(['HOL ('        + cfg.holHours   + 'h × ' + formatUSD(r.holRate)   + ')', r.payHol]);
     if (num(cfg.wrkHolHours) > 0)       lineItems.push(['WRK-HOL ('   + cfg.wrkHolHours + 'h × ' + formatUSD(r.wrkHolRate) + ')', r.payWrkHol]);
     if (num(cfg.lunchPenaltyHours) > 0) lineItems.push(['LUNCH-P ('   + cfg.lunchPenaltyHours + 'h × ' + formatUSD(r.otRate) + ')', r.payLunch]);
-    if (r.diffReg  > 0) lineItems.push(['Shift 2 REG diff (' + (num(cfg.regHours) + num(cfg.holHours)) + 'h × ' + formatUSD(r.s2RegDiff) + ')', r.diffReg]);
+    if (r.diffReg  > 0) lineItems.push(['Shift 2 REG diff (' + (num(cfg.regHours) + num(cfg.sickHours) + num(cfg.vacationHours) + num(cfg.holHours)) + 'h × ' + formatUSD(r.s2RegDiff) + ')', r.diffReg]);
     if (r.diffOt   > 0) lineItems.push(['Shift 2 OT diff ('  + (num(cfg.otHours) + num(cfg.wrkHolHours) + num(cfg.lunchPenaltyHours)) + 'h × ' + formatUSD(r.s2OtDiff) + ')', r.diffOt]);
     if (r.diffOt2  > 0) lineItems.push(['Shift 2 DT diff ('  + cfg.ot2Hours + 'h × ' + formatUSD(r.s2Ot2Diff) + ')', r.diffOt2]);
 
@@ -594,6 +603,10 @@
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'REG / TRP (h)',          value: cfg.regHours,          step: '0.01', onChange: function (v) { update('regHours', v); } }),
           h(NumField, { label: 'OT 1.5 / MANDO-OT (h)', value: cfg.otHours,          step: '0.01', onChange: function (v) { update('otHours', v); } })
+        ),
+        h('div', { style: S.formRow2 },
+          h(NumField, { label: 'SICK (h)',             value: cfg.sickHours,          step: '0.01', onChange: function (v) { update('sickHours', v); } }),
+          h(NumField, { label: 'VACATION (h)',         value: cfg.vacationHours,      step: '0.01', onChange: function (v) { update('vacationHours', v); } })
         ),
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'OT 2.0 / MANDO-OT (h)', value: cfg.ot2Hours,          step: '0.01', onChange: function (v) { update('ot2Hours', v); } }),
