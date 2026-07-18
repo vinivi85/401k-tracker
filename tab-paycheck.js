@@ -610,8 +610,8 @@
           h(NumField, { label: 'SICK (h)',               value: cfg.sickHours,         step: '0.01', onChange: function (v) { update('sickHours', v); } })
         ),
         h('div', { style: S.formRow2 },
-          h(NumField, { label: 'OT 1.5 / MANDO-OT (h)', value: cfg.otHours,           step: '0.01', onChange: function (v) { update('otHours', v); } }),
-          h(NumField, { label: 'OT 2.0 / MANDO-OT (h)', value: cfg.ot2Hours,          step: '0.01', onChange: function (v) { update('ot2Hours', v); } })
+          h(NumField, { label: 'OT/MANDO-1.5 (h)', value: cfg.otHours,           step: '0.01', onChange: function (v) { update('otHours', v); } }),
+          h(NumField, { label: 'OT/MANDO-2.0 (h)', value: cfg.ot2Hours,          step: '0.01', onChange: function (v) { update('ot2Hours', v); } })
         ),
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'HOL (h)',                value: cfg.holHours,          step: '0.01', onChange: function (v) { update('holHours', v); } }),
