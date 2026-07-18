@@ -838,10 +838,6 @@
         id: 'paystub-file-input', type: 'file', accept: '.pdf,image/*', style: { display: 'none' },
         onChange: handleFileImport
       }),
-      h('input', {
-        id: 'worksummary-file-input', type: 'file', accept: 'image/*', style: { display: 'none' },
-        onChange: handleWorkSummaryImport
-      }),
 
       /* ---- Prévia ---- */
       h('div', { style: S.gaugeCard },
@@ -898,20 +894,15 @@
         ),
         h('div', { style: { display: 'flex', gap: 8, marginBottom: 8 } },
           h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }, importing ? { opacity: 0.6 } : {}),
-            onClick: function () { if (!importing) document.getElementById('paystub-file-input').click(); },
-            disabled: importing
-          }, h(Icon, { name: 'receipt', size: 14 }), importing ? importMsg : 'IMPORTAR PAY STUB'),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }, (importing || importingWS) ? { opacity: 0.6 } : {}),
+            onClick: function () { if (!importing && !importingWS) document.getElementById('paystub-file-input').click(); },
+            disabled: importing || importingWS
+          }, h(Icon, { name: 'receipt', size: 14 }), (importing || importingWS) ? importMsg : 'IMPORTAR'),
           h('button', {
             style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', color: '#FB7185', borderColor: '#7F1D1D' }),
             onClick: clearAllHours
           }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
         ),
-        h('button', {
-          style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center', marginBottom: 12 }, importingWS ? { opacity: 0.6 } : {}),
-          onClick: function () { if (!importingWS) document.getElementById('worksummary-file-input').click(); },
-          disabled: importingWS
-        }, h(Icon, { name: 'chart', size: 14 }), importingWS ? 'PROCESSANDO...' : 'IMPORTAR WORK SUMMARY'),
 
         /* Status do import */
         importMsg && !importing ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 8 } }, importMsg) : null,
