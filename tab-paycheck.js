@@ -182,11 +182,22 @@
         var raw = data.candidates[0].content.parts[0].text;
         // Strip markdown fences if present
         var clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        // Extract JSON object — find first { and last }
+        // Try parsing as-is first
+        try {
+          return JSON.parse(clean);
+        } catch (e0) {}
+        // Try extracting outermost {}
         var start = clean.indexOf('{');
         var end = clean.lastIndexOf('}');
-        if (start === -1 || end === -1) throw new Error('Gemini retornou: ' + clean.slice(0, 150));
-        return JSON.parse(clean.slice(start, end + 1));
+        if (start !== -1 && end > start) {
+          try { return JSON.parse(clean.slice(start, end + 1)); } catch (e1) {}
+        }
+        // Gemini may return without outer braces — wrap it
+        var wrapped = '{' + clean.replace(/^[^"]*/, '').replace(/[^}]*$/, '') + '}';
+        try { return JSON.parse(wrapped); } catch (e2) {}
+        // Last resort — wrap entire clean text
+        try { return JSON.parse('{' + clean + '}'); } catch (e3) {}
+        throw new Error('Parse falhou. Gemini: ' + clean.slice(0, 200));
       });
     }
     return attemptFetch(3);
