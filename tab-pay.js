@@ -179,7 +179,12 @@
         ),
         contrib != null ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginTop: 1 } },
           '401K: ' + formatUSD(contrib) + (myContribPct ? ' (' + myContribPct.toFixed(1) + '%)' : '') +
-          (companyTotal != null ? ' · empresa: ' + formatUSD(companyTotal) : '')
+          (companyTotal != null ? (
+            ' · empresa: ' +
+            (companyMatch != null && psInformed != null
+              ? formatUSD(companyMatch) + '+' + formatUSD(psInformed) + '=' + formatUSD(companyTotal)
+              : formatUSD(companyTotal))
+          ) : '')
         ) : null,
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 1 } },
           (isBonus ? 'BÔNUS · ' : '') + rangeLabel
