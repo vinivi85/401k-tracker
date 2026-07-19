@@ -502,16 +502,22 @@
         return;
       }
       /* Força busca fresca do Supabase — não usa cache local */
-      SupabaseAPI.fetchPayEntries().then(function (entries) {
-        var exists = entries.some(function (e) {
-          return e.date === dateToCheck || e.date === dateToCheck.replace(/\//g, '-');
-        });
-        if (exists) {
-          setDupWarning({ date: dateToCheck, data: data });
-        } else {
-          setAddToPayData(data);
-        }
-      }).catch(function () { setAddToPayData(data); });
+      /* Busca direto no Supabase sem cache para verificar duplicidade */
+      var uid = window.currentUserId ? window.currentUserId() : null;
+      var supaUrl = 'https://mpnjdooyeiclahxramns.supabase.co/rest/v1/pay_entries?select=pay_date&pay_date=eq.' + dateToCheck + (uid ? '&user_id=eq.' + uid : '');
+      var sess = null;
+      try { sess = JSON.parse(localStorage.getItem('sb-session') || localStorage.getItem('supabase.auth.token') || '{}'); } catch(e) {}
+      var anonKey = 'sb_publishable_7ZhLyBeVJdXIXSpFnjD5_w_mSX0r5if';
+      var authToken = (sess && sess.access_token) ? sess.access_token : anonKey;
+      fetch(supaUrl, { headers: { 'apikey': anonKey, 'Authorization': 'Bearer ' + authToken } })
+        .then(function (r) { return r.json(); })
+        .then(function (rows) {
+          if (rows && rows.length > 0) {
+            setDupWarning({ date: dateToCheck, data: data });
+          } else {
+            setAddToPayData(data);
+          }
+        }).catch(function () { setAddToPayData(data); });
     }
 
     function clearAllHours() {
