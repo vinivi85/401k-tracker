@@ -885,7 +885,12 @@
           h('button', {
             style: Object.assign({}, S.addBtn, { flexShrink: 0, background: '#134E4A', borderColor: '#5EEAD4', color: '#5EEAD4' }),
             onClick: function () {
-              var dateToCheck = payDate || new Date().toISOString().slice(0, 10);
+              /* Valida data antes de qualquer ação */
+              if (!payDate || payDate.trim() === '') {
+                setImportErr('Informe a DATA DO PAGAMENTO antes de adicionar na aba Pay.');
+                return;
+              }
+              var dateToCheck = payDate;
               var data = { paymentDate: dateToCheck, gross: r.gross, net: r.net, contrib401k: r.contrib401k, profitSharing: r.profitSharing };
               /* Verifica duplicidade antes de abrir o modal */
               SupabaseAPI.fetchPayEntries().then(function (entries) {
