@@ -497,7 +497,10 @@
 
     function checkAndAddToPay(data) {
       var dateToCheck = data.paymentDate || payDate || '';
-      if (!dateToCheck) { setAddToPayData(data); return; }
+      if (!dateToCheck) {
+        setImportErr('Informe a data do pagamento antes de adicionar na aba Pay.');
+        return;
+      }
       /* Força busca fresca do Supabase — não usa cache local */
       SupabaseAPI.fetchPayEntries().then(function (entries) {
         var exists = entries.some(function (e) {
@@ -819,18 +822,35 @@
       /* PDF Viewer Modal */
       viewerUrl ? h('div', { style: {
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.92)', zIndex: 999,
-        display: 'flex', flexDirection: 'column'
+        background: '#000', zIndex: 1000,
+        display: 'flex', flexDirection: 'column',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)'
       }},
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#111827', borderBottom: '1px solid #1F2937' } },
-          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4' } }, selectedStub),
-          h('button', { style: { background: 'transparent', border: 'none', color: '#FB7185', fontFamily: "'JetBrains Mono', monospace", fontSize: 12, cursor: 'pointer', padding: 8 }, onClick: function () { setViewerUrl(null); } }, '✕ FECHAR')
+        h('div', { style: {
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '12px 16px', background: '#111827', borderBottom: '1px solid #1F2937',
+          flexShrink: 0
+        }},
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, selectedStub.replace('.pdf', '')),
+          h('button', { style: { background: '#FB7185', border: 'none', color: '#fff', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, cursor: 'pointer', padding: '6px 12px', borderRadius: 6, marginLeft: 8, flexShrink: 0 }, onClick: function () { setViewerUrl(null); setSelectedStub(''); } }, '✕ FECHAR')
         ),
-        h('iframe', {
-          src: viewerUrl,
-          style: { flex: 1, border: 'none', width: '100%' },
-          title: 'Pay Stub Viewer'
-        })
+        h('div', { style: { flex: 1, overflow: 'hidden', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+          h('a', {
+            href: viewerUrl,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            style: { display: 'block', textAlign: 'center' }
+          },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: '#5EEAD4', marginBottom: 16 } }, '📄 ' + selectedStub.replace('.pdf', '')),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#D1D5DB', background: '#134E4A', padding: '12px 24px', borderRadius: 10, border: '1px solid #5EEAD4' } },
+              'TOQUE AQUI PARA ABRIR O PDF'
+            ),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 12 } },
+              'Abre no navegador do dispositivo'
+            )
+          )
+        )
       ) : null,
 
       /* Input file hidden */
