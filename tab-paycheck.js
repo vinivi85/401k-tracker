@@ -502,9 +502,8 @@
         return;
       }
       /* Força busca fresca do Supabase — não usa cache local */
-      /* Busca direto no Supabase para verificar duplicidade */
-      SupabaseAPI.fetchPayEntries().then(function (entries) {
-        var exists = entries.some(function (e) { return e.date === dateToCheck; });
+      /* Busca direto no banco sem cache para verificar duplicidade */
+      SupabaseAPI.checkPayEntryExists(dateToCheck).then(function (exists) {
         if (exists) {
           setDupWarning({ date: dateToCheck, data: data });
         } else {
