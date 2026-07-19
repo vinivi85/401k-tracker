@@ -441,13 +441,13 @@
     var viewerLoadingState = React.useState(false);
     var viewerLoading = viewerLoadingState[0], setViewerLoading = viewerLoadingState[1];
 
-    var payDateState = React.useState('');
+    var payDateState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig).lastPayDate || '');
     var payDate = payDateState[0], setPayDate = payDateState[1];
-    var periodStartState = React.useState('');
+    var periodStartState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig).lastPeriodStart || '');
     var periodStart = periodStartState[0], setPeriodStart = periodStartState[1];
-    var periodEndState = React.useState('');
+    var periodEndState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig).lastPeriodEnd || '');
     var periodEnd = periodEndState[0], setPeriodEnd = periodEndState[1];
-    var hoursWorkedState = React.useState(null);
+    var hoursWorkedState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig).lastHoursWorked || null);
     var hoursWorked = hoursWorkedState[0], setHoursWorked = hoursWorkedState[1];
 
     /* Carrega lista de pay stubs salvos */
@@ -512,6 +512,20 @@
       }).catch(function () { setAddToPayData(data); });
     }
 
+    function persistDateFields(newPayDate, newPeriodStart, newPeriodEnd, newHoursWorked) {
+      var next = Object.assign({}, cfg, {
+        lastPayDate: newPayDate !== undefined ? newPayDate : payDate,
+        lastPeriodStart: newPeriodStart !== undefined ? newPeriodStart : periodStart,
+        lastPeriodEnd: newPeriodEnd !== undefined ? newPeriodEnd : periodEnd,
+        lastHoursWorked: newHoursWorked !== undefined ? newHoursWorked : hoursWorked
+      });
+      saveJSON(KEY_PAYCHECK, next);
+      clearTimeout(window._paycheckDateSaveTimer);
+      window._paycheckDateSaveTimer = setTimeout(function () {
+        SupabaseAPI.saveUserConfig(next).catch(function () {});
+      }, 1000);
+    }
+
     function clearAllHours() {
       var cleared = Object.assign({}, cfg, {
         regHours: 0, sickHours: 0, vacationHours: 0, additionalHours: 0,
@@ -523,6 +537,7 @@
       setPeriodStart('');
       setPeriodEnd('');
       setHoursWorked(null);
+      persistDateFields('', '', '', null);
       clearTimeout(window._paycheckSaveTimer);
       window._paycheckSaveTimer = setTimeout(function () {
         SupabaseAPI.saveUserConfig(cleared).catch(function () {});
@@ -693,6 +708,8 @@
         if (parsed.periodStart) setPeriodStart(parsed.periodStart);
         if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
         if (parsed.hoursWorked) setHoursWorked(parsed.hoursWorked);
+        /* Persiste no Supabase para restaurar no próximo acesso */
+        persistDateFields(parsed.paymentDate, parsed.periodStart, parsed.periodEnd, parsed.hoursWorked);
 
         /* Aplica horas */
         applyHours(parsed);
@@ -934,7 +951,7 @@
         /* Data do pagamento */
         h('div', { style: S.formRow },
           h('label', { style: S.formLabel }, 'DATA DO PAGAMENTO'),
-          h('input', { type: 'date', value: payDate, style: S.input, onChange: function (ev) { setPayDate(ev.target.value); } })
+          h('input', { type: 'date', value: payDate, style: S.input, onChange: function (ev) { setPayDate(ev.target.value); persistDateFields(ev.target.value, undefined, undefined, undefined); } })
         ),
 
         h('div', { style: S.formRow2 },
