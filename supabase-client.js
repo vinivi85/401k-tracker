@@ -386,18 +386,24 @@ var SupabaseAPI = {
       return resp.json();
     }).then(function (items) {
       return (items || []).filter(function (i) { return i.name && i.name.endsWith('.pdf'); }).map(function (i) {
-        return { name: i.name.replace(uid + '/', ''), path: uid + '/' + i.name.replace(uid + '/', '') };
+        /* i.name returned by list API is just the filename without the prefix folder */
+        var fileName = i.name.replace(uid + '/', '').replace(/^\/+/, '');
+        var fullPath = uid + '/' + fileName;
+        return { name: fileName, path: fullPath };
       });
     });
   },
 
   getPayStubUrl: function (path) {
-    return authFetch(SUPABASE_URL + '/storage/v1/object/sign/paystubs/' + encodeURIComponent(path), {
+    /* path = uid/filename — não encode a barra */
+    var parts = path.split('/');
+    var encodedPath = parts.map(encodeURIComponent).join('/');
+    return authFetch(SUPABASE_URL + '/storage/v1/object/sign/paystubs/' + encodedPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expiresIn: 3600 })
     }).then(function (resp) {
-      if (!resp.ok) throw new Error('Sign failed: ' + resp.status);
+      if (!resp.ok) return resp.text().then(function (t) { throw new Error('Sign failed ' + resp.status + ': ' + t.slice(0, 100)); });
       return resp.json();
     }).then(function (data) {
       return SUPABASE_URL + data.signedURL;
@@ -405,7 +411,9 @@ var SupabaseAPI = {
   },
 
   deletePayStub: function (path) {
-    return authFetch(SUPABASE_URL + '/storage/v1/object/paystubs/' + encodeURIComponent(path), {
+    var parts = path.split('/');
+    var encodedPath = parts.map(encodeURIComponent).join('/');
+    return authFetch(SUPABASE_URL + '/storage/v1/object/paystubs/' + encodedPath, {
       method: 'DELETE'
     }).then(function (resp) {
       if (!resp.ok) return resp.text().then(function (t) { throw new Error('Delete failed ' + resp.status + ': ' + t.slice(0, 80)); });
