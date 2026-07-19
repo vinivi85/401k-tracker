@@ -286,6 +286,7 @@
     };
 
     function checkItems(items, map, type) {
+      if (!extracted || !extracted.deductions) return;
       (items || []).forEach(function (item) {
         var key = Object.keys(map).find(function (k) { return map[k] === item.label; });
         if (!key) return;
