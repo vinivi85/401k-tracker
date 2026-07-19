@@ -362,6 +362,19 @@ var SupabaseAPI = {
 
   /* ---------- Storage — Pay Stubs ---------- */
 
+  checkPayEntryExists: function (date) {
+    /* Verifica direto no banco se existe pagamento com essa data — sem cache */
+    return authFetch(SUPABASE_URL + '/rest/v1/pay_entries?select=id&pay_date=eq.' + date, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('Check failed: ' + resp.status);
+      return resp.json();
+    }).then(function (rows) {
+      return rows && rows.length > 0;
+    });
+  },
+
   uploadPayStub: function (file, fileName) {
     var uid = currentUserId();
     var path = uid + '/' + fileName;
