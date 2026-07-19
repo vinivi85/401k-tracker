@@ -364,28 +364,35 @@
     var dayChange = (latest && prev) ? latest.balance - prev.balance : 0;
     var dayChangePct = (latest && prev && prev.balance) ? (dayChange / prev.balance) * 100 : 0;
 
-    /* Leitura do mês anterior — pega a mais recente do mês passado */
-    var monthRef = null;
-    if (latest) {
-      var latestDate = new Date(latest.date + 'T00:00:00');
-      var prevMonth = latestDate.getMonth() === 0 ? 11 : latestDate.getMonth() - 1;
-      var prevMonthYear = latestDate.getMonth() === 0 ? latestDate.getFullYear() - 1 : latestDate.getFullYear();
-      /* Busca leituras do mês anterior */
-      var prevMonthEntries = sorted.filter(function (e) {
-        var d = new Date(e.date + 'T00:00:00');
-        return d.getMonth() === prevMonth && d.getFullYear() === prevMonthYear;
-      });
-      if (prevMonthEntries.length > 0) {
-        monthRef = prevMonthEntries[prevMonthEntries.length - 1]; // mais recente do mês anterior
-      } else if (sorted.length > 1) {
-        monthRef = first; // fallback: primeira leitura disponível
-      } else {
-        monthRef = latest; // só tem uma leitura
+    /* Variação de saldo do mês anterior */
+    var now = new Date();
+    var prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    var prevMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    var MONTH_NAMES_SHORT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+    var prevMonthLabel = MONTH_NAMES_SHORT[prevMonth];
+
+    var prevMonthEntries = sorted.filter(function (e) {
+      var d = new Date(e.date + 'T00:00:00');
+      return d.getMonth() === prevMonth && d.getFullYear() === prevMonthYear;
+    });
+
+    var lastMonthChange = null;
+    var lastMonthChangePct = null;
+    if (prevMonthEntries.length >= 2) {
+      var pmFirst = prevMonthEntries[0];
+      var pmLast  = prevMonthEntries[prevMonthEntries.length - 1];
+      lastMonthChange = pmLast.balance - pmFirst.balance;
+      lastMonthChangePct = pmFirst.balance > 0 ? (lastMonthChange / pmFirst.balance) * 100 : 0;
+    } else if (prevMonthEntries.length === 1) {
+      /* Só uma leitura no mês — compara com leitura anterior disponível */
+      var pmEntry = prevMonthEntries[0];
+      var beforePm = sorted.filter(function (e) { return new Date(e.date + 'T00:00:00') < new Date(pmEntry.date + 'T00:00:00'); });
+      if (beforePm.length > 0) {
+        var refEntry = beforePm[beforePm.length - 1];
+        lastMonthChange = pmEntry.balance - refEntry.balance;
+        lastMonthChangePct = refEntry.balance > 0 ? (lastMonthChange / refEntry.balance) * 100 : 0;
       }
     }
-    var monthChange = (latest && monthRef) ? latest.balance - monthRef.balance : 0;
-    var monthChangePct = (latest && monthRef && monthRef.balance) ? (monthChange / monthRef.balance) * 100 : 0;
-    var monthRefLabel = monthRef && monthRef !== latest ? formatDateLabel(monthRef.date).toUpperCase() : null;
 
     var chartData = sorted.map(function (e) {
       return { label: formatDateLabel(e.date), value: e.balance };
@@ -479,15 +486,14 @@
         h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
         h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
 
-        /* Linha 1: último mês vs desde início */
         h('div', { style: S.deltaRow },
           h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, monthRefLabel ? 'DESDE ' + monthRefLabel : 'ÚLTIMO MÊS'),
-            monthRef ? h('div', { style: Object.assign({}, S.deltaValue, { color: monthChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
-              h(Icon, { name: monthChange >= 0 ? 'up' : 'down', size: 14 }),
-              (monthChange >= 0 ? '+' : '') + formatUSD(monthChange),
-              h('span', { style: S.deltaPct }, '(' + (monthChangePct >= 0 ? '+' : '') + monthChangePct.toFixed(2) + '%)')
-            ) : h('div', { style: S.deltaValue }, '—')
+            h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS (' + prevMonthLabel + ')'),
+            lastMonthChange !== null ? h('div', { style: Object.assign({}, S.deltaValue, { color: lastMonthChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
+              h(Icon, { name: lastMonthChange >= 0 ? 'up' : 'down', size: 14 }),
+              (lastMonthChange >= 0 ? '+' : '') + formatUSD(lastMonthChange),
+              h('span', { style: S.deltaPct }, '(' + (lastMonthChangePct >= 0 ? '+' : '') + lastMonthChangePct.toFixed(2) + '%)')
+            ) : h('div', { style: Object.assign({}, S.deltaValue, { color: '#6B7280', fontSize: 11 }) }, 'SEM LEITURAS')
           ),
           h('div', { style: S.deltaDivider }),
           h('div', { style: S.deltaBox },
