@@ -365,7 +365,8 @@ var SupabaseAPI = {
   uploadPayStub: function (file, fileName) {
     var uid = currentUserId();
     var path = uid + '/' + fileName;
-    return authFetch(SUPABASE_URL + '/storage/v1/object/paystubs/' + encodeURIComponent(path), {
+    var encodedPath = encodeURIComponent(uid) + '/' + encodeURIComponent(fileName);
+    return authFetch(SUPABASE_URL + '/storage/v1/object/paystubs/' + encodedPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/pdf', 'x-upsert': 'true' },
       body: file
