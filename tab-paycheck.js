@@ -204,8 +204,8 @@
       '- holHours: number (Holiday Premium hours — unworked holiday, labeled "Holiday Premium")',
       '- wrkHolHours: number (Hol Worked OT 1.5 hours — labeled "Hol Worked OT 1.5" in the pay stub)',
       '- lunchHours: number (Lunch penalty hours if any)',
-      '- contrib401k: number (401k Company Contrib current amount, labeled "401k Company Contrib.")',
-      '- profitSharing: number (AAG Profit Sharing current amount if any, else 0)',
+      '- contrib401k: number (EMPLOYEE 401k contribution — found in Pre-Tax Deductions section labeled exactly "401k", NOT the Company Contrib)',
+      '- profitSharing: number (401k Company Contrib current amount, labeled "401k Company Contrib." in Additional Information section)',
       '- deductions: object with these keys and their CURRENT values:',
       '  - medicalCoverage: number',
       '  - dentalCoverage: number',
@@ -716,9 +716,9 @@
           setPendingImport(parsed);
           setDedChanges(changes);
         } else {
-          /* Sem mudanças de deduções — vai direto pro modal do Pay */
+          /* Sem mudanças de deduções — verifica duplicidade antes de mostrar modal */
           if (parsed.gross || parsed.net) {
-            setAddToPayData(parsed);
+            checkAndAddToPay(parsed);
           }
         }
       }).catch(function (e) {
