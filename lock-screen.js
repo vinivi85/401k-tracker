@@ -17,7 +17,7 @@
 
   var PIN_LENGTH = 4;
   var SESSION_TOKEN_KEY = '401k-session-token';
-  var INACTIVITY_MS = 10 * 60 * 1000; // 10 minutos
+  var INACTIVITY_MS = 8 * 60 * 60 * 1000; // 8 horas — PIN só pedido no login ou fechamento total do app
 
   /* ---------- Token de sessão simples (sem WebAuthn) ---------- */
   function generateSessionToken() {
