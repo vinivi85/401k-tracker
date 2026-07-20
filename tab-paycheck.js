@@ -883,11 +883,11 @@
       /* Input file hidden */
       h('input', {
         id: 'paystub-pdf-input', type: 'file', accept: '.pdf', style: { display: 'none' },
-        onChange: handleFileImport
+        onChange: function (ev) { handleFileImport(ev, 'pdf'); }
       }),
       h('input', {
         id: 'paystub-img-input', type: 'file', accept: 'image/*', style: { display: 'none' },
-        onChange: handleFileImport
+        onChange: function (ev) { handleFileImport(ev, 'image'); }
       }),
 
       /* ---- Prévia ---- */
@@ -948,19 +948,20 @@
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA')
         ),
-        h('div', { style: { display: 'flex', gap: 6, marginBottom: 8 } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', letterSpacing: 1, marginBottom: 6 } }, 'IMPORTAR:'),
+        h('div', { style: { display: 'flex', gap: 8, marginBottom: 14 } },
           h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 9, padding: '6px 4px' }, importing ? { opacity: 0.6 } : {}),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 10, padding: '8px 4px' }, importing ? { opacity: 0.6 } : {}),
             onClick: function () { if (!importing) document.getElementById('paystub-pdf-input').click(); },
             disabled: importing
           }, h(Icon, { name: 'receipt', size: 12 }), importing ? '...' : 'PDF'),
           h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 9, padding: '6px 4px' }, importingWS ? { opacity: 0.6 } : {}),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 10, padding: '8px 4px' }, importingWS ? { opacity: 0.6 } : {}),
             onClick: function () { if (!importingWS) document.getElementById('paystub-img-input').click(); },
             disabled: importingWS
           }, h(Icon, { name: 'chart', size: 12 }), importingWS ? '...' : 'JPG'),
           h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 9, padding: '6px 4px', color: '#FB7185', borderColor: '#7F1D1D' }),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 10, padding: '8px 4px', color: '#FB7185', borderColor: '#7F1D1D' }),
             onClick: clearAllHours
           }, h(Icon, { name: 'reset', size: 12 }), 'LIMPAR')
         ),
@@ -972,7 +973,7 @@
         /* Data do pagamento */
         h('div', { style: S.formRow },
           h('label', { style: S.formLabel }, 'DATA DO PAGAMENTO'),
-          h('input', { type: 'date', value: payDate, style: S.input, onChange: function (ev) { setPayDate(ev.target.value); persistDateFields(ev.target.value, undefined, undefined, undefined); } })
+          h('input', { type: 'date', value: payDate, style: Object.assign({}, S.input, { height: 44, lineHeight: '44px' }), onChange: function (ev) { setPayDate(ev.target.value); persistDateFields(ev.target.value, undefined, undefined, undefined); } })
         ),
 
         h('div', { style: S.formRow2 },
