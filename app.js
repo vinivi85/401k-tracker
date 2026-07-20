@@ -81,46 +81,10 @@
     var securityState = React.useState(false);
     var showSecurity = securityState[0], setShowSecurity = securityState[1];
 
-    // Monitora atividade e re-bloqueia quando o token de sessão expirar (5 min)
+    /* Toca sessão ao montar para registrar timestamp atual */
     React.useEffect(function () {
-      if (!hasPin) return;
-
-      function checkAndLock() {
-        if (!isSessionValid()) {
-          setUnlocked(false);
-        }
-      }
-
-      function handleVisibility() {
-        if (document.visibilityState === 'visible') checkAndLock();
-      }
-
-      function handleActivity() {
-        if (unlocked) touchSession();
-      }
-
-      // Verifica a cada 30s se a sessão ainda é válida
-      var intervalId = setInterval(function () {
-        if (document.visibilityState === 'visible') checkAndLock();
-      }, 30000);
-
-      document.addEventListener('visibilitychange', handleVisibility);
-      window.addEventListener('pointerdown', handleActivity);
-      window.addEventListener('keydown', handleActivity);
-      window.addEventListener('touchstart', handleActivity);
-      window.addEventListener('input', handleActivity);
-      window.addEventListener('scroll', handleActivity, true);
-
-      return function () {
-        clearInterval(intervalId);
-        document.removeEventListener('visibilitychange', handleVisibility);
-        window.removeEventListener('pointerdown', handleActivity);
-        window.removeEventListener('keydown', handleActivity);
-        window.removeEventListener('touchstart', handleActivity);
-        window.removeEventListener('input', handleActivity);
-        window.removeEventListener('scroll', handleActivity, true);
-      };
-    }, [hasPin, unlocked]);
+      if (unlocked) touchSession();
+    }, []);
 
     function savePinToSupabase(cfg) {
       SupabaseAPI.fetchUserConfig().then(function (remote) {
