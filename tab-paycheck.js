@@ -361,6 +361,92 @@
     );
   }
 
+  /* ---------- PDF Viewer usando pdfjs-dist ---------- */
+  function PdfViewer(props) {
+    var url = props.url;
+    var title = props.title;
+    var onClose = props.onClose;
+
+    var pagesState = React.useState([]);
+    var pages = pagesState[0], setPages = pagesState[1];
+    var loadingState = React.useState(true);
+    var loading = loadingState[0], setLoading = loadingState[1];
+    var errorState = React.useState(null);
+    var error = errorState[0], setError = errorState[1];
+    var containerRef = React.useRef(null);
+
+    React.useEffect(function () {
+      if (!url) return;
+      var pdfjsLib = window['pdfjs-dist/build/pdf'];
+      if (!pdfjsLib) { setError('pdfjs não disponível'); setLoading(false); return; }
+      pdfjsLib.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+      setLoading(true);
+      setError(null);
+      setPages([]);
+
+      pdfjsLib.getDocument(url).promise.then(function (pdf) {
+        var numPages = pdf.numPages;
+        var renders = [];
+        for (var i = 1; i <= numPages; i++) {
+          renders.push(pdf.getPage(i));
+        }
+        return Promise.all(renders);
+      }).then(function (pdfPages) {
+        setPages(pdfPages);
+        setLoading(false);
+      }).catch(function (e) {
+        setError('Erro ao carregar PDF: ' + e.message);
+        setLoading(false);
+      });
+    }, [url]);
+
+    /* Renderiza cada página em seu canvas */
+    React.useEffect(function () {
+      if (!pages.length || !containerRef.current) return;
+      var container = containerRef.current;
+      var canvases = container.querySelectorAll('canvas');
+      var viewportWidth = window.innerWidth;
+
+      pages.forEach(function (page, idx) {
+        var canvas = canvases[idx];
+        if (!canvas) return;
+        var viewport = page.getViewport({ scale: viewportWidth / page.getViewport({ scale: 1 }).width });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        var ctx = canvas.getContext('2d');
+        page.render({ canvasContext: ctx, viewport: viewport });
+      });
+    }, [pages]);
+
+    return h('div', { style: {
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+      background: '#111', zIndex: 1000,
+      display: 'flex', flexDirection: 'column',
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingBottom: 'env(safe-area-inset-bottom)'
+    }},
+      /* Header */
+      h('div', { style: {
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 16px', background: '#0B1120', borderBottom: '1px solid #1F2937', flexShrink: 0
+      }},
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, title),
+        h('button', { style: { background: '#FB7185', border: 'none', color: '#fff', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 6, marginLeft: 12, flexShrink: 0 }, onClick: onClose }, '✕')
+      ),
+      /* Content */
+      h('div', { style: { flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#222' } },
+        loading ? h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4' } }, 'CARREGANDO PDF...') :
+        error ? h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#FB7185', padding: 20, textAlign: 'center' } }, error) :
+        h('div', { ref: containerRef, style: { display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' } },
+          pages.map(function (_, idx) {
+            return h('canvas', { key: idx, style: { width: '100%', display: 'block' } });
+          })
+        )
+      )
+    );
+  }
+
   /* ===== COMPONENTE PRINCIPAL ===== */
   function PaycheckTab() {
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
@@ -829,38 +915,11 @@
       addToPayData ? h(AddToPayModal, { data: addToPayData, onConfirm: handleAddToPay, onSkip: function () { setAddToPayData(null); }, saving: addingToPay }) : null,
 
       /* PDF Viewer Modal */
-      viewerUrl ? h('div', { style: {
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: '#000', zIndex: 1000,
-        display: 'flex', flexDirection: 'column',
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)'
-      }},
-        h('div', { style: {
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '12px 16px', background: '#111827', borderBottom: '1px solid #1F2937',
-          flexShrink: 0
-        }},
-          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#5EEAD4', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, selectedStub.replace('.pdf', '')),
-          h('button', { style: { background: '#FB7185', border: 'none', color: '#fff', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, cursor: 'pointer', padding: '6px 12px', borderRadius: 6, marginLeft: 8, flexShrink: 0 }, onClick: function () { setViewerUrl(null); setSelectedStub(''); } }, '✕ FECHAR')
-        ),
-        h('div', { style: { flex: 1, overflow: 'hidden', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
-          h('a', {
-            href: viewerUrl,
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            style: { display: 'block', textAlign: 'center' }
-          },
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: '#5EEAD4', marginBottom: 16 } }, '📄 ' + selectedStub.replace('.pdf', '')),
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#D1D5DB', background: '#134E4A', padding: '12px 24px', borderRadius: 10, border: '1px solid #5EEAD4' } },
-              'TOQUE AQUI PARA ABRIR O PDF'
-            ),
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 12 } },
-              'Abre no navegador do dispositivo'
-            )
-          )
-        )
-      ) : null,
+      viewerUrl ? h(PdfViewer, { 
+        url: viewerUrl, 
+        title: selectedStub.replace('.pdf',''),
+        onClose: function () { setViewerUrl(null); setSelectedStub(''); }
+      }) : null,
 
       /* Input file hidden */
       h('input', {
