@@ -745,13 +745,38 @@
       reader.readAsDataURL(file);
     }
 
-    function handleFileImport(ev) {
+    function handleFileImport(ev, forceType) {
       var file = ev.target.files[0];
       if (!file) return;
       ev.target.value = '';
+      setImportErr('');
+      setImportMsg('');
+
+      /* Usa forceType do botão para determinar o fluxo */
+      if (forceType === 'image') {
+        setImportingWS(true);
+        setImportMsg('Lendo imagem com IA...');
+        parseWorkSummaryWithGemini(file).then(function (parsed) {
+          setImportingWS(false);
+          setImportMsg('');
+          if (!parsed || (!parsed.regHours && !parsed.otHours && !parsed.ot2Hours)) {
+            setImportErr('Gemini não extraiu horas da imagem. Raw: ' + JSON.stringify(parsed).slice(0, 80));
+            return;
+          }
+          applyHours(parsed);
+          setImportMsg('✓ Horas importadas do Work Summary!');
+          setTimeout(function () { setImportMsg(''); }, 3000);
+        }).catch(function (e) {
+          setImportingWS(false);
+          setImportMsg('');
+          setImportErr('Erro ao processar imagem: ' + e.message);
+        });
+        return;
+      }
+
+      /* PDF flow */
       setImporting(true);
       setImportMsg('Extraindo texto do PDF...');
-      setImportErr('');
 
       extractPdfText(file).then(function (text) {
         setImportMsg('Interpretando com IA... (' + text.length + ' chars extraídos)');
