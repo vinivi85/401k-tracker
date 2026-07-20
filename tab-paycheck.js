@@ -186,7 +186,7 @@
   /* ---------- Interpreta texto do pay stub via Gemini ---------- */
   function parsePayStubWithGemini(text) {
     var prompt = [
-      'You are parsing an American Airlines pay stub. IMPORTANT: Your entire response must be valid JSON only. Do not include any text, explanation, markdown, or code blocks. Start your response with { and end with }. No backticks. Extract these values from the text and return ONLY a JSON object, no markdown, no explanation.',
+      'Parse this American Airlines Pay Statement and return ONLY a JSON object. No text before or after. Start with { and end with }. Do not include any text, explanation, markdown, or code blocks. Start your response with { and end with }. No backticks. Extract these values from the text and return ONLY a JSON object, no markdown, no explanation.',
       '',
       'JSON fields:',
       '- paymentDate: string "YYYY-MM-DD" (Payment Date field)',
@@ -715,8 +715,15 @@
         setImportMsg('');
 
         /* Valida que o parsed tem dados úteis ANTES de limpar qualquer coisa */
-        if (!parsed || (!parsed.regHours && !parsed.otHours && !parsed.gross && !parsed.paymentDate)) {
-          setImportErr('Gemini não extraiu dados do PDF. Tente novamente.');
+        /* Valida que o parsed tem pelo menos um dado útil */
+        var hasData = parsed && (
+          parsed.paymentDate || parsed.gross || parsed.net ||
+          parsed.regHours || parsed.otHours || parsed.ot2Hours ||
+          parsed.sickHours || parsed.vacationHours || parsed.additionalHours ||
+          parsed.holHours || parsed.wrkHolHours
+        );
+        if (!hasData) {
+          setImportErr('Gemini não extraiu dados. Raw: ' + JSON.stringify(parsed).slice(0, 100));
           return;
         }
 
