@@ -531,7 +531,7 @@
 
     function clearAllHours() {
       var cleared = Object.assign({}, cfg, {
-        regHours: 0, sickHours: 0, vacationHours: 0, additionalHours: 0,
+        regHours: 80, sickHours: 0, vacationHours: 0, additionalHours: 0,
         otHours: 0, ot2Hours: 0, holHours: 0, wrkHolHours: 0, lunchPenaltyHours: 0
       });
       setCfg(cleared);
