@@ -1,6 +1,6 @@
-const CACHE_NAME = '401k-tracker-v94';
-const APP_VERSION = 'v94';
-const BUILD_DATE = '2026-07-20 04:00 CDT';
+const CACHE_NAME = '401k-tracker-v121';
+const APP_VERSION = 'v121';
+const BUILD_DATE = '2026-07-20 04:04 CDT';
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_VERSION') {
@@ -44,6 +44,9 @@ self.addEventListener('activate', (event) => {
 // Isso evita o app ficar "preso" numa versão antiga durante desenvolvimento ativo.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  /* Não intercepta requisições externas (Supabase, Gemini, CDN) */
+  if (url.origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request)
       .then((response) => {
