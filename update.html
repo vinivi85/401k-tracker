@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Atualizando 401k Tracker...</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0B1120; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .wrap { text-align: center; font-family: 'JetBrains Mono', monospace; padding: 32px; }
+  .icon { font-size: 48px; margin-bottom: 24px; }
+  .title { color: #5EEAD4; font-size: 14px; letter-spacing: 2px; margin-bottom: 8px; }
+  .msg { color: #B0B7C3; font-size: 11px; letter-spacing: 1px; margin-bottom: 32px; }
+  .bar-wrap { background: #1F2937; border-radius: 4px; height: 4px; width: 200px; margin: 0 auto 24px; overflow: hidden; }
+  .bar { background: #5EEAD4; height: 4px; border-radius: 4px; width: 0%; transition: width 0.3s; }
+  .btn { display: none; background: #5EEAD4; color: #0B1120; border: none; padding: 12px 32px; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 1px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="icon">✈️</div>
+  <div class="title" id="title">ATUALIZANDO APP</div>
+  <div class="msg" id="msg">Limpando cache antigo...</div>
+  <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+  <button class="btn" id="btn" onclick="window.location.href='/'">ABRIR APP</button>
+</div>
+<script>
+var title = document.getElementById('title');
+var msg = document.getElementById('msg');
+var bar = document.getElementById('bar');
+var btn = document.getElementById('btn');
+
+function setProgress(pct, message) {
+  bar.style.width = pct + '%';
+  msg.textContent = message;
+}
+
+function done() {
+  title.textContent = 'APP ATUALIZADO';
+  setProgress(100, 'Pronto! Redirecionando...');
+  btn.style.display = 'inline-block';
+  setTimeout(function () { window.location.href = '/401k-tracker/'; }, 1500);
+}
+
+async function forceUpdate() {
+  setProgress(10, 'Verificando service worker...');
+
+  // 1. Unregister all service workers
+  if ('serviceWorker' in navigator) {
+    var regs = await navigator.serviceWorker.getRegistrations();
+    setProgress(30, 'Removendo ' + regs.length + ' service worker(s)...');
+    for (var r of regs) { await r.unregister(); }
+  }
+
+  setProgress(50, 'Limpando caches...');
+
+  // 2. Clear all caches
+  if ('caches' in window) {
+    var keys = await caches.keys();
+    setProgress(60, 'Deletando ' + keys.length + ' cache(s)...');
+    for (var k of keys) { await caches.delete(k); }
+  }
+
+  setProgress(90, 'Tudo limpo!');
+  await new Promise(function(r) { setTimeout(r, 500); });
+  done();
+}
+
+forceUpdate().catch(function(e) {
+  msg.textContent = 'Erro: ' + e.message;
+  btn.style.display = 'inline-block';
+});
+</script>
+</body>
+</html>
