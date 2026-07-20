@@ -136,17 +136,16 @@
       var reader = new FileReader();
       reader.onload = function (e) {
         var base64 = e.target.result.split(',')[1];
-        var mimeType = imageFile.type || 'image/jpeg';
+        /* Force correct mime type — iOS sometimes returns empty */
+        var mimeType = imageFile.type;
+        if (!mimeType || mimeType === 'application/octet-stream') {
+          var name = (imageFile.name || '').toLowerCase();
+          if (name.endsWith('.png')) mimeType = 'image/png';
+          else if (name.endsWith('.heic') || name.endsWith('.heif')) mimeType = 'image/jpeg';
+          else mimeType = 'image/jpeg';
+        }
 
-        var prompt = 'This is a Work Summary table from American Airlines employee portal. ' +
-          'Extract the hours from the table and return ONLY valid JSON. ' +
-          'Sum hours by category: ' +
-          'regHours = WRK REG + TRP REG + SWAPON REG (all REG column rows). ' +
-          'otHours = WRK OT1.5 + MANDO-OT OT1.5 (all OT1.5 column rows). ' +
-          'ot2Hours = WRK OT2.0 + MANDO-OT OT2.0 (all OT2.0 column rows). ' +
-          'Return JSON: {"regHours": number, "otHours": number, "ot2Hours": number, ' +
-          '"sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, ' +
-          '"lunchHours": 0, "additionalHours": 0}';
+        var prompt = 'Look at this American Airlines Work Summary table. Return ONLY this JSON with no other text:\n{"regHours":0,"otHours":0,"ot2Hours":0,"sickHours":0,"vacationHours":0,"holHours":0,"wrkHolHours":0,"lunchHours":0,"additionalHours":0}\n\nRules: regHours = sum of REG column for WRK+TRP+SWAPON rows. otHours = sum of OT1.5 column for WRK+MANDO-OT rows. ot2Hours = sum of OT2.0 column for WRK+MANDO-OT rows. All other fields = 0.';
 
         var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + (window.__GEMINI_KEY || '');
 
@@ -159,7 +158,7 @@
                 { text: prompt },
                 { inline_data: { mime_type: mimeType, data: base64 } }
               ]}],
-              generationConfig: { temperature: 0, maxOutputTokens: 512 }
+              generationConfig: { temperature: 0, maxOutputTokens: 256 }
             })
           }).then(function (resp) {
             if ((resp.status === 429 || resp.status === 503) && retries > 0) {
@@ -170,10 +169,17 @@
           }).then(function (data) {
             var raw = data.candidates[0].content.parts[0].text;
             var clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+            /* Try direct parse */
             try { return JSON.parse(clean); } catch (e) {}
-            var s = clean.indexOf('{'), e2 = clean.lastIndexOf('}');
-            if (s !== -1 && e2 > s) return JSON.parse(clean.slice(s, e2 + 1));
-            return JSON.parse('{' + clean + '}');
+            /* Extract first complete JSON object */
+            var s = clean.indexOf('{');
+            var depth = 0, end = -1;
+            for (var i = s; i < clean.length; i++) {
+              if (clean[i] === '{') depth++;
+              else if (clean[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+            }
+            if (s !== -1 && end > s) return JSON.parse(clean.slice(s, end + 1));
+            throw new Error('JSON Parse error: ' + clean.slice(0, 80));
           });
         }
         attempt(3).then(resolve).catch(reject);
