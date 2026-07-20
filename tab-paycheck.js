@@ -185,46 +185,7 @@
 
   /* ---------- Interpreta texto do pay stub via Gemini ---------- */
   function parsePayStubWithGemini(text) {
-    var prompt = [
-      'Parse this American Airlines Pay Statement and return ONLY a JSON object. No text before or after. Start with { and end with }. Do not include any text, explanation, markdown, or code blocks. Start your response with { and end with }. No backticks. Extract these values from the text and return ONLY a JSON object, no markdown, no explanation.',
-      '',
-      'JSON fields:',
-      '- paymentDate: string "YYYY-MM-DD" (Payment Date field)',
-      '- periodStart: string "YYYY-MM-DD" (first date of Pay Period)',
-      '- periodEnd: string "YYYY-MM-DD" (second date of Pay Period)',
-      '- gross: number (Current Gross Earnings total)',
-      '- hoursWorked: number (Hours Worked total shown in header)',
-      '- net: number (Net Pay / Deposit Amount)',
-      '- regHours: number (Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours — do NOT include Additional Hours here)',
-      '- sickHours: number (Sick Pay hours)',
-      '- vacationHours: number (Vacation Pay hours)',
-      '- additionalHours: number (Additional Hours - OTS unauthorized overtime paid as regular rate)',
-      '- otHours: number (Overtime hours only — do NOT include Hol Worked OT 1.5 here)',
-      '- ot2Hours: number (Doubletime hours only — Shift 2-DT is a differential, not extra hours)',
-      '- holHours: number (Holiday Premium hours — unworked holiday, labeled "Holiday Premium")',
-      '- wrkHolHours: number (Hol Worked OT 1.5 hours — labeled "Hol Worked OT 1.5" in the pay stub)',
-      '- lunchHours: number (Lunch penalty hours if any)',
-      '- contrib401k: number (EMPLOYEE 401k contribution — found in Pre-Tax Deductions section labeled exactly "401k", NOT the Company Contrib)',
-      '- profitSharing: number (401k Company Contrib current amount, labeled "401k Company Contrib." in Additional Information section)',
-      '- deductions: object with these keys and their CURRENT values:',
-      '  - medicalCoverage: number',
-      '  - dentalCoverage: number',
-      '  - visionCoverage: number',
-      '  - employeeADD: number',
-      '  - spouseADD: number',
-      '  - childADD: number',
-      '  - employeeLife: number',
-      '  - spouseLife: number',
-      '  - childLife: number',
-      '  - groupAccident: number',
-      '  - loan401k: number (401k Loan if present, else 0)',
-      '  - unionDues: number (Union Dues TWU)',
-      '',
-      'If a value is not found, use 0. Return only the JSON.',
-      '',
-      'PAY STUB TEXT:',
-      text.slice(0, 6000)
-    ].join('\n');
+    var prompt = 'Extract data from this American Airlines Pay Statement. Return ONLY valid JSON, no markdown, no explanation. Use 0 for missing values.\n\nReturn this exact structure:\n{"paymentDate":"YYYY-MM-DD","periodStart":"YYYY-MM-DD","periodEnd":"YYYY-MM-DD","gross":0,"net":0,"hoursWorked":0,"regHours":0,"sickHours":0,"vacationHours":0,"additionalHours":0,"otHours":0,"ot2Hours":0,"holHours":0,"wrkHolHours":0,"lunchHours":0,"contrib401k":0,"profitSharing":0,"deductions":{"medicalCoverage":0,"dentalCoverage":0,"visionCoverage":0,"employeeADD":0,"spouseADD":0,"childADD":0,"employeeLife":0,"spouseLife":0,"childLife":0,"groupAccident":0,"loan401k":0,"unionDues":0}}\n\nRules:\n- paymentDate: Payment Date field\n- periodStart/periodEnd: Pay Period dates\n- gross: Current Gross Earnings\n- net: Net Pay / Deposit Amount\n- hoursWorked: Hours Worked in header\n- regHours: Regular Pay + Voluntary Trade + Training Pay hours (sum)\n- additionalHours: Additional Hours only\n- otHours: Overtime hours only\n- ot2Hours: Doubletime hours only\n- holHours: Holiday Premium hours\n- wrkHolHours: Hol Worked OT 1.5 hours\n- contrib401k: 401k in Pre-Tax Deductions (employee contribution)\n- profitSharing: 401k Company Contrib in Additional Information\n\nPAY STUB TEXT:\n' + text.slice(0, 5000);
 
     function attemptFetch(retries) {
       return fetch(GEMINI_URL, {
