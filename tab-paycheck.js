@@ -464,9 +464,23 @@
       SupabaseAPI.fetchUserConfig().then(function (remote) {
         if (cancelled) return;
         if (remote && Object.keys(remote).length > 0) {
+          /* Preserva horas do localStorage se o Supabase não as tiver */
+          var local = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
           var merged = Object.assign({}, defaultPaycheckConfig, remote);
+          var hourFields = ['regHours','otHours','ot2Hours','holHours','wrkHolHours',
+                            'lunchPenaltyHours','sickHours','vacationHours','additionalHours'];
+          hourFields.forEach(function (f) {
+            if ((remote[f] === undefined || remote[f] === null) && local[f] !== undefined) {
+              merged[f] = local[f];
+            }
+          });
           setCfg(merged);
           saveJSON(KEY_PAYCHECK, merged);
+          /* Restaura data/período da última instância */
+          if (remote.lastPayDate) setPayDate(remote.lastPayDate);
+          if (remote.lastPeriodStart) setPeriodStart(remote.lastPeriodStart);
+          if (remote.lastPeriodEnd) setPeriodEnd(remote.lastPeriodEnd);
+          if (remote.lastHoursWorked) setHoursWorked(remote.lastHoursWorked);
         }
       }).catch(function () {});
       return function () { cancelled = true; };
