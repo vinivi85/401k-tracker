@@ -700,13 +700,13 @@
         setImporting(false);
         setImportMsg('');
 
-        /* Valida que o parsed tem dados úteis */
+        /* Valida que o parsed tem dados úteis ANTES de limpar qualquer coisa */
         if (!parsed || (!parsed.regHours && !parsed.otHours && !parsed.gross && !parsed.paymentDate)) {
           setImportErr('Gemini não extraiu dados do PDF. Tente novamente.');
           return;
         }
 
-        /* Limpa dados anteriores antes de aplicar o import */
+        /* Só limpa DEPOIS de confirmar que tem dados válidos */
         setPayDate('');
         setPeriodStart('');
         setPeriodEnd('');
