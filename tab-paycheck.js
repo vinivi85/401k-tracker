@@ -438,7 +438,7 @@
         padding: '10px 16px', background: '#0B1120', borderBottom: '1px solid #1F2937', flexShrink: 0
       }},
         h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, title),
-        h('button', { style: { background: '#FB7185', border: 'none', color: '#fff', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 6, marginLeft: 12, flexShrink: 0 }, onClick: onClose }, '✕')
+        h('button', { style: { background: '#FB7185', border: 'none', color: '#fff', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, cursor: 'pointer', padding: '6px 14px', borderRadius: 6, marginLeft: 12, flexShrink: 0 }, onClick: function () { if (props.url && props.url.startsWith('blob:')) URL.revokeObjectURL(props.url); onClose(); } }, '✕')
       ),
       /* Content */
       h('div', { style: { flex: 1, overflowY: 'auto', overflowX: 'hidden', background: '#222' } },
@@ -542,12 +542,21 @@
     function openPayStubViewer(stub) {
       setViewerLoading(true);
       setViewerUrl(null);
-      SupabaseAPI.getPayStubUrl(stub.path).then(function (url) {
-        setViewerUrl(url);
+      /* Obtém URL assinada, baixa o PDF como ArrayBuffer e passa direto para o pdfjs */
+      SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
+        return fetch(signedUrl).then(function (resp) {
+          if (!resp.ok) throw new Error('Download failed: ' + resp.status);
+          return resp.arrayBuffer();
+        });
+      }).then(function (buffer) {
+        /* Cria URL local temporária em memória */
+        var blob = new Blob([buffer], { type: 'application/pdf' });
+        var localUrl = URL.createObjectURL(blob);
+        setViewerUrl(localUrl);
         setViewerLoading(false);
       }).catch(function (e) {
         setViewerLoading(false);
-        console.error('Failed to get stub URL:', e);
+        setImportErr('Erro ao carregar PDF: ' + e.message);
       });
     }
 
