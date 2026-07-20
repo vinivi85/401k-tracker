@@ -514,7 +514,9 @@
     }
 
     function persistDateFields(newPayDate, newPeriodStart, newPeriodEnd, newHoursWorked) {
-      var next = Object.assign({}, cfg, {
+      /* Lê o cfg mais recente do localStorage para não sobrescrever horas */
+      var currentCfg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+      var next = Object.assign({}, currentCfg, {
         lastPayDate: newPayDate !== undefined ? newPayDate : payDate,
         lastPeriodStart: newPeriodStart !== undefined ? newPeriodStart : periodStart,
         lastPeriodEnd: newPeriodEnd !== undefined ? newPeriodEnd : periodEnd,
@@ -524,7 +526,7 @@
       clearTimeout(window._paycheckDateSaveTimer);
       window._paycheckDateSaveTimer = setTimeout(function () {
         SupabaseAPI.saveUserConfig(next).catch(function () {});
-      }, 1000);
+      }, 1200);
     }
 
     function clearAllHours() {
@@ -709,11 +711,13 @@
         if (parsed.periodStart) setPeriodStart(parsed.periodStart);
         if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
         if (parsed.hoursWorked) setHoursWorked(parsed.hoursWorked);
-        /* Persiste no Supabase para restaurar no próximo acesso */
-        persistDateFields(parsed.paymentDate, parsed.periodStart, parsed.periodEnd, parsed.hoursWorked);
-
         /* Aplica horas */
         applyHours(parsed);
+
+        /* Persiste data/período no Supabase após aplicar horas */
+        setTimeout(function () {
+          persistDateFields(parsed.paymentDate, parsed.periodStart, parsed.periodEnd, parsed.hoursWorked);
+        }, 500);
 
         /* Upload do PDF para o Supabase Storage */
         (function () {
