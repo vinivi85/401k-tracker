@@ -882,7 +882,11 @@
 
       /* Input file hidden */
       h('input', {
-        id: 'paystub-file-input', type: 'file', accept: '.pdf,image/*', style: { display: 'none' },
+        id: 'paystub-pdf-input', type: 'file', accept: '.pdf', style: { display: 'none' },
+        onChange: handleFileImport
+      }),
+      h('input', {
+        id: 'paystub-img-input', type: 'file', accept: 'image/*', style: { display: 'none' },
         onChange: handleFileImport
       }),
 
@@ -944,20 +948,25 @@
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA')
         ),
-        h('div', { style: { display: 'flex', gap: 8, marginBottom: 8 } },
+        h('div', { style: { display: 'flex', gap: 6, marginBottom: 8 } },
           h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }, (importing || importingWS) ? { opacity: 0.6 } : {}),
-            onClick: function () { if (!importing && !importingWS) document.getElementById('paystub-file-input').click(); },
-            disabled: importing || importingWS
-          }, h(Icon, { name: 'receipt', size: 14 }), (importing || importingWS) ? importMsg : 'IMPORTAR'),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 9, padding: '6px 4px' }, importing ? { opacity: 0.6 } : {}),
+            onClick: function () { if (!importing) document.getElementById('paystub-pdf-input').click(); },
+            disabled: importing
+          }, h(Icon, { name: 'receipt', size: 12 }), importing ? '...' : 'PDF'),
           h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', color: '#FB7185', borderColor: '#7F1D1D' }),
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 9, padding: '6px 4px' }, importingWS ? { opacity: 0.6 } : {}),
+            onClick: function () { if (!importingWS) document.getElementById('paystub-img-input').click(); },
+            disabled: importingWS
+          }, h(Icon, { name: 'chart', size: 12 }), importingWS ? '...' : 'JPG'),
+          h('button', {
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 9, padding: '6px 4px', color: '#FB7185', borderColor: '#7F1D1D' }),
             onClick: clearAllHours
-          }, h(Icon, { name: 'reset', size: 13 }), 'LIMPAR')
+          }, h(Icon, { name: 'reset', size: 12 }), 'LIMPAR')
         ),
+        /* Mensagem de status do import */
+        (importing || importingWS) && importMsg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 6 } }, importMsg) : null,
 
-        /* Status do import */
-        importMsg && !importing ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 8 } }, importMsg) : null,
         importErr ? h('div', { style: S.errorText }, importErr) : null,
 
         /* Data do pagamento */
