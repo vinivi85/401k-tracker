@@ -542,14 +542,23 @@
     function openPayStubViewer(stub) {
       setViewerLoading(true);
       setViewerUrl(null);
-      /* Obtém URL assinada, baixa o PDF como ArrayBuffer e passa direto para o pdfjs */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
-        return fetch(signedUrl).then(function (resp) {
-          if (!resp.ok) throw new Error('Download failed: ' + resp.status);
-          return resp.arrayBuffer();
+        /* Baixa como ArrayBuffer com withCredentials false para evitar CORS preflight */
+        return new Promise(function (resolve, reject) {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', signedUrl, true);
+          xhr.responseType = 'arraybuffer';
+          xhr.onload = function () {
+            if (xhr.status === 200) {
+              resolve(xhr.response);
+            } else {
+              reject(new Error('Download failed: ' + xhr.status));
+            }
+          };
+          xhr.onerror = function () { reject(new Error('Network error')); };
+          xhr.send();
         });
       }).then(function (buffer) {
-        /* Cria URL local temporária em memória */
         var blob = new Blob([buffer], { type: 'application/pdf' });
         var localUrl = URL.createObjectURL(blob);
         setViewerUrl(localUrl);
