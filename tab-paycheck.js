@@ -700,6 +700,12 @@
         setImporting(false);
         setImportMsg('');
 
+        /* Valida que o parsed tem dados úteis */
+        if (!parsed || (!parsed.regHours && !parsed.otHours && !parsed.gross && !parsed.paymentDate)) {
+          setImportErr('Gemini não extraiu dados do PDF. Tente novamente.');
+          return;
+        }
+
         /* Limpa dados anteriores antes de aplicar o import */
         setPayDate('');
         setPeriodStart('');
@@ -721,9 +727,10 @@
 
         /* Upload do PDF para o Supabase Storage */
         (function () {
-          var payDate = parsed.paymentDate || '';
-          var dateParts = payDate.split('-');
-          var dateStr = dateParts.length === 3 ? dateParts[1] + dateParts[2] + dateParts[0] : Date.now().toString();
+          var dateForFile = parsed.paymentDate || payDate || '';
+          var dateParts = dateForFile.split('-');
+          var dateStr = dateParts.length === 3 ? dateParts[1] + dateParts[2] + dateParts[0] : '';
+          if (!dateStr) { console.warn('No paymentDate for filename, skipping upload'); return; }
           var fileName = 'Paycheck-' + dateStr + '.pdf';
           SupabaseAPI.uploadPayStub(file, fileName).then(function () {
             return SupabaseAPI.listPayStubs();
