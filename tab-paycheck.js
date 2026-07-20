@@ -145,7 +145,7 @@
           else mimeType = 'image/jpeg';
         }
 
-        var prompt = 'American Airlines Work Summary table. Extract hours and return ONLY valid JSON starting with { and ending with }. No text, no explanation, no markdown.\n\nReturn exactly: {"regHours": NUMBER, "otHours": NUMBER, "ot2Hours": NUMBER, "sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, "lunchHours": 0, "additionalHours": 0}\n\nregHours = REG column total for rows WRK + TRP + SWAPON\notHours = OT1.5 column total for rows WRK + MANDO-OT\not2Hours = OT2.0 column total for rows WRK + MANDO-OT';
+        var prompt = 'This is a Work Summary table. It has rows for different work types and columns for REG, OT1.5, and OT2.0 hours. Sum each column across ALL rows. Return ONLY valid JSON, no other text: {"regHours": TOTAL_REG, "otHours": TOTAL_OT1.5, "ot2Hours": TOTAL_OT2.0, "sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, "lunchHours": 0, "additionalHours": 0}';
 
         var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + (window.__GEMINI_KEY || '');
 
@@ -681,74 +681,8 @@
     }
 
     function handleWorkSummaryImport(ev) {
-      var file = ev.target.files[0];
-      if (!file) return;
-      ev.target.value = '';
-      setImportingWS(true);
-      setImportErr('');
-
-      /* Read image as base64 */
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        var base64 = e.target.result.split(',')[1];
-        var mimeType = file.type || 'image/jpeg';
-
-        var prompt = 'American Airlines Work Summary table. Return ONLY valid JSON, nothing else. {"regHours": NUMBER, "otHours": NUMBER, "ot2Hours": NUMBER, "sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, "lunchHours": 0, "additionalHours": 0}. regHours=REG col WRK+TRP+SWAPON. otHours=OT1.5 col WRK+MANDO-OT. ot2Hours=OT2.0 col WRK+MANDO-OT.';
-
-        fetch(GEMINI_URL.replace(':generateContent', ':generateContent'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [
-              { inline_data: { mime_type: mimeType, data: base64 } },
-              { text: prompt }
-            ]}],
-            generationConfig: { temperature: 0, maxOutputTokens: 256 }
-          })
-        }).then(function (resp) {
-          if ((resp.status === 429 || resp.status === 503) ) {
-            return new Promise(function (res) { setTimeout(res, 3000); }).then(function () {
-              return fetch(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: base64 } }, { text: prompt }]}], generationConfig: { temperature: 0, maxOutputTokens: 256 } }) });
-            });
-          }
-          return resp;
-        }).then(function (resp) {
-          if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
-          return resp.json();
-        }).then(function (data) {
-          var raw = data.candidates[0].content.parts[0].text;
-          var start = raw.indexOf('{');
-          var end = raw.lastIndexOf('}');
-          var parsed = JSON.parse(raw.slice(start, end + 1));
-          setImportingWS(false);
-
-          /* Clear and apply hours */
-          var next = Object.assign({}, cfg, {
-            regHours:    parsed.regHours  || 0,
-            otHours:     parsed.otHours   || 0,
-            ot2Hours:    parsed.ot2Hours  || 0,
-            /* Keep other fields as-is */
-            sickHours:       0,
-            vacationHours:   0,
-            additionalHours: 0,
-            holHours:        0,
-            wrkHolHours:     0,
-            lunchPenaltyHours: 0
-          });
-          setCfg(next);
-          saveJSON(KEY_PAYCHECK, next);
-          clearTimeout(window._paycheckSaveTimer);
-          window._paycheckSaveTimer = setTimeout(function () {
-            SupabaseAPI.saveUserConfig(next).catch(function () {});
-          }, 1000);
-          setImportMsg('✓ Work Summary importado! REG: ' + (parsed.regHours || 0) + 'h · OT1.5: ' + (parsed.otHours || 0) + 'h · OT2.0: ' + (parsed.ot2Hours || 0) + 'h');
-          setTimeout(function () { setImportMsg(''); }, 4000);
-        }).catch(function (e) {
-          setImportingWS(false);
-          setImportErr('Erro Work Summary: ' + e.message);
-        });
-      };
-      reader.readAsDataURL(file);
+      /* Delegado ao handleFileImport com forceType image */
+      handleFileImport(ev, 'image');
     }
 
     function handleFileImport(ev, forceType) {
