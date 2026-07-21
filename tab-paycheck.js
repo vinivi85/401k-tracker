@@ -522,6 +522,8 @@
     var selectedStub = selectedStubState[0], setSelectedStub = selectedStubState[1];
     var viewerUrlState = React.useState(null);
     var viewerUrl = viewerUrlState[0], setViewerUrl = viewerUrlState[1];
+    var viewerUrlState = React.useState(null);
+    var viewerUrl = viewerUrlState[0], setViewerUrl = viewerUrlState[1];
     var stubsLoadingState = React.useState(false);
     var stubsLoading = stubsLoadingState[0], setStubsLoading = stubsLoadingState[1];
     var viewerLoadingState = React.useState(false);
@@ -938,6 +940,12 @@
 
       /* PDF Viewer Modal */
 
+
+      viewerUrl ? h(PdfViewer, {
+        url: viewerUrl,
+        title: selectedStub.replace('.pdf', ''),
+        onClose: function () { setViewerUrl(null); }
+      }) : null,
 
       /* Input file hidden */
       h('input', {
