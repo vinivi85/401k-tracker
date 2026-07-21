@@ -573,9 +573,31 @@
 
     function openPayStubViewer(stub) {
       setViewerLoading(true);
+
+      /* Verifica se já temos URL válida salva no cfg */
+      var cachedUrls = cfg.paystubUrls || {};
+      var cached = cachedUrls[stub.name];
+      var now = Date.now();
+      /* URL válida por 30 dias — descarta se expirada (guarda timestamp) */
+      if (cached && cached.url && cached.ts && (now - cached.ts) < 25 * 24 * 3600 * 1000) {
+        setViewerLoading(false);
+        window.open(cached.url, '_blank');
+        return;
+      }
+
+      /* Gera nova URL assinada (30 dias) e salva no cfg */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
         setViewerLoading(false);
-        /* Abre no Safari nativo — melhor suporte a PDF no iOS */
+        /* Salva URL no cfg para reutilizar */
+        var next = Object.assign({}, cfg);
+        next.paystubUrls = Object.assign({}, cachedUrls);
+        next.paystubUrls[stub.name] = { url: signedUrl, ts: now };
+        setCfg(next);
+        saveJSON(KEY_PAYCHECK, next);
+        clearTimeout(window._paycheckSaveTimer);
+        window._paycheckSaveTimer = setTimeout(function () {
+          SupabaseAPI.saveUserConfig(next).catch(function () {});
+        }, 1000);
         window.open(signedUrl, '_blank');
       }).catch(function (e) {
         setViewerLoading(false);
