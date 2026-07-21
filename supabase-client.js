@@ -409,7 +409,6 @@ var SupabaseAPI = {
   },
 
   getPayStubUrl: function (path) {
-    /* path = uid/filename — não encode a barra */
     var parts = path.split('/');
     var encodedPath = parts.map(encodeURIComponent).join('/');
     return authFetch(SUPABASE_URL + '/storage/v1/object/sign/paystubs/' + encodedPath, {
@@ -420,7 +419,10 @@ var SupabaseAPI = {
       if (!resp.ok) return resp.text().then(function (t) { throw new Error('Sign failed ' + resp.status + ': ' + t.slice(0, 100)); });
       return resp.json();
     }).then(function (data) {
-      return SUPABASE_URL + data.signedURL;
+      /* signedURL pode vir como path relativo ou URL completa */
+      var signed = data.signedURL || data.signedUrl || '';
+      if (signed.startsWith('http')) return signed;
+      return SUPABASE_URL + signed;
     });
   },
 
