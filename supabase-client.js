@@ -414,7 +414,7 @@ var SupabaseAPI = {
     return authFetch(SUPABASE_URL + '/storage/v1/object/sign/paystubs/' + encodedPath, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: 3600 })
+      body: JSON.stringify({ expiresIn: 2592000 })
     }).then(function (resp) {
       if (!resp.ok) return resp.text().then(function (t) { throw new Error('Sign failed ' + resp.status + ': ' + t.slice(0, 100)); });
       return resp.json();
