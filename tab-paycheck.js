@@ -186,7 +186,7 @@
                 { text: prompt },
                 { inline_data: { mime_type: mimeType, data: base64 } }
               ]}],
-              generationConfig: { temperature: 0, maxOutputTokens: 2048 }
+              generationConfig: { temperature: 0, maxOutputTokens: 8192 }
             })
           }).then(function (resp) {
             if ((resp.status === 429 || resp.status === 503) && retries > 0) {
@@ -227,7 +227,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 2048 }
+          generationConfig: { temperature: 0, maxOutputTokens: 8192 }
         })
       }).then(function (resp) {
         if ((resp.status === 429 || resp.status === 503) && retries > 0) {
