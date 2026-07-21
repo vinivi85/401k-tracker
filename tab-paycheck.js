@@ -587,6 +587,8 @@
 
       /* Gera nova URL assinada (30 dias) e salva no cfg */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
+        console.log('Generated signed URL:', signedUrl);
+        setImportErr('DEBUG URL: ' + signedUrl.slice(0, 120));
         setViewerLoading(false);
         /* Salva URL no cfg para reutilizar */
         var next = Object.assign({}, cfg);
