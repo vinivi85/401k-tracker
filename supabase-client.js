@@ -419,9 +419,10 @@ var SupabaseAPI = {
       if (!resp.ok) return resp.text().then(function (t) { throw new Error('Sign failed ' + resp.status + ': ' + t.slice(0, 100)); });
       return resp.json();
     }).then(function (data) {
-      /* signedURL pode vir como path relativo ou URL completa */
       var signed = data.signedURL || data.signedUrl || '';
       if (signed.startsWith('http')) return signed;
+      /* signedURL vem como /object/sign/... — precisa do /storage/v1 */
+      if (signed.startsWith('/object/')) signed = '/storage/v1' + signed;
       return SUPABASE_URL + signed;
     });
   },
