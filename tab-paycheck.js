@@ -573,17 +573,13 @@
 
     function openPayStubViewer(stub) {
       setViewerLoading(true);
-      setViewerUrl(null);
-      /* Usa authFetch do supabase-client que já tem os headers corretos */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
-        /* authFetch inclui Authorization header — evita CORS do pdfjs direto */
-        return SupabaseAPI.downloadPayStub(signedUrl);
-      }).then(function (arrayBuffer) {
-        setViewerUrl(arrayBuffer);
         setViewerLoading(false);
+        /* Abre no Safari nativo — melhor suporte a PDF no iOS */
+        window.open(signedUrl, '_blank');
       }).catch(function (e) {
         setViewerLoading(false);
-        setImportErr('Erro ao carregar PDF: ' + e.message);
+        setImportErr('Erro ao abrir PDF: ' + e.message);
       });
     }
 
@@ -922,11 +918,7 @@
       addToPayData ? h(AddToPayModal, { data: addToPayData, onConfirm: handleAddToPay, onSkip: function () { setAddToPayData(null); }, saving: addingToPay }) : null,
 
       /* PDF Viewer Modal */
-      viewerUrl ? h(PdfViewer, { 
-        url: viewerUrl, 
-        title: selectedStub.replace('.pdf',''),
-        onClose: function () { setViewerUrl(null); setSelectedStub(''); }
-      }) : null,
+
 
       /* Input file hidden */
       h('input', {
@@ -1173,13 +1165,13 @@
             }, h(Icon, { name: 'trash', size: 15 })) : null
           ),
           selectedStub ? h('button', {
-            style: Object.assign({}, S.submitBtn, { width: '100%' }),
+            style: Object.assign({}, S.submitBtn, { width: '100%', marginTop: 8 }),
             onClick: function () {
               var stub = stubs.find(function (s) { return s.name === selectedStub; });
               if (stub) openPayStubViewer(stub);
             },
             disabled: viewerLoading
-          }, viewerLoading ? 'CARREGANDO PDF...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 14 }), ' VISUALIZAR')) : null
+          }, viewerLoading ? 'OBTENDO LINK...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 14 }), ' ABRIR PDF')) : null
         )
       ),
 
