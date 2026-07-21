@@ -433,6 +433,14 @@ var SupabaseAPI = {
       if (!resp.ok) return resp.text().then(function (t) { throw new Error('Delete failed ' + resp.status + ': ' + t.slice(0, 80)); });
       return true;
     });
+  },
+
+  downloadPayStub: function (signedUrl) {
+    /* Baixa PDF usando authFetch que inclui headers corretos — evita CORS no iOS PWA */
+    return authFetch(signedUrl, { method: 'GET' }).then(function (resp) {
+      if (!resp.ok) throw new Error('Download failed: ' + resp.status);
+      return resp.arrayBuffer();
+    });
   }
 };
 
