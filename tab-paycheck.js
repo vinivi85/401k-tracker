@@ -761,7 +761,18 @@
           if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
           if (parsed.paymentDate) setPayDate(parsed.paymentDate);
           if (parsed.periodStart || parsed.periodEnd || parsed.paymentDate) {
-            persistDateFields(parsed.paymentDate, parsed.periodStart, parsed.periodEnd, null);
+            /* Salva imediatamente sem debounce para garantir que persiste */
+            setTimeout(function () {
+              var currentCfg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+              var next = Object.assign({}, currentCfg, {
+                lastPayDate: parsed.paymentDate || '',
+                lastPeriodStart: parsed.periodStart || '',
+                lastPeriodEnd: parsed.periodEnd || '',
+                lastHoursWorked: null
+              });
+              saveJSON(KEY_PAYCHECK, next);
+              SupabaseAPI.saveUserConfig(next).catch(function () {});
+            }, 600);
           }
           setImportMsg('✓ Horas importadas do Work Summary!');
           setTimeout(function () { setImportMsg(''); }, 3000);
