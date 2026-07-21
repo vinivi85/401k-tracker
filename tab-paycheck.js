@@ -575,11 +575,17 @@
       setViewerLoading(true);
 
       var now = Date.now();
-      /* Sempre gera URL fresca (30 dias) */
+      var cachedUrls = cfg.paystubUrls || {};
+      var cached = cachedUrls[stub.name];
+      /* Reutiliza URL se ainda válida (menos de 25 dias) */
+      if (cached && cached.url && cached.ts && (now - cached.ts) < 25 * 24 * 3600 * 1000) {
+        setViewerLoading(false);
+        window.open(cached.url, '_blank');
+        return;
+      }
+      /* Gera nova URL assinada (30 dias) e salva */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
         setViewerLoading(false);
-        /* Salva URL no cfg para reutilizar */
-        var cachedUrls = cfg.paystubUrls || {};
         var next = Object.assign({}, cfg);
         next.paystubUrls = Object.assign({}, cachedUrls);
         next.paystubUrls[stub.name] = { url: signedUrl, ts: now };
