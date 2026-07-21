@@ -419,7 +419,11 @@
       setError(null);
       setPages([]);
 
-      pdfjsLib.getDocument({ url: url, withCredentials: false }).promise.then(function (pdf) {
+      /* url pode ser ArrayBuffer (baixado via authFetch) ou string URL */
+      var docParam = (url instanceof ArrayBuffer || (url && url.byteLength !== undefined))
+        ? { data: url }
+        : { url: url, withCredentials: false };
+      pdfjsLib.getDocument(docParam).promise.then(function (pdf) {
         var numPages = pdf.numPages;
         var renders = [];
         for (var i = 1; i <= numPages; i++) {
@@ -570,13 +574,16 @@
     function openPayStubViewer(stub) {
       setViewerLoading(true);
       setViewerUrl(null);
-      /* Passa a URL assinada direto para o pdfjs — ele gerencia o download internamente */
+      /* Usa authFetch do supabase-client que já tem os headers corretos */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
-        setViewerUrl(signedUrl);
+        /* authFetch inclui Authorization header — evita CORS do pdfjs direto */
+        return SupabaseAPI.downloadPayStub(signedUrl);
+      }).then(function (arrayBuffer) {
+        setViewerUrl(arrayBuffer);
         setViewerLoading(false);
       }).catch(function (e) {
         setViewerLoading(false);
-        setImportErr('Erro ao obter URL do PDF: ' + e.message);
+        setImportErr('Erro ao carregar PDF: ' + e.message);
       });
     }
 
