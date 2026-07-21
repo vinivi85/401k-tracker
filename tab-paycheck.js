@@ -419,7 +419,7 @@
       setError(null);
       setPages([]);
 
-      pdfjsLib.getDocument(url).promise.then(function (pdf) {
+      pdfjsLib.getDocument({ url: url, withCredentials: false }).promise.then(function (pdf) {
         var numPages = pdf.numPages;
         var renders = [];
         for (var i = 1; i <= numPages; i++) {
@@ -570,30 +570,13 @@
     function openPayStubViewer(stub) {
       setViewerLoading(true);
       setViewerUrl(null);
+      /* Passa a URL assinada direto para o pdfjs — ele gerencia o download internamente */
       SupabaseAPI.getPayStubUrl(stub.path).then(function (signedUrl) {
-        /* Baixa como ArrayBuffer com withCredentials false para evitar CORS preflight */
-        return new Promise(function (resolve, reject) {
-          var xhr = new XMLHttpRequest();
-          xhr.open('GET', signedUrl, true);
-          xhr.responseType = 'arraybuffer';
-          xhr.onload = function () {
-            if (xhr.status === 200) {
-              resolve(xhr.response);
-            } else {
-              reject(new Error('Download failed: ' + xhr.status));
-            }
-          };
-          xhr.onerror = function () { reject(new Error('Network error')); };
-          xhr.send();
-        });
-      }).then(function (buffer) {
-        var blob = new Blob([buffer], { type: 'application/pdf' });
-        var localUrl = URL.createObjectURL(blob);
-        setViewerUrl(localUrl);
+        setViewerUrl(signedUrl);
         setViewerLoading(false);
       }).catch(function (e) {
         setViewerLoading(false);
-        setImportErr('Erro ao carregar PDF: ' + e.message);
+        setImportErr('Erro ao obter URL do PDF: ' + e.message);
       });
     }
 
