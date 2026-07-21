@@ -158,7 +158,7 @@
                 { text: prompt },
                 { inline_data: { mime_type: mimeType, data: base64 } }
               ]}],
-              generationConfig: { temperature: 0, maxOutputTokens: 256 }
+              generationConfig: { temperature: 0, maxOutputTokens: 1024 }
             })
           }).then(function (resp) {
             if ((resp.status === 429 || resp.status === 503) && retries > 0) {
