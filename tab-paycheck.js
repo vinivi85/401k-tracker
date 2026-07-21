@@ -145,7 +145,35 @@
           else mimeType = 'image/jpeg';
         }
 
-        var prompt = 'This is a Work Summary table. It has rows for different work types and columns for REG, OT1.5, and OT2.0 hours. Sum each column across ALL rows. Return ONLY valid JSON, no other text: {"regHours": TOTAL_REG, "otHours": TOTAL_OT1.5, "ot2Hours": TOTAL_OT2.0, "sickHours": 0, "vacationHours": 0, "holHours": 0, "wrkHolHours": 0, "lunchHours": 0, "additionalHours": 0}';
+        var prompt = [
+          'This is an American Airlines Work Summary page.',
+          'Extract the pay period dates and hours from the table.',
+          '',
+          'Return ONLY valid JSON with no other text:',
+          '{',
+          '  "periodStart": "YYYY-MM-DD",',
+          '  "periodEnd": "YYYY-MM-DD",',
+          '  "paymentDate": "YYYY-MM-DD",',
+          '  "regHours": 0,',
+          '  "otHours": 0,',
+          '  "ot2Hours": 0,',
+          '  "sickHours": 0,',
+          '  "vacationHours": 0,',
+          '  "holHours": 0,',
+          '  "wrkHolHours": 0,',
+          '  "lunchHours": 0,',
+          '  "additionalHours": 0',
+          '}',
+          '',
+          'Rules:',
+          '- periodStart: first date in Pay Period range',
+          '- periodEnd: last date in Pay Period range',
+          '- paymentDate: periodEnd + 5 days (payment is 5 days after period ends)',
+          '- regHours: sum REG column for ALL rows (WRK + TRP + SWAPON + any others)',
+          '- otHours: sum OT1.5 column for ALL rows',
+          '- ot2Hours: sum OT2.0 column for ALL rows',
+          '- All other hour fields: 0'
+        ].join('\n');
 
         var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + (window.__GEMINI_KEY || '');
 
@@ -722,6 +750,12 @@
             return;
           }
           applyHours(parsed);
+          if (parsed.periodStart) setPeriodStart(parsed.periodStart);
+          if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
+          if (parsed.paymentDate) setPayDate(parsed.paymentDate);
+          if (parsed.periodStart || parsed.periodEnd || parsed.paymentDate) {
+            persistDateFields(parsed.paymentDate, parsed.periodStart, parsed.periodEnd, null);
+          }
           setImportMsg('✓ Horas importadas do Work Summary!');
           setTimeout(function () { setImportMsg(''); }, 3000);
         }).catch(function (e) {
