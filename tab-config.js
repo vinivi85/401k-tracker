@@ -157,7 +157,12 @@
       update('salaryTiers', tiers);
     }
 
-    function setCurrentTier(idx) { update('currentYosIndex', idx); }
+    function setCurrentTier(idx) {
+      update('currentYosIndex', idx);
+      if (salaryTiers[idx]) {
+        update('baseRate', salaryTiers[idx].rate);
+      }
+    }
 
     function resetAll() {
       setCfg(defaultPaycheckConfig);
