@@ -158,10 +158,17 @@
     }
 
     function setCurrentTier(idx) {
-      update('currentYosIndex', idx);
-      if (salaryTiers[idx]) {
-        update('baseRate', salaryTiers[idx].rate);
-      }
+      var rate = salaryTiers[idx] ? salaryTiers[idx].rate : cfg.baseRate;
+      var next = Object.assign({}, cfg, { currentYosIndex: idx, baseRate: rate });
+      setCfg(next);
+      saveJSON(KEY_PAYCHECK, next);
+      clearTimeout(window._configSaveTimer);
+      window._configSaveTimer = setTimeout(function () {
+        setSyncStatus('syncing');
+        SupabaseAPI.saveUserConfig(next).then(function () {
+          setSyncStatus('synced');
+        }).catch(function () { setSyncStatus('offline'); });
+      }, 800);
     }
 
     function resetAll() {
