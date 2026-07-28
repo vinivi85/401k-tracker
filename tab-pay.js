@@ -404,7 +404,7 @@
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'TOTAL RECEBIDO (LÍQUIDO)'),
         h('div', { style: S.gaugeValue }, formatUSD(grandNet)),
-        h('div', { style: S.gaugeDate }, monthSummaries.length + ' meses · MÉDIA ' + formatUSD(avgMonth) + '/MÊS'),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#D1D5DB', letterSpacing: 1 } }, monthSummaries.length + ' meses · MÉDIA ' + formatUSD(avgMonth) + '/MÊS'),
         h('div', { style: S.deltaRow },
           h('div', { style: S.deltaBox },
             h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS'),
@@ -454,7 +454,7 @@
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'LÍQUIDO POR MÊS'),
-          h('span', { style: S.cardSub }, monthSummaries.length + ' meses')
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#D1D5DB' } }, monthSummaries.length + ' meses')
         ),
         h(MiniChart, { data: chartData })
       ),
