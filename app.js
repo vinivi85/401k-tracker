@@ -117,6 +117,7 @@
       { id: 'paycheck',   label: 'PAYCHECK',  icon: 'dollar'  },
       { id: 'pay',        label: 'PAY',       icon: 'receipt' },
       { id: 'projection', label: 'PROJEÇÃO',  icon: 'chart'   },
+      { id: 'irs',        label: 'IRS',        icon: 'receipt' },
       { id: 'config',     label: 'CONFIG',    icon: 'settings'}
     ];
 
@@ -125,6 +126,7 @@
     else if (activeTab === 'paycheck')  content = h(window.PaycheckTab);
     else if (activeTab === 'pay')       content = h(window.PayTab);
     else if (activeTab === 'projection') content = h(window.ProjectionTab);
+    else if (activeTab === 'irs')        content = h(window.IrsTab);
     else content = h(window.ConfigTab);
 
     /* ---------- Ordem das telas: Login -> PIN -> App ---------- */
