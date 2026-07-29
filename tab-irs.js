@@ -1,335 +1,477 @@
 /* =========================================================
-   TAB: IRS — Federal Tax Return Preview
-   Pega dados YTD da aba Pay + campos manuais
+   TAB: IRS — Federal Tax Return Wizard
+   Fluxo estilo TurboTax em 6 etapas dentro da aba
    ========================================================= */
 (function () {
   'use strict';
   var h = React.createElement;
 
-  var KEY_IRS = 'irs-config';
+  var KEY_IRS = 'irs-wizard-v2';
 
   /* 2024 Tax Brackets */
-  var BRACKETS_2024 = {
-    single: [
-      { min: 0,       max: 11600,  rate: 0.10 },
-      { min: 11600,   max: 47150,  rate: 0.12 },
-      { min: 47150,   max: 100525, rate: 0.22 },
-      { min: 100525,  max: 191950, rate: 0.24 },
-      { min: 191950,  max: 243725, rate: 0.32 },
-      { min: 243725,  max: 609350, rate: 0.35 },
-      { min: 609350,  max: Infinity, rate: 0.37 }
-    ],
-    mfj: [
-      { min: 0,       max: 23200,  rate: 0.10 },
-      { min: 23200,   max: 94300,  rate: 0.12 },
-      { min: 94300,   max: 201050, rate: 0.22 },
-      { min: 201050,  max: 383900, rate: 0.24 },
-      { min: 383900,  max: 487450, rate: 0.32 },
-      { min: 487450,  max: 731200, rate: 0.35 },
-      { min: 731200,  max: Infinity, rate: 0.37 }
-    ],
-    mfs: [
-      { min: 0,       max: 11600,  rate: 0.10 },
-      { min: 11600,   max: 47150,  rate: 0.12 },
-      { min: 47150,   max: 100525, rate: 0.22 },
-      { min: 100525,  max: 191950, rate: 0.24 },
-      { min: 191950,  max: 243725, rate: 0.32 },
-      { min: 243725,  max: 365600, rate: 0.35 },
-      { min: 365600,  max: Infinity, rate: 0.37 }
-    ],
-    hoh: [
-      { min: 0,       max: 16550,  rate: 0.10 },
-      { min: 16550,   max: 63100,  rate: 0.12 },
-      { min: 63100,   max: 100500, rate: 0.22 },
-      { min: 100500,  max: 191950, rate: 0.24 },
-      { min: 191950,  max: 243700, rate: 0.32 },
-      { min: 243700,  max: 609350, rate: 0.35 },
-      { min: 609350,  max: Infinity, rate: 0.37 }
-    ]
+  var BRACKETS = {
+    single: [[0,11600,.10],[11600,47150,.12],[47150,100525,.22],[100525,191950,.24],[191950,243725,.32],[243725,609350,.35],[609350,Infinity,.37]],
+    mfj:    [[0,23200,.10],[23200,94300,.12],[94300,201050,.22],[201050,383900,.24],[383900,487450,.32],[487450,731200,.35],[731200,Infinity,.37]],
+    mfs:    [[0,11600,.10],[11600,47150,.12],[47150,100525,.22],[100525,191950,.24],[191950,243725,.32],[243725,365600,.35],[365600,Infinity,.37]],
+    hoh:    [[0,16550,.10],[16550,63100,.12],[63100,100500,.22],[100500,191950,.24],[191950,243700,.32],[243700,609350,.35],[609350,Infinity,.37]]
   };
+  var STD_DED = { single:14600, mfj:29200, mfs:14600, hoh:21900 };
+  var STATUS_LABELS = { single:'Single', mfj:'Married Filing Jointly', mfs:'Married Filing Separately', hoh:'Head of Household' };
 
-  var STANDARD_DEDUCTION_2024 = { single: 14600, mfj: 29200, mfs: 14600, hoh: 21900 };
-
-  var FILING_STATUS_LABELS = {
-    single: 'Single',
-    mfj:    'Married Filing Jointly',
-    mfs:    'Married Filing Separately',
-    hoh:    'Head of Household'
-  };
-
-  function calcFederalTax(taxableIncome, status) {
-    var brackets = BRACKETS_2024[status] || BRACKETS_2024.single;
+  function calcTax(income, status) {
+    var brackets = BRACKETS[status] || BRACKETS.single;
     var tax = 0;
     for (var i = 0; i < brackets.length; i++) {
       var b = brackets[i];
-      if (taxableIncome <= b.min) break;
-      var top = Math.min(taxableIncome, b.max);
-      tax += (top - b.min) * b.rate;
+      if (income <= b[0]) break;
+      tax += (Math.min(income, b[1]) - b[0]) * b[2];
     }
     return Math.max(0, tax);
   }
 
-  var DEFAULT_IRS = {
+  var DEFAULT = {
+    step: 0,
     filingStatus: 'single',
+    dependents: [],
+    otherIncome: { int1099: 0, div1099: 0, freelance: 0, unemployment: 0, other: 0 },
+    spouseW2: 0,
     deductionType: 'standard',
-    itemizedAmount: 0,
-    otherIncome: 0,
-    taxCredits: 0,
-    spouseW2: 0
+    itemized: { mortgage: 0, charitable: 0, salt: 0, medical: 0 },
+    credits: { childCare: 0, education: 0, ev: 0, other: 0 }
   };
 
   function IrsTab() {
-    var cfgState = React.useState(loadJSON(KEY_IRS, DEFAULT_IRS));
+    var cfgState = React.useState(function() { return loadJSON(KEY_IRS, DEFAULT); });
     var cfg = cfgState[0], setCfg = cfgState[1];
 
     var payEntriesState = React.useState([]);
     var payEntries = payEntriesState[0], setPayEntries = payEntriesState[1];
-
     var paycheckCfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var paycheckCfg = paycheckCfgState[0];
 
-    /* Carrega pay entries do Supabase */
     React.useEffect(function () {
-      SupabaseAPI.fetchPayEntries().then(function (entries) {
-        setPayEntries(entries || []);
-      }).catch(function () {});
-      SupabaseAPI.fetchUserConfig().then(function (remote) {
-        if (remote && Object.keys(remote).length > 0) {
-          paycheckCfgState[1](Object.assign({}, defaultPaycheckConfig, remote));
-        }
-      }).catch(function () {});
+      SupabaseAPI.fetchPayEntries().then(function (e) { setPayEntries(e || []); }).catch(function(){});
+      SupabaseAPI.fetchUserConfig().then(function (r) {
+        if (r && Object.keys(r).length > 0) paycheckCfgState[1](Object.assign({}, defaultPaycheckConfig, r));
+      }).catch(function(){});
     }, []);
 
-    function update(field, value) {
-      var next = Object.assign({}, cfg, { [field]: value });
-      setCfg(next);
-      saveJSON(KEY_IRS, next);
-    }
+    function save(next) { setCfg(next); saveJSON(KEY_IRS, next); }
+    function upd(field, value) { save(Object.assign({}, cfg, { [field]: value })); }
+    function setStep(s) { upd('step', s); }
 
-    /* YTD da aba Pay */
-    var grossYTD    = payEntries.reduce(function (s, e) { return s + (e.gross || 0); }, 0);
-    var netYTD      = payEntries.reduce(function (s, e) { return s + (e.amount || 0); }, 0);
-    var contrib401k = payEntries.reduce(function (s, e) { return s + (e.contrib401k || 0); }, 0);
-    var withholdingYTD = payEntries.reduce(function (s, e) {
-      /* Federal withholding = gross - preTax - 401k contrib - net - SS - Medicare - postTax */
-      /* Estimamos como: gross - net - SS(6.2%) - Medicare(1.45%) - preTax deductions */
-      var gross = e.gross || 0;
-      var net   = e.amount || 0;
-      if (!gross) return s;
-      var preTax  = num(paycheckCfg.preTaxItems && paycheckCfg.preTaxItems.reduce ? paycheckCfg.preTaxItems.reduce(function(a,i){return a+num(i.value);},0) : 0);
-      var contrib = e.contrib401k || 0;
-      var ssMedBase = gross - preTax;
-      var ss        = ssMedBase * 0.062;
-      var medicare  = ssMedBase * 0.0145;
-      var postTax   = num(paycheckCfg.postTaxItems && paycheckCfg.postTaxItems.reduce ? paycheckCfg.postTaxItems.reduce(function(a,i){return a+num(i.value);},0) : 0);
-      var withholding = gross - net - ss - medicare - preTax - contrib - postTax;
-      return s + Math.max(0, withholding);
+    /* YTD from Pay tab */
+    var grossYTD = payEntries.reduce(function(s,e){return s+(e.gross||0);},0);
+    var contrib401k = payEntries.reduce(function(s,e){return s+(e.contrib401k||0);},0);
+    var preTaxTotal = (paycheckCfg.preTaxItems||[]).reduce(function(s,i){return s+num(i.value);},0);
+    var postTaxTotal = (paycheckCfg.postTaxItems||[]).reduce(function(s,i){return s+num(i.value);},0);
+    var withheldYTD = payEntries.reduce(function(s,e){
+      if (!e.gross) return s;
+      var base = e.gross - preTaxTotal;
+      var ss = base * 0.062;
+      var med = base * 0.0145;
+      var w = e.gross - (e.amount||0) - ss - med - preTaxTotal - (e.contrib401k||0) - postTaxTotal;
+      return s + Math.max(0, w);
     }, 0);
 
-    /* AGI */
-    var totalIncome = grossYTD + num(cfg.otherIncome) + num(cfg.spouseW2);
-    var above401k   = contrib401k; /* já deduzido pre-tax no paycheck */
-    var agi         = totalIncome - above401k;
-
-    /* Deduction */
-    var stdDed  = STANDARD_DEDUCTION_2024[cfg.filingStatus] || 14600;
-    var deduction = cfg.deductionType === 'itemized'
-      ? Math.max(num(cfg.itemizedAmount), stdDed) /* always use higher */
-      : stdDed;
-
-    /* Taxable income */
-    var taxableIncome = Math.max(0, agi - deduction);
-
-    /* Tax liability */
-    var taxLiability = calcFederalTax(taxableIncome, cfg.filingStatus);
-
-    /* Credits */
-    var taxAfterCredits = Math.max(0, taxLiability - num(cfg.taxCredits));
-
-    /* Refund / Due */
-    var balance = withholdingYTD - taxAfterCredits;
+    /* Calculations */
+    var otherInc = Object.values(cfg.otherIncome).reduce(function(s,v){return s+num(v);},0);
+    var totalIncome = grossYTD + num(cfg.spouseW2) + otherInc;
+    var agi = totalIncome - contrib401k;
+    var stdDed = STD_DED[cfg.filingStatus] || 14600;
+    var itemizedTotal = Math.min(num(cfg.itemized.salt), 10000) +
+      num(cfg.itemized.mortgage) + num(cfg.itemized.charitable) +
+      Math.max(0, num(cfg.itemized.medical) - agi * 0.075);
+    var deduction = cfg.deductionType === 'itemized' ? Math.max(itemizedTotal, stdDed) : stdDed;
+    var taxable = Math.max(0, agi - deduction);
+    var childTaxCredit = cfg.dependents.filter(function(d){
+      if (!d.dob) return false;
+      var age = new Date().getFullYear() - new Date(d.dob).getFullYear();
+      return age < 17;
+    }).length * 2000;
+    var otherDepCredit = cfg.dependents.filter(function(d){
+      if (!d.dob) return false;
+      var age = new Date().getFullYear() - new Date(d.dob).getFullYear();
+      return age >= 17;
+    }).length * 500;
+    var totalCredits = childTaxCredit + otherDepCredit +
+      num(cfg.credits.childCare) + num(cfg.credits.education) +
+      num(cfg.credits.ev) + num(cfg.credits.other);
+    var taxLiability = calcTax(taxable, cfg.filingStatus);
+    var taxAfterCredits = Math.max(0, taxLiability - totalCredits);
+    var balance = withheldYTD - taxAfterCredits;
     var isRefund = balance >= 0;
-
-    /* Effective rate */
     var effectiveRate = grossYTD > 0 ? (taxAfterCredits / grossYTD) * 100 : 0;
 
-    var FilingBtn = function (props) {
-      var active = cfg.filingStatus === props.value;
-      return h('button', {
-        style: {
-          flex: 1, padding: '8px 4px', borderRadius: 8, border: '1px solid',
-          borderColor: active ? '#5EEAD4' : '#1F2937',
-          background: active ? '#134E4A' : '#111827',
-          color: active ? '#5EEAD4' : '#9CA3AF',
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 9, letterSpacing: 0.5, cursor: 'pointer'
-        },
-        onClick: function () { update('filingStatus', props.value); }
-      }, props.label);
-    };
+    var STEPS = ['FILING STATUS','DEPENDENTES','RENDA','DEDUÇÕES','CRÉDITOS','RESULTADO'];
+    var step = Math.min(Math.max(cfg.step || 0, 0), 5);
 
-    return h(React.Fragment, null,
+    /* ---- Progress bar ---- */
+    var ProgressBar = h('div', null,
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } },
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', letterSpacing: 1 } },
+          'ETAPA ' + (step+1) + ' DE ' + STEPS.length + ' · ' + STEPS[step]
+        ),
+        step < 5 ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3' } },
+          Math.round(((step+1)/STEPS.length)*100) + '%'
+        ) : null
+      ),
+      h('div', { style: { background: '#1F2937', borderRadius: 4, height: 4, marginBottom: 16 } },
+        h('div', { style: {
+          background: step === 5 ? '#5EEAD4' : '#0D9488',
+          height: 4, borderRadius: 4,
+          width: (((step+1)/STEPS.length)*100) + '%',
+          transition: 'width 0.3s'
+        }})
+      )
+    );
 
-      /* ---- Result card ---- */
-      h('div', { style: Object.assign({}, S.gaugeCard, {
-        background: isRefund
-          ? 'linear-gradient(160deg, #134E4A 0%, #111827 100%)'
-          : 'linear-gradient(160deg, #7F1D1D 0%, #111827 100%)'
-      }) },
-        h('div', { style: S.gaugeLabel }, 'PRÉVIA IRS · ' + (new Date().getFullYear()) + ' TAX YEAR'),
-        h('div', { style: { textAlign: 'center', margin: '12px 0 4px' } },
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#B0B7C3', marginBottom: 4 } },
-            isRefund ? 'REFUND ESTIMADO' : 'IMPOSTO DEVIDO'
+    /* ---- Nav buttons ---- */
+    function NavBtns(showBack, showNext, onNext, nextLabel) {
+      return h('div', { style: { display: 'flex', gap: 10, marginTop: 20 } },
+        showBack ? h('button', {
+          style: Object.assign({}, S.ghostBtn, { flex: 1 }),
+          onClick: function() { setStep(step - 1); }
+        }, '← VOLTAR') : h('div', { style: { flex: 1 } }),
+        showNext ? h('button', {
+          style: Object.assign({}, S.submitBtn, { flex: 2 }),
+          onClick: onNext || function() { setStep(step + 1); }
+        }, nextLabel || 'PRÓXIMO →') : null
+      );
+    }
+
+    /* ---- STEP 0: Filing Status ---- */
+    function StepFilingStatus() {
+      var options = [
+        { v: 'single', l: 'Single', d: 'Não casado(a) ou legalmente separado(a)' },
+        { v: 'mfj',    l: 'Married Filing Jointly', d: 'Casado(a) e declarando junto com cônjuge' },
+        { v: 'mfs',    l: 'Married Filing Separately', d: 'Casado(a) mas declarando separado' },
+        { v: 'hoh',    l: 'Head of Household', d: 'Solteiro(a) com dependente qualificado' }
+      ];
+      return h('div', null,
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#D1D5DB', marginBottom: 16 } },
+          'Como você vai declarar em 2024?'
+        ),
+        options.map(function(o) {
+          var active = cfg.filingStatus === o.v;
+          return h('button', {
+            key: o.v,
+            style: { width: '100%', textAlign: 'left', padding: '14px 16px', marginBottom: 8,
+              borderRadius: 10, border: '1px solid', cursor: 'pointer',
+              borderColor: active ? '#5EEAD4' : '#1F2937',
+              background: active ? '#0F2D2A' : '#111827' },
+            onClick: function() { upd('filingStatus', o.v); }
+          },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+              color: active ? '#5EEAD4' : '#D1D5DB', fontWeight: active ? 700 : 400 } }, o.l),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+              color: '#6B7280', marginTop: 2 } }, o.d)
+          );
+        }),
+        NavBtns(false, true)
+      );
+    }
+
+    /* ---- STEP 1: Dependents ---- */
+    function StepDependents() {
+      var deps = cfg.dependents || [];
+      function addDep() {
+        upd('dependents', deps.concat([{ name: '', dob: '', relation: 'child' }]));
+      }
+      function updDep(i, field, val) {
+        var next = deps.map(function(d,j){ return j===i ? Object.assign({},d,{[field]:val}) : d; });
+        upd('dependents', next);
+      }
+      function removeDep(i) {
+        upd('dependents', deps.filter(function(_,j){ return j!==i; }));
+      }
+      return h('div', null,
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#D1D5DB', marginBottom: 16 } },
+          'Você tem dependentes para declarar?'
+        ),
+        deps.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#6B7280', marginBottom: 12, padding: 12, background: '#111827', borderRadius: 8, border: '1px solid #1F2937' } },
+          'Nenhum dependente adicionado. Filhos menores de 17 anos geram $2,000 de Child Tax Credit cada.'
+        ) : deps.map(function(d, i) {
+          var age = d.dob ? new Date().getFullYear() - new Date(d.dob).getFullYear() : null;
+          return h('div', { key: i, style: { background: '#111827', borderRadius: 10, padding: 12, marginBottom: 10, border: '1px solid #1F2937' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
+              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4' } },
+                'DEPENDENTE ' + (i+1) + (age !== null ? ' · ' + age + ' anos' : '')
+              ),
+              h('button', { style: S.deleteBtn, onClick: function(){ removeDep(i); } }, h(Icon, { name: 'trash', size: 13 }))
+            ),
+            h('div', { style: S.formRow },
+              h('label', { style: S.formLabel }, 'NOME COMPLETO'),
+              h('input', { type: 'text', value: d.name, style: S.input, placeholder: 'Nome do dependente',
+                onChange: function(ev){ updDep(i,'name',ev.target.value); } })
+            ),
+            h('div', { style: S.formRow },
+              h('label', { style: S.formLabel }, 'DATA DE NASCIMENTO'),
+              h('input', { type: 'date', value: d.dob, style: S.input,
+                onChange: function(ev){ updDep(i,'dob',ev.target.value); } })
+            ),
+            h('div', { style: S.formRow },
+              h('label', { style: S.formLabel }, 'RELAÇÃO'),
+              h('select', { value: d.relation, style: S.input,
+                onChange: function(ev){ updDep(i,'relation',ev.target.value); } },
+                h('option', { value: 'child' }, 'Filho(a)'),
+                h('option', { value: 'stepchild' }, 'Enteado(a)'),
+                h('option', { value: 'parent' }, 'Pai/Mãe'),
+                h('option', { value: 'other' }, 'Outro')
+              )
+            ),
+            age !== null ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: age < 17 ? '#5EEAD4' : '#FBBF24', marginTop: 4 } },
+              age < 17 ? '✓ Child Tax Credit: $2,000' : '✓ Other Dependent Credit: $500'
+            ) : null
+          );
+        }),
+        h('button', { style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center', marginBottom: 4 }),
+          onClick: addDep },
+          h(Icon, { name: 'plus', size: 14 }), 'ADICIONAR DEPENDENTE'
+        ),
+        NavBtns(true, true)
+      );
+    }
+
+    /* ---- STEP 2: Income ---- */
+    function StepIncome() {
+      var oi = cfg.otherIncome;
+      function updOI(field, val) { upd('otherIncome', Object.assign({}, oi, { [field]: parseFloat(val)||0 })); }
+      return h('div', null,
+        /* W-2 automático */
+        h('div', { style: { background: '#0F2D2A', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #134E4A' } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 8 } },
+            '✓ W-2 IMPORTADO DA ABA PAY'
           ),
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 36, fontWeight: 700, color: isRefund ? '#5EEAD4' : '#FB7185' } },
-            (isRefund ? '+' : '-') + formatUSD(Math.abs(balance))
+          h('div', { style: S.lineItemRow },
+            h('span', { style: S.lineItemLabel }, 'GROSS YTD'),
+            h('span', { style: S.lineItemValue }, formatUSD(grossYTD))
+          ),
+          h('div', { style: S.lineItemRow },
+            h('span', { style: S.lineItemLabel }, '401K PRÉ-TAX'),
+            h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4' } }, '-' + formatUSD(contrib401k))
+          ),
+          h('div', { style: Object.assign({}, S.lineItemRow, { borderBottom: 'none' }) },
+            h('span', { style: S.lineItemLabel }, 'FEDERAL WITHHELD EST.'),
+            h('span', { style: S.lineItemValue }, formatUSD(withheldYTD))
           )
         ),
-        h('div', { style: S.deltaRow },
-          h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'WITHHELD YTD'),
-            h('div', { style: Object.assign({}, S.deltaValue, { color: '#D1D5DB' }) }, formatUSD(withholdingYTD))
-          ),
-          h('div', { style: S.deltaDivider }),
-          h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'TAX LIABILITY'),
-            h('div', { style: Object.assign({}, S.deltaValue, { color: '#FBBF24' }) }, formatUSD(taxAfterCredits))
-          )
-        ),
-        h('div', { style: Object.assign({}, S.gaugeDate, { marginTop: 8 }) },
-          'TAXA EFETIVA: ' + effectiveRate.toFixed(1) + '% · AGI: ' + formatUSD(agi)
-        )
-      ),
-
-      /* ---- Filing Status ---- */
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'FILING STATUS')),
-        h('div', { style: { display: 'flex', gap: 6, marginBottom: 6 } },
-          h(FilingBtn, { value: 'single', label: 'SINGLE' }),
-          h(FilingBtn, { value: 'mfj',    label: 'MARRIED JT' })
-        ),
-        h('div', { style: { display: 'flex', gap: 6 } },
-          h(FilingBtn, { value: 'mfs',    label: 'MARRIED SEP' }),
-          h(FilingBtn, { value: 'hoh',    label: 'HEAD OF HH' })
-        )
-      ),
-
-      /* ---- Income ---- */
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'RENDA')),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10 } },
-          'Gross YTD e contribuição 401K puxados automaticamente da aba PAY'
-        ),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'GROSS YTD (PAY)'),
-          h('span', { style: S.lineItemValue }, formatUSD(grossYTD))
-        ),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, '401K PRÉ-TAX YTD'),
-          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4' } }, '-' + formatUSD(contrib401k))
-        ),
-        h('div', { style: S.formRow },
-          h('label', { style: S.formLabel }, 'OUTRAS RENDAS (juros, freelance, etc)'),
-          h('input', { type: 'number', step: '0.01', value: cfg.otherIncome, style: S.input,
-            onChange: function (ev) { update('otherIncome', parseFloat(ev.target.value) || 0); } })
-        ),
-        h('div', { style: S.formRow },
-          h('label', { style: S.formLabel }, 'W-2 CÔNJUGE (se MFJ)'),
+        /* Cônjuge */
+        cfg.filingStatus === 'mfj' ? h('div', { style: S.formRow },
+          h('label', { style: S.formLabel }, 'W-2 CÔNJUGE'),
           h('input', { type: 'number', step: '0.01', value: cfg.spouseW2, style: S.input,
-            onChange: function (ev) { update('spouseW2', parseFloat(ev.target.value) || 0); } })
+            onChange: function(ev){ upd('spouseW2', parseFloat(ev.target.value)||0); } })
+        ) : null,
+        /* Outras rendas */
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', margin: '14px 0 10px' } },
+          'OUTRAS RENDAS (deixe 0 se não tiver)'
         ),
+        [
+          { k: 'int1099',     l: '1099-INT (juros bancários)' },
+          { k: 'div1099',     l: '1099-DIV (dividendos)' },
+          { k: 'freelance',   l: '1099-NEC (freelance/autônomo)' },
+          { k: 'unemployment',l: '1099-G (desemprego)' },
+          { k: 'other',       l: 'Outras rendas' }
+        ].map(function(f) {
+          return h('div', { key: f.k, style: S.formRow },
+            h('label', { style: S.formLabel }, f.l),
+            h('input', { type: 'number', step: '0.01', value: oi[f.k], style: S.input,
+              onChange: function(ev){ updOI(f.k, ev.target.value); } })
+          );
+        }),
         h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
           h('span', null, 'AGI ESTIMADO'),
           h('span', { style: { color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(agi))
-        )
-      ),
+        ),
+        NavBtns(true, true)
+      );
+    }
 
-      /* ---- Deductions ---- */
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'DEDUÇÕES')),
-        h('div', { style: { display: 'flex', gap: 8, marginBottom: 12 } },
-          h('button', {
-            style: { flex: 1, padding: '8px', borderRadius: 8, border: '1px solid',
-              borderColor: cfg.deductionType === 'standard' ? '#5EEAD4' : '#1F2937',
-              background: cfg.deductionType === 'standard' ? '#134E4A' : '#111827',
-              color: cfg.deductionType === 'standard' ? '#5EEAD4' : '#9CA3AF',
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, cursor: 'pointer' },
-            onClick: function () { update('deductionType', 'standard'); }
-          }, 'STANDARD'),
-          h('button', {
-            style: { flex: 1, padding: '8px', borderRadius: 8, border: '1px solid',
-              borderColor: cfg.deductionType === 'itemized' ? '#5EEAD4' : '#1F2937',
-              background: cfg.deductionType === 'itemized' ? '#134E4A' : '#111827',
-              color: cfg.deductionType === 'itemized' ? '#5EEAD4' : '#9CA3AF',
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, cursor: 'pointer' },
-            onClick: function () { update('deductionType', 'itemized'); }
-          }, 'ITEMIZED')
+    /* ---- STEP 3: Deductions ---- */
+    function StepDeductions() {
+      var it = cfg.itemized;
+      function updIT(field, val) { upd('itemized', Object.assign({}, it, { [field]: parseFloat(val)||0 })); }
+      var useItemized = cfg.deductionType === 'itemized' && itemizedTotal > stdDed;
+      return h('div', null,
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#D1D5DB', marginBottom: 14 } },
+          'Qual tipo de dedução você quer usar?'
         ),
-        cfg.deductionType === 'standard' ? h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'STANDARD DEDUCTION (' + FILING_STATUS_LABELS[cfg.filingStatus] + ')'),
-          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4' } }, formatUSD(stdDed))
+        h('div', { style: { display: 'flex', gap: 8, marginBottom: 16 } },
+          ['standard','itemized'].map(function(t) {
+            var active = cfg.deductionType === t;
+            return h('button', { key: t,
+              style: { flex: 1, padding: 12, borderRadius: 10, border: '1px solid', cursor: 'pointer',
+                borderColor: active ? '#5EEAD4' : '#1F2937',
+                background: active ? '#0F2D2A' : '#111827',
+                color: active ? '#5EEAD4' : '#9CA3AF',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10 },
+              onClick: function(){ upd('deductionType', t); }
+            },
+              h('div', { style: { fontWeight: 700, marginBottom: 4 } }, t === 'standard' ? 'STANDARD' : 'ITEMIZED'),
+              h('div', { style: { fontSize: 8 } }, t === 'standard' ? formatUSD(stdDed) + ' automático' : 'Calcular itens')
+            );
+          })
+        ),
+        cfg.deductionType === 'standard' ? h('div', { style: { background: '#0F2D2A', borderRadius: 10, padding: 14, border: '1px solid #134E4A' } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 4 } },
+            'STANDARD DEDUCTION · ' + STATUS_LABELS[cfg.filingStatus]
+          ),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: '#F9FAFB' } },
+            formatUSD(stdDed)
+          ),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginTop: 6 } },
+            'Recomendado para a maioria das pessoas. Não requer comprovantes.'
+          )
         ) : h('div', null,
-          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
-            'Insira o total de deduções itemizadas. Se menor que o standard (' + formatUSD(stdDed) + '), o standard é usado automaticamente.'
-          ),
-          h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'TOTAL ITEMIZED DEDUCTIONS'),
-            h('input', { type: 'number', step: '0.01', value: cfg.itemizedAmount, style: S.input,
-              onChange: function (ev) { update('itemizedAmount', parseFloat(ev.target.value) || 0); } })
-          ),
-          num(cfg.itemizedAmount) < stdDed ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FBBF24', marginTop: 4 } },
-            '⚠ Usando standard deduction (' + formatUSD(stdDed) + ') pois é maior'
-          ) : null
+          [
+            { k: 'mortgage',    l: 'Juros do financiamento (Form 1098)' },
+            { k: 'charitable',  l: 'Doações (receipts obrigatórios)' },
+            { k: 'salt',        l: 'State/local taxes (max $10,000)' },
+            { k: 'medical',     l: 'Despesas médicas (>7.5% do AGI)' }
+          ].map(function(f) {
+            return h('div', { key: f.k, style: S.formRow },
+              h('label', { style: S.formLabel }, f.l),
+              h('input', { type: 'number', step: '0.01', value: it[f.k], style: S.input,
+                onChange: function(ev){ updIT(f.k, ev.target.value); } })
+            );
+          }),
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+            color: useItemized ? '#5EEAD4' : '#FBBF24', marginTop: 8, padding: 10,
+            background: '#111827', borderRadius: 8, border: '1px solid #1F2937' } },
+            useItemized
+              ? '✓ Itemized (' + formatUSD(itemizedTotal) + ') > Standard (' + formatUSD(stdDed) + ')'
+              : '⚠ Standard (' + formatUSD(stdDed) + ') é maior — será usado automaticamente'
+          )
         ),
-        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
+        h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 12 }) },
           h('span', null, 'DEDUÇÃO APLICADA'),
           h('span', { style: { color: '#5EEAD4', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(deduction))
-        )
-      ),
+        ),
+        NavBtns(true, true)
+      );
+    }
 
-      /* ---- Tax Calculation ---- */
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'CÁLCULO FEDERAL')),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'RENDA TRIBUTÁVEL'),
-          h('span', { style: S.lineItemValue }, formatUSD(taxableIncome))
+    /* ---- STEP 4: Credits ---- */
+    function StepCredits() {
+      var cr = cfg.credits;
+      function updCR(field, val) { upd('credits', Object.assign({}, cr, { [field]: parseFloat(val)||0 })); }
+      return h('div', null,
+        /* Auto credits */
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', marginBottom: 12 } },
+          'CRÉDITOS AUTOMÁTICOS (baseados nos dependentes)'
         ),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'IMPOSTO BRUTO'),
-          h('span', { style: S.lineItemValue }, formatUSD(taxLiability))
+        childTaxCredit > 0 ? h('div', { style: S.lineItemRow },
+          h('span', { style: S.lineItemLabel }, 'CHILD TAX CREDIT (' +
+            cfg.dependents.filter(function(d){ return d.dob && (new Date().getFullYear()-new Date(d.dob).getFullYear())<17;}).length + ' filhos < 17)'),
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4' } }, formatUSD(childTaxCredit))
+        ) : null,
+        otherDepCredit > 0 ? h('div', { style: S.lineItemRow },
+          h('span', { style: S.lineItemLabel }, 'OTHER DEPENDENT CREDIT'),
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4' } }, formatUSD(otherDepCredit))
+        ) : null,
+        childTaxCredit === 0 && otherDepCredit === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginBottom: 12 } },
+          'Nenhum crédito automático. Adicione dependentes na etapa 2.'
+        ) : null,
+        /* Manual credits */
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', margin: '14px 0 10px' } },
+          'OUTROS CRÉDITOS (deixe 0 se não se aplicar)'
         ),
-        h('div', { style: S.formRow },
-          h('label', { style: S.formLabel }, 'TAX CREDITS (Child, Education, etc)'),
-          h('input', { type: 'number', step: '0.01', value: cfg.taxCredits, style: S.input,
-            onChange: function (ev) { update('taxCredits', parseFloat(ev.target.value) || 0); } })
-        ),
+        [
+          { k: 'childCare',  l: 'Child & Dependent Care Credit' },
+          { k: 'education',  l: 'Education Credit (LLC/AOTC)' },
+          { k: 'ev',         l: 'EV Credit (Form 8936)' },
+          { k: 'other',      l: 'Outros créditos' }
+        ].map(function(f) {
+          return h('div', { key: f.k, style: S.formRow },
+            h('label', { style: S.formLabel }, f.l),
+            h('input', { type: 'number', step: '0.01', value: cr[f.k], style: S.input,
+              onChange: function(ev){ updCR(f.k, ev.target.value); } })
+          );
+        }),
         h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
-          h('span', null, 'TAX LIABILITY FINAL'),
-          h('span', { style: { color: '#FBBF24', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(taxAfterCredits))
-        )
-      ),
+          h('span', null, 'TOTAL CRÉDITOS'),
+          h('span', { style: { color: '#5EEAD4', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(totalCredits))
+        ),
+        NavBtns(true, true, function(){ setStep(5); }, 'VER RESULTADO →')
+      );
+    }
 
-      /* ---- Withholding ---- */
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'WITHHOLDING YTD')),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10 } },
-          'Estimado a partir dos pagamentos na aba PAY. Verifique nos seus W-2 ao final do ano.'
+    /* ---- STEP 5: Result ---- */
+    function StepResult() {
+      return h('div', null,
+        /* Big result card */
+        h('div', { style: Object.assign({}, S.gaugeCard, {
+          background: isRefund ? 'linear-gradient(160deg,#134E4A 0%,#111827 100%)' : 'linear-gradient(160deg,#7F1D1D 0%,#111827 100%)',
+          marginBottom: 16
+        }) },
+          h('div', { style: S.gaugeLabel }, 'RESULTADO ESTIMADO · TAX YEAR 2024'),
+          h('div', { style: { textAlign: 'center', margin: '16px 0 8px' } },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#B0B7C3', marginBottom: 6 } },
+              isRefund ? '🎉 REFUND ESTIMADO' : '⚠ IMPOSTO DEVIDO'
+            ),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 42, fontWeight: 700,
+              color: isRefund ? '#5EEAD4' : '#FB7185' } },
+              (isRefund ? '+' : '-') + formatUSD(Math.abs(balance))
+            )
+          ),
+          h('div', { style: S.deltaRow },
+            h('div', { style: S.deltaBox },
+              h('div', { style: S.deltaLabel }, 'WITHHELD YTD'),
+              h('div', { style: Object.assign({}, S.deltaValue, { color: '#D1D5DB' }) }, formatUSD(withheldYTD))
+            ),
+            h('div', { style: S.deltaDivider }),
+            h('div', { style: S.deltaBox },
+              h('div', { style: S.deltaLabel }, 'TAX LIABILITY'),
+              h('div', { style: Object.assign({}, S.deltaValue, { color: '#FBBF24' }) }, formatUSD(taxAfterCredits))
+            )
+          ),
+          h('div', { style: Object.assign({}, S.gaugeDate, { marginTop: 8 }) },
+            'TAXA EFETIVA: ' + effectiveRate.toFixed(1) + '%'
+          )
         ),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'FEDERAL WITHHELD ESTIMADO'),
-          h('span', { style: S.lineItemValue }, formatUSD(withholdingYTD))
+        /* Breakdown */
+        h('div', { style: S.card },
+          h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'DETALHAMENTO')),
+          [
+            { l: 'Filing Status',       v: STATUS_LABELS[cfg.filingStatus],  c: '#D1D5DB' },
+            { l: 'Dependentes',         v: cfg.dependents.length + ' declarado(s)', c: '#D1D5DB' },
+            { l: 'Gross YTD',           v: formatUSD(grossYTD),   c: '#D1D5DB' },
+            { l: '401K Pré-Tax',        v: '-' + formatUSD(contrib401k), c: '#5EEAD4' },
+            { l: 'Outras Rendas',       v: formatUSD(otherInc),   c: '#D1D5DB' },
+            { l: 'AGI',                 v: formatUSD(agi),         c: '#F9FAFB' },
+            { l: 'Dedução',             v: '-' + formatUSD(deduction) + ' (' + (cfg.deductionType === 'standard' ? 'standard' : 'itemized') + ')', c: '#5EEAD4' },
+            { l: 'Renda Tributável',    v: formatUSD(taxable),    c: '#F9FAFB' },
+            { l: 'Imposto Bruto',       v: formatUSD(taxLiability), c: '#FBBF24' },
+            { l: 'Créditos',            v: '-' + formatUSD(totalCredits), c: '#5EEAD4' },
+            { l: 'Tax Liability Final', v: formatUSD(taxAfterCredits), c: '#FBBF24' },
+            { l: 'Federal Withheld',    v: formatUSD(withheldYTD), c: '#D1D5DB' }
+          ].map(function(row, i) {
+            return h('div', { key: i, style: S.lineItemRow },
+              h('span', { style: S.lineItemLabel }, row.l),
+              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: row.c } }, row.v)
+            );
+          }),
+          h('div', { style: Object.assign({}, S.totalRow, { borderTop: '2px solid #1A2333', paddingTop: 10, marginTop: 4 }) },
+            h('span', null, isRefund ? 'REFUND ESTIMADO' : 'DEVIDO'),
+            h('span', { style: { color: isRefund ? '#5EEAD4' : '#FB7185', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: 16 } },
+              (isRefund ? '+' : '-') + formatUSD(Math.abs(balance))
+            )
+          )
         ),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'SOCIAL SECURITY (6.2%)'),
-          h('span', { style: S.lineItemValue }, formatUSD(grossYTD * 0.062))
+        h('div', { style: { display: 'flex', gap: 10, marginTop: 4 } },
+          h('button', { style: Object.assign({}, S.ghostBtn, { flex: 1 }), onClick: function(){ setStep(0); } },
+            '← REFAZER'
+          )
         ),
-        h('div', { style: S.lineItemRow },
-          h('span', { style: S.lineItemLabel }, 'MEDICARE (1.45%)'),
-          h('span', { style: S.lineItemValue }, formatUSD(grossYTD * 0.0145))
-        )
-      ),
+        h('div', { style: S.footer }, 'PRÉVIA BASEADA NOS DADOS YTD · NÃO SUBSTITUI ASSESSORIA FISCAL · 2024 TAX BRACKETS')
+      );
+    }
 
-      h('div', { style: S.footer }, 'PRÉVIA BASEADA NOS DADOS YTD · NÃO SUBSTITUI ASSESSORIA FISCAL · 2024 TAX BRACKETS')
+    var stepContent = [StepFilingStatus, StepDependents, StepIncome, StepDeductions, StepCredits, StepResult][step];
+
+    return h('div', null,
+      h('div', { style: { padding: '0 0 8px' } }, ProgressBar),
+      h('div', { style: S.card }, stepContent())
     );
   }
 
