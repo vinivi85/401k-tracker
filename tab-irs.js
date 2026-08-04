@@ -9,13 +9,15 @@
   var KEY_IRS = 'irs-wizard-v2';
 
   /* 2024 Tax Brackets */
+  /* 2025 Tax Brackets (IRS Rev. Proc. 2024-40) */
   var BRACKETS = {
-    single: [[0,11600,.10],[11600,47150,.12],[47150,100525,.22],[100525,191950,.24],[191950,243725,.32],[243725,609350,.35],[609350,Infinity,.37]],
-    mfj:    [[0,23200,.10],[23200,94300,.12],[94300,201050,.22],[201050,383900,.24],[383900,487450,.32],[487450,731200,.35],[731200,Infinity,.37]],
-    mfs:    [[0,11600,.10],[11600,47150,.12],[47150,100525,.22],[100525,191950,.24],[191950,243725,.32],[243725,365600,.35],[365600,Infinity,.37]],
-    hoh:    [[0,16550,.10],[16550,63100,.12],[63100,100500,.22],[100500,191950,.24],[191950,243700,.32],[243700,609350,.35],[609350,Infinity,.37]]
+    single: [[0,11925,.10],[11925,48475,.12],[48475,103350,.22],[103350,197300,.24],[197300,250525,.32],[250525,626350,.35],[626350,Infinity,.37]],
+    mfj:    [[0,23850,.10],[23850,96950,.12],[96950,206700,.22],[206700,394600,.24],[394600,501050,.32],[501050,751600,.35],[751600,Infinity,.37]],
+    mfs:    [[0,11925,.10],[11925,48475,.12],[48475,103350,.22],[103350,197300,.24],[197300,250525,.32],[250525,375800,.35],[375800,Infinity,.37]],
+    hoh:    [[0,17000,.10],[17000,64850,.12],[64850,103350,.22],[103350,197300,.24],[197300,250500,.32],[250500,626350,.35],[626350,Infinity,.37]]
   };
-  var STD_DED = { single:14600, mfj:29200, mfs:14600, hoh:21900 };
+  /* 2025 Standard Deduction (IRS Rev. Proc. 2024-40) */
+  var STD_DED = { single:15000, mfj:30000, mfs:15000, hoh:22500 };
   var STATUS_LABELS = { single:'Single', mfj:'Married Filing Jointly', mfs:'Married Filing Separately', hoh:'Head of Household' };
 
   function calcTax(income, status) {
@@ -404,7 +406,7 @@
           background: isRefund ? 'linear-gradient(160deg,#134E4A 0%,#111827 100%)' : 'linear-gradient(160deg,#7F1D1D 0%,#111827 100%)',
           marginBottom: 16
         }) },
-          h('div', { style: S.gaugeLabel }, 'RESULTADO ESTIMADO · TAX YEAR 2024'),
+          h('div', { style: S.gaugeLabel }, 'RESULTADO ESTIMADO · TAX YEAR 2025'),
           h('div', { style: { textAlign: 'center', margin: '16px 0 8px' } },
             h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#B0B7C3', marginBottom: 6 } },
               isRefund ? '🎉 REFUND ESTIMADO' : '⚠ IMPOSTO DEVIDO'
@@ -463,7 +465,7 @@
             '← REFAZER'
           )
         ),
-        h('div', { style: S.footer }, 'PRÉVIA BASEADA NOS DADOS YTD · NÃO SUBSTITUI ASSESSORIA FISCAL · 2024 TAX BRACKETS')
+        h('div', { style: S.footer }, 'PRÉVIA BASEADA NOS DADOS YTD · NÃO SUBSTITUI ASSESSORIA FISCAL · 2025 TAX BRACKETS')
       );
     }
 
