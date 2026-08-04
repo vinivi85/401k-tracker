@@ -39,7 +39,8 @@
     spouseW2: 0,
     deductionType: 'standard',
     itemized: { mortgage: 0, charitable: 0, salt: 0, medical: 0 },
-    credits: { childCare: 0, education: 0, ev: 0, other: 0 }
+    credits: { childCare: 0, education: 0, ev: 0, other: 0 },
+    schedC: { show: false, miles: 0, insurance: 0, repairs: 0, platformFees: 0, other: 0 }
   };
 
   function IrsTab() {
@@ -76,10 +77,23 @@
       return s + Math.max(0, w);
     }, 0);
 
+    /* Schedule C — Self Employment */
+    var MILEAGE_RATE_2025 = 0.70;
+    var sc = cfg.schedC || {};
+    var gross1099 = num(cfg.otherIncome ? cfg.otherIncome.freelance : 0);
+    var scExpenses = sc.show ? (
+      num(sc.miles) * MILEAGE_RATE_2025 +
+      num(sc.insurance) + num(sc.repairs) +
+      num(sc.platformFees) + num(sc.other)
+    ) : 0;
+    var scNetProfit = Math.max(0, gross1099 - scExpenses);
+    var seTax = scNetProfit * 0.9235 * 0.153; /* Self-employment tax */
+    var seDeduction = seTax * 0.5; /* 50% SE tax deduction from AGI */
+
     /* Calculations */
     var otherInc = Object.values(cfg.otherIncome).reduce(function(s,v){return s+num(v);},0);
     var totalIncome = grossYTD + num(cfg.spouseW2) + otherInc;
-    var agi = totalIncome - contrib401k;
+    var agi = totalIncome - contrib401k - seDeduction;
     var stdDed = STD_DED[cfg.filingStatus] || 14600;
     var itemizedTotal = Math.min(num(cfg.itemized.salt), 10000) +
       num(cfg.itemized.mortgage) + num(cfg.itemized.charitable) +
@@ -271,7 +285,7 @@
         [
           { k: 'int1099',     l: '1099-INT (juros bancários)' },
           { k: 'div1099',     l: '1099-DIV (dividendos)' },
-          { k: 'freelance',   l: '1099-NEC (freelance/autônomo)' },
+          { k: 'freelance',   l: '1099-NEC / 1099-K (freelance, Turo, Airbnb...)' },
           { k: 'unemployment',l: '1099-G (desemprego)' },
           { k: 'other',       l: 'Outras rendas' }
         ].map(function(f) {
@@ -281,6 +295,67 @@
               onChange: function(ev){ updOI(f.k, ev.target.value); } })
           );
         }),
+
+        /* Schedule C — só aparece se tiver 1099-NEC */
+        num(oi.freelance) > 0 ? h('div', { style: { marginTop: 8 } },
+          h('button', {
+            style: { width: '100%', textAlign: 'left', padding: '12px 14px', borderRadius: 10,
+              border: '1px solid', cursor: 'pointer',
+              borderColor: (cfg.schedC && cfg.schedC.show) ? '#5EEAD4' : '#374151',
+              background: (cfg.schedC && cfg.schedC.show) ? '#0F2D2A' : '#111827' },
+            onClick: function() {
+              var sc2 = Object.assign({}, cfg.schedC || {}, { show: !(cfg.schedC && cfg.schedC.show) });
+              upd('schedC', sc2);
+            }
+          },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+              color: (cfg.schedC && cfg.schedC.show) ? '#5EEAD4' : '#9CA3AF' } },
+              (cfg.schedC && cfg.schedC.show) ? '▼ SCHEDULE C — DESPESAS DO NEGÓCIO' : '▶ SCHEDULE C — DEDUZIR DESPESAS DO NEGÓCIO'
+            ),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#6B7280', marginTop: 2 } },
+              'Toque para ' + ((cfg.schedC && cfg.schedC.show) ? 'fechar' : 'abrir') + ' · Milhas, seguro, reparos, taxas da plataforma'
+            )
+          ),
+          (cfg.schedC && cfg.schedC.show) ? h('div', { style: { background: '#111827', borderRadius: 10, padding: 14, marginTop: 6, border: '1px solid #1F2937' } },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10 } },
+              'Receita bruta: ' + formatUSD(num(oi.freelance)) + ' · Taxa de milhas 2025: $0.70/mi'
+            ),
+            [
+              { k: 'miles',       l: 'MILHAS RODADAS (business)', suffix: '× $0.70 = ' + formatUSD(num(cfg.schedC ? cfg.schedC.miles : 0) * 0.70), type: 'number' },
+              { k: 'insurance',   l: 'SEGURO DO VEÍCULO', type: 'number' },
+              { k: 'repairs',     l: 'MANUTENÇÃO / REPAROS', type: 'number' },
+              { k: 'platformFees',l: 'TAXAS DA PLATAFORMA (Turo, Airbnb, etc)', type: 'number' },
+              { k: 'other',       l: 'OUTRAS DESPESAS', type: 'number' }
+            ].map(function(f) {
+              return h('div', { key: f.k },
+                h('div', { style: S.formRow },
+                  h('label', { style: S.formLabel }, f.l + (f.suffix ? ' · ' + f.suffix : '')),
+                  h('input', { type: 'number', step: f.k === 'miles' ? '1' : '0.01',
+                    value: cfg.schedC ? (cfg.schedC[f.k] || 0) : 0, style: S.input,
+                    onChange: function(ev) {
+                      var sc3 = Object.assign({}, cfg.schedC || {});
+                      sc3[f.k] = parseFloat(ev.target.value) || 0;
+                      upd('schedC', sc3);
+                    }
+                  })
+                )
+              );
+            }),
+            h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
+              h('span', null, 'LUCRO LÍQUIDO (Schedule C)'),
+              h('span', { style: { color: scNetProfit >= 0 ? '#F9FAFB' : '#FB7185',
+                fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(scNetProfit))
+            ),
+            h('div', { style: Object.assign({}, S.lineItemRow, { marginTop: 4 }) },
+              h('span', { style: S.lineItemLabel }, 'SELF-EMPLOYMENT TAX (15.3%)'),
+              h('span', { style: S.lineItemValue }, formatUSD(seTax))
+            ),
+            h('div', { style: S.lineItemRow },
+              h('span', { style: S.lineItemLabel }, 'DEDUÇÃO SE TAX (50%)'),
+              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#5EEAD4' } }, '-' + formatUSD(seDeduction))
+            )
+          ) : null
+        ) : null,
         h('div', { style: Object.assign({}, S.totalRow, { borderTop: '1px solid #1A2333', paddingTop: 8, marginTop: 4 }) },
           h('span', null, 'AGI ESTIMADO'),
           h('span', { style: { color: '#F9FAFB', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 } }, formatUSD(agi))
