@@ -16,8 +16,8 @@
     mfs:    [[0,11925,.10],[11925,48475,.12],[48475,103350,.22],[103350,197300,.24],[197300,250525,.32],[250525,375800,.35],[375800,Infinity,.37]],
     hoh:    [[0,17000,.10],[17000,64850,.12],[64850,103350,.22],[103350,197300,.24],[197300,250500,.32],[250500,626350,.35],[626350,Infinity,.37]]
   };
-  /* 2025 Standard Deduction (IRS Rev. Proc. 2024-40) */
-  var STD_DED = { single:15000, mfj:30000, mfs:15000, hoh:22500 };
+  /* 2025 Standard Deduction (IRS.gov) */
+  var STD_DED = { single:15750, mfj:31500, mfs:15750, hoh:23625 };
   var STATUS_LABELS = { single:'Single', mfj:'Married Filing Jointly', mfs:'Married Filing Separately', hoh:'Head of Household' };
 
   function calcTax(income, status) {
