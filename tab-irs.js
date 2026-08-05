@@ -166,7 +166,7 @@
       ];
       return h('div', null,
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#D1D5DB', marginBottom: 16 } },
-          'Como você vai declarar em 2024?'
+          'Como você vai declarar em 2025?'
         ),
         options.map(function(o) {
           var active = cfg.filingStatus === o.v;
