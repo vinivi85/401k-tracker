@@ -33,7 +33,7 @@ var h = React.createElement;
     profitSharingPct: 5,         // 401K AA Contrib — contribuição automática AA (% editável)
     ssRatePct: 6.2,
     medicareRatePct: 1.45,
-    fedWithholdingPct: 1.2316,  // efetivo aproximado, editável (varia bastante com o gross)
+    fedWithholdingPct: 1.83,   // extraído do PDF 08/07/2026  // efetivo aproximado, editável (varia bastante com o gross)
     regHours: 80,
     sickHours: 0,
     vacationHours: 0,
