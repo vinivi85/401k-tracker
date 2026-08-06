@@ -259,6 +259,9 @@
 
       /* ---- IMPOSTOS ---- */
       h(Section, { title: 'IMPOSTOS', defaultOpen: false },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4', marginBottom: 10, padding: '6px 10px', background: '#0F2D2A', borderRadius: 6 } },
+          '✓ Alíquotas atualizadas automaticamente ao importar PDF'
+        ),
         h(NumField, { label: 'SOCIAL SECURITY (%)', value: cfg.ssRatePct, onChange: function (v) { update('ssRatePct', v); } }),
         h(NumField, { label: 'MEDICARE (%)', value: cfg.medicareRatePct, onChange: function (v) { update('medicareRatePct', v); } }),
         h(NumField, { label: 'FEDERAL WITHHOLDING — % EFETIVO', value: cfg.fedWithholdingPct, onChange: function (v) { update('fedWithholdingPct', v); } }),
