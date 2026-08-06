@@ -74,14 +74,16 @@
     var federal  = federalTaxableBase > 0 ? federalTaxableBase * (num(cfg.fedWithholdingPct, 1.2316) / 100) : 0;
 
     var totalDeductions = contrib401k + preTaxTotal + ss + medicare + federal + postTaxTotal;
-    var net = gross - totalDeductions;
+    var net = (gross + num(cfg.grossDiff, 0)) - totalDeductions;
 
     return {
       base, otRate, ot2Rate, holRate, wrkHolRate,
       s2RegDiff, s2OtDiff, s2Ot2Diff,
       payReg, payAdditional, payOt, payOt2, payHol, payWrkHol, payLunch,
       diffReg, diffOt, diffOt2,
-      gross, contrib401k, companyMatch, profitSharing, companyTotal, total401k,
+      gross: gross + num(cfg.grossDiff, 0),
+      grossBase: gross,
+      contrib401k, companyMatch, profitSharing, companyTotal, total401k,
       preTaxTotal, postTaxTotal,
       ssMedicareBase, federalTaxableBase,
       ss, medicare, federal,
