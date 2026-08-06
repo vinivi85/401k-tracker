@@ -265,6 +265,8 @@
         h(NumField, { label: 'SOCIAL SECURITY (%)', value: cfg.ssRatePct, onChange: function (v) { update('ssRatePct', v); } }),
         h(NumField, { label: 'MEDICARE (%)', value: cfg.medicareRatePct, onChange: function (v) { update('medicareRatePct', v); } }),
         h(NumField, { label: 'FEDERAL WITHHOLDING — % EFETIVO', value: cfg.fedWithholdingPct, onChange: function (v) { update('fedWithholdingPct', v); } }),
+        h(NumField, { label: 'EER GROSS-UP (imputed income)', value: cfg.imputedEerGrossUp, onChange: function (v) { update('imputedEerGrossUp', v); } }),
+        h(NumField, { label: 'GROUP TERM LIFE (imputed income)', value: cfg.imputedGtl, onChange: function (v) { update('imputedGtl', v); } }),
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 4 } },
           'O federal withholding efetivo varia com o gross. Ajuste se o valor calculado diferir do holerite real.'
         )
