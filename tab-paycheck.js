@@ -195,7 +195,13 @@
             if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
             return resp.json();
           }).then(function (data) {
-            var raw = data.candidates[0].content.parts[0].text;
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+              throw new Error('Gemini retornou resposta vazia. Tente novamente.');
+            }
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+          throw new Error('Gemini retornou resposta vazia. Tente novamente.');
+        }
+        var raw = data.candidates[0].content.parts[0].text;
             var clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
             /* Try direct parse */
             try { return JSON.parse(clean); } catch (e) {}
@@ -236,6 +242,9 @@
         if (!resp.ok) throw new Error('Gemini error: ' + resp.status);
         return resp.json();
       }).then(function (data) {
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+          throw new Error('Gemini retornou resposta vazia. Tente novamente.');
+        }
         var raw = data.candidates[0].content.parts[0].text;
         // Strip markdown fences if present
         var clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
