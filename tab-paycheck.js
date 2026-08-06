@@ -225,7 +225,7 @@
 
   /* ---------- Interpreta texto do pay stub via Gemini ---------- */
   function parsePayStubWithGemini(text) {
-    var prompt = 'Parse this American Airlines Pay Statement and return ONLY valid JSON starting with {. No markdown, no explanation.\n\nIMPORTANT: Some earnings rows repeat across pay periods (e.g. Doubletime may appear twice with different Period End dates). SUM all hours of the same type.\n\nReturn this exact structure:\n{"paymentDate":"YYYY-MM-DD","periodStart":"YYYY-MM-DD","periodEnd":"YYYY-MM-DD","gross":0,"net":0,"hoursWorked":0,"regHours":0,"sickHours":0,"vacationHours":0,"additionalHours":0,"otHours":0,"ot2Hours":0,"holHours":0,"wrkHolHours":0,"lunchHours":0,"contrib401k":0,"profitSharing":0,"deductions":{"medicalCoverage":0,"dentalCoverage":0,"visionCoverage":0,"employeeADD":0,"spouseADD":0,"childADD":0,"employeeLife":0,"spouseLife":0,"childLife":0,"groupAccident":0,"loan401k":0,"unionDues":0}}\n\nField rules:\n- paymentDate: Payment Date\n- periodStart/End: Pay Period dates\n- gross: Current Gross Earnings total\n- net: Net Pay / Deposit Amount\n- hoursWorked: Hours Worked in header\n- regHours: SUM of all Regular Pay + Voluntary Trade Worked + Training Pay hours\n- additionalHours: Additional Hours only\n- otHours: SUM of all Overtime hours (all OT rows)\n- ot2Hours: SUM of ALL Doubletime rows hours (may appear multiple times with different Period End dates — add them all)\n- holHours: Holiday Premium hours\n- wrkHolHours: Hol Worked OT 1.5 hours\n- contrib401k: 401k in Pre-Tax Deductions (employee)\n- profitSharing: 401k Company Contrib in Additional Information\n\nPAY STUB TEXT:\n' + text.slice(0, 5000);
+    var prompt = 'Parse this American Airlines Pay Statement and return ONLY valid JSON starting with {. No markdown, no explanation.\n\nIMPORTANT: Some earnings rows repeat across pay periods (e.g. Doubletime may appear twice with different Period End dates). SUM all hours of the same type.\n\nReturn this exact structure:\n{"paymentDate":"YYYY-MM-DD","periodStart":"YYYY-MM-DD","periodEnd":"YYYY-MM-DD","gross":0,"net":0,"hoursWorked":0,"regHours":0,"sickHours":0,"vacationHours":0,"additionalHours":0,"otHours":0,"ot2Hours":0,"holHours":0,"wrkHolHours":0,"lunchHours":0,"contrib401k":0,"profitSharing":0,"withholdingTax":0,"taxableGross":0,"deductions":{"medicalCoverage":0,"dentalCoverage":0,"visionCoverage":0,"employeeADD":0,"spouseADD":0,"childADD":0,"employeeLife":0,"spouseLife":0,"childLife":0,"groupAccident":0,"loan401k":0,"unionDues":0}}\n\nField rules:\n- paymentDate: Payment Date\n- periodStart/End: Pay Period dates\n- gross: Current Gross Earnings total\n- net: Net Pay / Deposit Amount\n- hoursWorked: Hours Worked in header\n- regHours: SUM of all Regular Pay + Voluntary Trade Worked + Training Pay hours\n- additionalHours: Additional Hours only\n- otHours: SUM of all Overtime hours (all OT rows)\n- ot2Hours: SUM of ALL Doubletime rows hours (may appear multiple times with different Period End dates — add them all)\n- holHours: Holiday Premium hours\n- wrkHolHours: Hol Worked OT 1.5 hours\n- contrib401k: 401k in Pre-Tax Deductions (employee)\n- profitSharing: 401k Company Contrib in Additional Information\n- withholdingTax: Federal Withholding Tax current amount\n- taxableGross: Federal Taxes Withholding Tax taxable base (Taxable Earnings row)\n\nPAY STUB TEXT:\n' + text.slice(0, 5000);
 
     function attemptFetch(retries) {
       return fetch(GEMINI_URL, {
@@ -831,6 +831,19 @@
         if (parsed.hoursWorked) setHoursWorked(parsed.hoursWorked);
         /* Aplica horas */
         applyHours(parsed);
+
+        /* Atualiza alíquotas no CONFIG se extraídas do PDF */
+        if (parsed.withholdingTax && parsed.taxableGross && parsed.taxableGross > 0) {
+          var fedPct = (parsed.withholdingTax / parsed.taxableGross) * 100;
+          /* Calcula contrib401kPct real */
+          var contrib401kPctReal = (parsed.contrib401k && parsed.gross) ? (parsed.contrib401k / parsed.gross) * 100 : null;
+          var currentCfgTax = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+          var nextTax = Object.assign({}, currentCfgTax, { fedWithholdingPct: parseFloat(fedPct.toFixed(4)) });
+          if (contrib401kPctReal) nextTax.contrib401kPct = parseFloat(contrib401kPctReal.toFixed(2));
+          saveJSON(KEY_PAYCHECK, nextTax);
+          SupabaseAPI.saveUserConfig(nextTax).catch(function(){});
+          console.log('Tax rates updated: Fed', fedPct.toFixed(2) + '%', '401k', contrib401kPctReal ? contrib401kPctReal.toFixed(2) + '%' : '-');
+        }
 
         /* Persiste data/período no Supabase após aplicar horas */
         setTimeout(function () {
