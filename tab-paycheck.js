@@ -63,7 +63,11 @@
     var preTaxTotal  = sumItems(cfg.preTaxItems);
     var postTaxTotal = sumItems(cfg.postTaxItems);
 
-    var ssMedicareBase     = gross - preTaxTotal;
+    /* AA adiciona imputed income (EER Gross-Up + Group Term Life) na base SS/Medicare
+       SS/Medicare base = gross + imputedIncome - section125 (preTax sem 401k)
+       Federal base = SS base - 401k contrib */
+    var imputedIncome = num(cfg.imputedEerGrossUp, 0) + num(cfg.imputedGtl, 0);
+    var ssMedicareBase     = gross + imputedIncome - preTaxTotal;
     var federalTaxableBase = ssMedicareBase - contrib401k;
     var ss       = ssMedicareBase    * (num(cfg.ssRatePct, 6.2)          / 100);
     var medicare = ssMedicareBase    * (num(cfg.medicareRatePct, 1.45)   / 100);
