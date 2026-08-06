@@ -568,7 +568,7 @@
           var local = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
           var merged = Object.assign({}, defaultPaycheckConfig, remote);
           var hourFields = ['regHours','otHours','ot2Hours','holHours','wrkHolHours',
-                            'lunchPenaltyHours','sickHours','vacationHours','additionalHours'];
+                            'lunchPenaltyHours','sickHours','vacationHours','additionalHours','grossDiff'];
           hourFields.forEach(function (f) {
             if ((remote[f] === undefined || remote[f] === null) && local[f] !== undefined) {
               merged[f] = local[f];
@@ -665,7 +665,7 @@
     function clearAllHours() {
       var cleared = Object.assign({}, cfg, {
         regHours: 80, sickHours: 0, vacationHours: 0, additionalHours: 0,
-        otHours: 0, ot2Hours: 0, holHours: 0, wrkHolHours: 0, lunchPenaltyHours: 0
+        otHours: 0, ot2Hours: 0, holHours: 0, wrkHolHours: 0, lunchPenaltyHours: 0, grossDiff: 0
       });
       setCfg(cleared);
       saveJSON(KEY_PAYCHECK, cleared);
@@ -1098,7 +1098,7 @@
         ),
         h('div', { style: S.formRow2 },
           h(NumField, { label: 'LUNCH-P (h)', value: cfg.lunchPenaltyHours, step: '0.01', onChange: function (v) { update('lunchPenaltyHours', v); } }),
-          h('div', { style: { flex: 1 } })
+          h(NumField, { label: 'GROSS DIF ($)', value: cfg.grossDiff || 0, step: '0.01', onChange: function (v) { update('grossDiff', v); } })
         ),
 
       ),
