@@ -37,6 +37,7 @@
     dependents: [],
     otherIncome: { int1099: 0, div1099: 0, freelance: 0, unemployment: 0, other: 0 },
     spouseW2: 0,
+    spouseWithheld: 0,
     deductionType: 'standard',
     itemized: { mortgage: 0, charitable: 0, salt: 0, medical: 0 },
     credits: { childCare: 0, education: 0, ev: 0, other: 0 },
@@ -68,6 +69,7 @@
     var contrib401k = payEntries.reduce(function(s,e){return s+(e.contrib401k||0);},0);
     var preTaxTotal = (paycheckCfg.preTaxItems||[]).reduce(function(s,i){return s+num(i.value);},0);
     var postTaxTotal = (paycheckCfg.postTaxItems||[]).reduce(function(s,i){return s+num(i.value);},0);
+    var spouseWithheld = num(cfg.spouseWithheld);
     var withheldYTD = payEntries.reduce(function(s,e){
       if (!e.gross) return s;
       var base = e.gross - preTaxTotal;
@@ -75,7 +77,7 @@
       var med = base * 0.0145;
       var w = e.gross - (e.amount||0) - ss - med - preTaxTotal - (e.contrib401k||0) - postTaxTotal;
       return s + Math.max(0, w);
-    }, 0);
+    }, 0) + spouseWithheld;
 
     /* Schedule C — Self Employment */
     var MILEAGE_RATE_2025 = 0.70;
@@ -521,7 +523,8 @@
             { l: 'Imposto Bruto',       v: formatUSD(taxLiability), c: '#FBBF24' },
             { l: 'Créditos',            v: '-' + formatUSD(totalCredits), c: '#5EEAD4' },
             { l: 'Tax Liability Final', v: formatUSD(taxAfterCredits), c: '#FBBF24' },
-            { l: 'Federal Withheld',    v: formatUSD(withheldYTD), c: '#D1D5DB' }
+            { l: 'Federal Withheld (você)',  v: formatUSD(withheldYTD - spouseWithheld), c: '#D1D5DB' },
+            { l: 'Federal Withheld (cônjuge)',  v: formatUSD(spouseWithheld), c: '#D1D5DB' }
           ].map(function(row, i) {
             return h('div', { key: i, style: S.lineItemRow },
               h('span', { style: S.lineItemLabel }, row.l),
