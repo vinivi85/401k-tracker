@@ -570,12 +570,16 @@
           var local = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
           var merged = Object.assign({}, defaultPaycheckConfig, remote);
           var hourFields = ['regHours','otHours','ot2Hours','holHours','wrkHolHours',
-                            'lunchPenaltyHours','sickHours','vacationHours','additionalHours','grossDiff'];
+                            'lunchPenaltyHours','sickHours','vacationHours','additionalHours'];
           hourFields.forEach(function (f) {
             if ((remote[f] === undefined || remote[f] === null) && local[f] !== undefined) {
               merged[f] = local[f];
             }
           });
+          /* grossDiff: usa o maior valor entre remote e local para não perder o ajuste do PDF */
+          if (local.grossDiff && Math.abs(local.grossDiff) > Math.abs(remote.grossDiff || 0)) {
+            merged.grossDiff = local.grossDiff;
+          }
           setCfg(merged);
           saveJSON(KEY_PAYCHECK, merged);
           /* Restaura data/período da última instância */
