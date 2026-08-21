@@ -838,6 +838,21 @@
         /* Aplica horas */
         applyHours(parsed);
 
+        /* Ajusta grossDiff para que net do app bata com net do PDF */
+        if (parsed.net) {
+          setTimeout(function () {
+            var r2 = calcPaycheck(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
+            var netDiff = parsed.net - r2.net;
+            if (Math.abs(netDiff) > 0.02) {
+              var currentCfg2 = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+              var nextCfg2 = Object.assign({}, currentCfg2, { grossDiff: parseFloat(netDiff.toFixed(2)) });
+              saveJSON(KEY_PAYCHECK, nextCfg2);
+              SupabaseAPI.saveUserConfig(nextCfg2).catch(function(){});
+              setCfg(nextCfg2);
+            }
+          }, 800);
+        }
+
         /* Atualiza alíquotas no CONFIG se extraídas do PDF */
         if (parsed.withholdingTax && parsed.taxableGross && parsed.taxableGross > 0) {
           var fedPct = (parsed.withholdingTax / parsed.taxableGross) * 100;
