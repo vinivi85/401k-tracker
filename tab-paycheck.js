@@ -775,6 +775,12 @@
             setImportErr('Gemini não extraiu horas da imagem. Raw: ' + JSON.stringify(parsed).slice(0, 80));
             return;
           }
+          /* Limpa grossDiff antes de aplicar novos dados da imagem */
+          var cfgBeforeImg = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
+          var cfgClearedImg = Object.assign({}, cfgBeforeImg, { grossDiff: 0 });
+          saveJSON(KEY_PAYCHECK, cfgClearedImg);
+          setCfg(cfgClearedImg);
+
           applyHours(parsed);
           if (parsed.periodStart) setPeriodStart(parsed.periodStart);
           if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
@@ -1108,7 +1114,7 @@
         ),
 
         h('div', { style: S.formRow2 },
-          h(NumField, { label: 'REG / TRP (h)',          value: cfg.regHours,          step: '0.01', onChange: function (v) { update('regHours', v); } }),
+          h(NumField, { label: 'REG / TRP / OTS (h)',          value: cfg.regHours,          step: '0.01', onChange: function (v) { update('regHours', v); } }),
           h(NumField, { label: 'SICK (h)',               value: cfg.sickHours,         step: '0.01', onChange: function (v) { update('sickHours', v); } })
         ),
         h('div', { style: S.formRow2 },
