@@ -36,6 +36,242 @@
     );
   }
 
+
+  /* ================================================================
+     CONECTAR CONTAS — Plaid integration
+     Status: pending -> connecting -> connected -> associating -> associated
+     ================================================================ */
+  function ConnectAccountsSection(props) {
+    var userId = props.userId;
+    var trackerAccounts = props.trackerAccounts || []; // 401k + carteiras
+
+    /* accounts stored in user_configs as plaidAccounts array */
+    var accountsState = React.useState(props.savedAccounts || []);
+    var accounts = accountsState[0], setAccounts = accountsState[1];
+    var loadingState = React.useState(null); // id being loaded
+    var loadingId = loadingState[0], setLoadingId = loadingState[1];
+    var confirmState = React.useState(null); // {type, id, msg, onOk}
+    var confirmDialog = confirmState[0], setConfirmDialog = confirmState[1];
+    var associatingState = React.useState(null); // account id being associated
+    var associatingId = associatingState[0], setAssociatingId = associatingState[1];
+
+    function save(next) {
+      setAccounts(next);
+      props.onSave && props.onSave(next);
+    }
+
+    function confirm(msg, onOk) {
+      setConfirmDialog({ msg: msg, onOk: onOk });
+    }
+
+    function addAccount() {
+      var name = window.prompt ? window.prompt('Nome da conta (ex: Fidelity 401K, Robinhood):') : 'Nova Conta';
+      if (!name || !name.trim()) return;
+      var newAcc = { id: Date.now().toString(), name: name.trim(), status: 'pending', plaidItemId: null, plaidAccounts: [], walletId: null, plaidAccountId: null };
+      save(accounts.concat([newAcc]));
+    }
+
+    function deleteAccount(id) {
+      var acc = accounts.find(function(a){ return a.id === id; });
+      if (!acc) return;
+      var msg = acc.status === 'pending' ? 'Excluir "' + acc.name + '"?' :
+                'Excluir "' + acc.name + '"? Isso vai desconectar do Plaid também.';
+      confirm(msg, function() {
+        /* If connected, disconnect from Plaid */
+        if (acc.plaidItemId && userId) {
+          fetch('/api/plaid-wallet-disconnect', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId: acc.plaidItemId, userId: userId })
+          }).catch(function(){});
+        }
+        save(accounts.filter(function(a){ return a.id !== id; }));
+      });
+    }
+
+    function loadPlaidScript(cb) {
+      if (window.Plaid) { cb(); return; }
+      var s = document.createElement('script');
+      s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+      s.onload = cb;
+      s.onerror = function(){ alert('Erro ao carregar Plaid'); };
+      document.head.appendChild(s);
+    }
+
+    function connectAccount(id) {
+      confirm('Conectar "' + (accounts.find(function(a){return a.id===id;})||{}).name + '" via Plaid?', function() {
+        setLoadingId(id);
+        loadPlaidScript(function() {
+          fetch('/api/plaid-wallet-link-token', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userId })
+          }).then(function(r){ return r.json(); })
+            .then(function(data) {
+              if (!data.link_token) throw new Error(data.error || 'No link_token');
+              var handler = window.Plaid.create({
+                token: data.link_token,
+                onSuccess: function(public_token, meta) {
+                  fetch('/api/plaid-wallet-exchange', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ public_token: public_token, institution_name: meta.institution ? meta.institution.name : null, userId: userId })
+                  }).then(function(r){ return r.json(); })
+                    .then(function(d) {
+                      setLoadingId(null);
+                      if (d.error) { alert('Erro: ' + d.error); return; }
+                      /* Update account with plaid data */
+                      var updated = accounts.map(function(a) {
+                        if (a.id !== id) return a;
+                        return Object.assign({}, a, {
+                          status: 'connected',
+                          plaidItemId: d.item_id,
+                          institutionName: d.institution_name,
+                          plaidAccounts: d.accounts || []
+                        });
+                      });
+                      save(updated);
+                    }).catch(function(e){ setLoadingId(null); alert(e.message); });
+                },
+                onExit: function(e){ setLoadingId(null); if (e) alert(e.display_message || ''); }
+              });
+              handler.open();
+            }).catch(function(e){ setLoadingId(null); alert(e.message); });
+        });
+      });
+    }
+
+    function associateAccount(id) {
+      setAssociatingId(associatingId === id ? null : id);
+    }
+
+    function doAssociate(accId, plaidAccountId, walletId) {
+      confirm('Associar esta conta a "' + walletId + '"?', function() {
+        /* Save to Supabase */
+        fetch('/api/plaid-wallet-assign', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId })
+        }).catch(function(){});
+        var updated = accounts.map(function(a) {
+          if (a.id !== accId) return a;
+          return Object.assign({}, a, { status: 'associated', walletId: walletId, plaidAccountId: plaidAccountId });
+        });
+        save(updated);
+        setAssociatingId(null);
+      });
+    }
+
+    var statusDot = function(status) {
+      var color = status === 'associated' ? '#4ADE80' : status === 'connected' ? '#FCD34D' : '#FB7185';
+      return h('span', { style: { display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, marginRight: 6, flexShrink: 0 } });
+    };
+
+    return h('div', null,
+      /* Confirm dialog */
+      confirmDialog ? h('div', { style: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 } },
+        h('div', { style: { background: '#111827', borderRadius: 14, padding: 20, maxWidth: 320, width: '100%', border: '1px solid #1F2937' } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#F9FAFB', marginBottom: 16 } }, confirmDialog.msg),
+          h('div', { style: { display: 'flex', gap: 8 } },
+            h('button', { style: Object.assign({}, S.ghostBtn, { flex: 1 }), onClick: function(){ setConfirmDialog(null); } }, 'CANCELAR'),
+            h('button', { style: Object.assign({}, S.submitBtn, { flex: 1 }), onClick: function(){ confirmDialog.onOk(); setConfirmDialog(null); } }, 'CONFIRMAR')
+          )
+        )
+      ) : null,
+
+      /* Accounts list */
+      accounts.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#6B7280', padding: '8px 0', marginBottom: 8 } },
+        'Nenhuma conta adicionada.'
+      ) : null,
+
+      accounts.map(function(acc) {
+        var isLoading = loadingId === acc.id;
+        var isAssociating = associatingId === acc.id;
+        return h('div', { key: acc.id, style: { background: '#111827', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid ' + (acc.status === 'associated' ? '#14532D' : acc.status === 'connected' ? '#422006' : '#1F2937') } },
+          /* Header */
+          h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: acc.status !== 'pending' ? 8 : 0 } },
+            h('div', { style: { display: 'flex', alignItems: 'center' } },
+              statusDot(acc.status),
+              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#F9FAFB', fontWeight: 600 } }, acc.name)
+            ),
+            h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: function(){ deleteAccount(acc.id); } },
+              h(Icon, { name: 'trash', size: 12 })
+            )
+          ),
+
+          /* Institution name if connected */
+          acc.institutionName ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
+            acc.institutionName + (acc.walletId ? ' → ' + acc.walletId : '')
+          ) : null,
+
+          /* Buttons row */
+          h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+            /* CONECTAR */
+            acc.status === 'pending' ? h('button', {
+              style: Object.assign({}, S.smallAddBtn, { opacity: isLoading ? 0.6 : 1 }),
+              disabled: isLoading,
+              onClick: function(){ connectAccount(acc.id); }
+            }, isLoading ? 'ABRINDO...' : 'CONECTAR') : null,
+
+            /* ASSOCIAR */
+            acc.status === 'connected' || acc.status === 'associated' ? h('button', {
+              style: Object.assign({}, S.smallAddBtn, isAssociating ? { color: '#5EEAD4', borderColor: '#134E4A' } : {}),
+              onClick: function(){ associateAccount(acc.id); }
+            }, isAssociating ? 'FECHAR' : 'ASSOCIAR') : null
+          ),
+
+          /* Association panel */
+          isAssociating ? h('div', { style: { marginTop: 10, borderTop: '1px solid #1F2937', paddingTop: 10 } },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
+              'Selecione a conta Plaid e a conta do app:'
+            ),
+            /* Plaid accounts from this item */
+            acc.plaidAccounts && acc.plaidAccounts.length > 1 ? h('div', { style: { marginBottom: 8 } },
+              h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'CONTA PLAID:'),
+              acc.plaidAccounts.map(function(pa) {
+                return h('button', {
+                  key: pa.account_id,
+                  style: {
+                    display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', marginBottom: 4,
+                    borderRadius: 8, border: '1px solid', cursor: 'pointer',
+                    borderColor: acc.plaidAccountId === pa.account_id ? '#5EEAD4' : '#1F2937',
+                    background: acc.plaidAccountId === pa.account_id ? '#0F2D2A' : '#0D1117',
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+                    color: acc.plaidAccountId === pa.account_id ? '#5EEAD4' : '#D1D5DB'
+                  },
+                  onClick: function() {
+                    var updated = accounts.map(function(a){ return a.id === acc.id ? Object.assign({}, a, { plaidAccountId: pa.account_id }) : a; });
+                    setAccounts(updated);
+                  }
+                }, pa.name + ' · ' + formatUSD(pa.balance || 0));
+              })
+            ) : null,
+            /* Tracker accounts */
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'ASSOCIAR A:'),
+            trackerAccounts.map(function(ta) {
+              return h('button', {
+                key: ta.id,
+                style: {
+                  display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', marginBottom: 4,
+                  borderRadius: 8, border: '1px solid', cursor: 'pointer',
+                  borderColor: '#1F2937', background: '#0D1117',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB'
+                },
+                onClick: function() {
+                  var plaidAccId = acc.plaidAccounts && acc.plaidAccounts.length === 1
+                    ? acc.plaidAccounts[0].account_id
+                    : acc.plaidAccountId;
+                  doAssociate(acc.id, plaidAccId, ta.id);
+                }
+              }, ta.label);
+            })
+          ) : null
+        );
+      }),
+
+      /* Add account button */
+      h('button', { style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center', marginTop: 4 }), onClick: addAccount },
+        h(Icon, { name: 'plus', size: 14 }), 'INCLUIR CONTA'
+      )
+    );
+  }
+
   function ConfigTab() {
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
@@ -514,6 +750,20 @@
         h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: resetAll },
           h(Icon, { name: 'reset', size: 14 }), 'RESTAURAR PADRÕES'
         )
+      ),
+
+      /* ---- CONECTAR CONTAS ---- */
+      h(Section, { title: 'CONECTAR CONTAS', defaultOpen: false },
+        h(ConnectAccountsSection, {
+          userId: window.currentUserId ? window.currentUserId() : null,
+          savedAccounts: cfg.plaidAccounts || [],
+          trackerAccounts: [{ id: '401k', label: '401K Fidelity' }].concat(
+            (cfg.funds || []).map(function(f){ return { id: f.name, label: f.name }; })
+          ),
+          onSave: function(next) {
+            update('plaidAccounts', next);
+          }
+        })
       ),
 
       h('div', { style: S.footer }, 'PARÂMETROS SALVOS NA NUVEM · SINCRONIZADO ENTRE APARELHOS')
