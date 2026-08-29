@@ -42,9 +42,6 @@
     var formState = React.useState(false);
     var showForm = formState[0], setShowForm = formState[1];
 
-    var syncingPlaidState = React.useState(false);
-    var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
-
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
 
@@ -521,37 +518,14 @@
       h('div', { style: S.card },
         h('div', { style: S.walletCardHeader, onClick: function () { if (hasMore) setExpanded(!expanded); } },
           h('span', { style: S.cardTitle }, 'REGISTRO DE LEITURAS 401K'),
-          hasMore ? h('div', { style: { color: '#D1D5DB', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
-            h(Icon, { name: 'chevron', size: 16 })
-          ) : null
-        ),
-        h('div', { style: { display: 'flex', gap: 8, marginBottom: 8 } },
-          h('button', { style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }), onClick: function () { setShowForm(!showForm); } },
-            h(Icon, { name: 'plus', size: 14 }),
-            showForm ? 'CANCELAR' : 'NOVA LEITURA'
-          ),
-          h('button', {
-            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }),
-            disabled: !!syncingPlaid,
-            onClick: function () {
-              var uid = window.currentUserId ? window.currentUserId() : null;
-              if (!uid) return;
-              setSyncingPlaid(true);
-              fetch('/api/plaid-sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: uid })
-              }).then(function(r){ return r.json(); })
-                .then(function(d){
-                  setSyncingPlaid(false);
-                  if (d.error) { alert('Sync erro: ' + d.error); return; }
-                  /* Reload entries */
-                  SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
-                }).catch(function(e){ setSyncingPlaid(false); alert(e.message); });
-            }
-          },
-            h(Icon, { name: 'chart', size: 14 }),
-            syncingPlaid ? 'SINCRONIZANDO...' : '↻ SYNC FIDELITY'
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+            h('button', { style: S.addBtn, onClick: function (ev) { ev.stopPropagation(); setShowForm(!showForm); } },
+              h(Icon, { name: 'plus', size: 14 }),
+              showForm ? 'CANCELAR' : 'NOVA LEITURA'
+            ),
+            hasMore ? h('div', { style: { color: '#D1D5DB', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
+              h(Icon, { name: 'chevron', size: 16 })
+            ) : null
           )
         ),
 
