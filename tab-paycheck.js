@@ -151,28 +151,7 @@
           else mimeType = 'image/jpeg';
         }
 
-        var prompt = [
-          'American Airlines Work Summary table. Follow these steps carefully:',
-          '',
-          'STEP 1 - Pay Period at top of page:',
-          '  periodStart = first date as YYYY-MM-DD (or "" if not found)',
-          '  periodEnd = last date as YYYY-MM-DD (or "" if not found)',
-          '  paymentDate = next Friday after periodEnd as YYYY-MM-DD (or "" if not found)',
-          '',
-          'STEP 2 - Find LUNCH-P row if it exists:',
-          '  lunchHours = sum of ALL columns in LUNCH-P row',
-          '  IMPORTANT: exclude LUNCH-P row from all other calculations',
-          '',
-          'STEP 3 - All other rows (WRK, SWAPON, TRP, MANDO-OT etc) excluding LUNCH-P:',
-          '  regHours = REG column + OTS column (OTS is paid as regular rate)',
-          '  otHours = OT1.5 column',
-          '  ot2Hours = OT2.0 column (0 if no OT2.0 column)',
-          '',
-          'STEP 4 - hoursWorked = Total row, Total column value',
-          '',
-          'Return ONLY this JSON:',
-          '{"periodStart":"","periodEnd":"","paymentDate":"","hoursWorked":0,"regHours":0,"otHours":0,"ot2Hours":0,"lunchHours":0,"sickHours":0,"vacationHours":0,"holHours":0,"wrkHolHours":0,"additionalHours":0}'
-        ].join('\n');
+        var prompt = 'Extract from this American Airlines Work Summary. Return ONLY JSON.\n\nFor columns REG, OT1.5, OT2.0, OTS - sum each column across all rows EXCEPT the LUNCH-P row.\nregHours = REG + OTS columns (excluding LUNCH-P)\notHours = OT1.5 column (excluding LUNCH-P)\not2Hours = OT2.0 column (excluding LUNCH-P, 0 if missing)\nlunchHours = all values in the LUNCH-P row combined\nhoursWorked = Total row last column\nperiodStart = first date in pay period header as YYYY-MM-DD\nperiodEnd = last date in pay period header as YYYY-MM-DD\npaymentDate = next Friday after periodEnd as YYYY-MM-DD\n\n{"periodStart":"","periodEnd":"","paymentDate":"","hoursWorked":0,"regHours":0,"otHours":0,"ot2Hours":0,"lunchHours":0,"sickHours":0,"vacationHours":0,"holHours":0,"wrkHolHours":0,"additionalHours":0}';
 
         var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + (window.__GEMINI_KEY || '');
 
