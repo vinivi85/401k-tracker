@@ -522,10 +522,14 @@
             h(Icon, { name: 'chevron', size: 16 })
           ) : null
         ),
-        h('div', { style: { marginBottom: 8 } },
-          h('button', { style: S.smallAddBtn, onClick: function () { setShowForm(!showForm); } },
-            h(Icon, { name: 'plus', size: 12 }),
-            showForm ? 'CANCELAR' : '+ LEITURA'
+        h('div', { style: { marginBottom: 8, display: 'flex', justifyContent: 'flex-end' } },
+          h('button', {
+            style: showForm
+              ? Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' })
+              : S.smallAddBtn,
+            onClick: function () { setShowForm(!showForm); }
+          },
+            showForm ? '− CANCELAR' : h(React.Fragment, null, h(Icon, { name: 'plus', size: 12 }), ' LEITURA')
           )
         ),
 
