@@ -516,22 +516,6 @@
         )
       ),
 
-      /* ---- FIDELITY 401K — PLAID ---- */
-      h(Section, { title: 'FIDELITY 401K · PLAID', defaultOpen: false },
-        h(PlaidConnectionCard, { userId: window.currentUserId ? window.currentUserId() : null })
-      ),
-
-      /* ---- CARTEIRAS — PLAID ---- */
-      h(Section, { title: 'CARTEIRAS · PLAID', defaultOpen: false },
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12 } },
-          'Conecte Robinhood, Marcus e outras instituições. Após conectar, associe cada conta à carteira correta.'
-        ),
-        h(PlaidWalletCard, {
-          userId: window.currentUserId ? window.currentUserId() : null,
-          wallets: (cfg.funds || []).map(function(f){ return { name: f.name }; })
-        })
-      ),
-
       h('div', { style: S.footer }, 'PARÂMETROS SALVOS NA NUVEM · SINCRONIZADO ENTRE APARELHOS')
     );
   }
