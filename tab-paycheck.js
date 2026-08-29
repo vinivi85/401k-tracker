@@ -785,6 +785,7 @@
           if (parsed.periodStart) setPeriodStart(parsed.periodStart);
           if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
           if (parsed.paymentDate) setPayDate(parsed.paymentDate);
+          if (parsed.hoursWorked) setHoursWorked(parsed.hoursWorked);
           if (parsed.periodStart || parsed.periodEnd || parsed.paymentDate) {
             /* Salva imediatamente sem debounce para garantir que persiste */
             setTimeout(function () {
