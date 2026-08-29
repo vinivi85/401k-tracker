@@ -174,7 +174,7 @@
           'Rules:',
           '- periodStart: first date in Pay Period range',
           '- periodEnd: last date in Pay Period range',
-          '- paymentDate: periodEnd + 5 days (payment is 5 days after period ends)',
+          '- paymentDate: next Friday after periodEnd (AA pays on Friday after pay period ends)',
           '- regHours: sum REG column for ALL rows (WRK + TRP + SWAPON + any others)',
           '- otHours: sum OT1.5 column for ALL rows',
           '- ot2Hours: sum OT2.0 column for ALL rows',
