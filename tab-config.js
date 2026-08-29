@@ -36,6 +36,162 @@
     );
   }
 
+
+  /* ---- PLAID SECTION COMPONENT ---- */
+  function PlaidSection(props) {
+    var userId = props.userId;
+    var funds  = props.funds || [];
+
+    var connState  = React.useState(null);
+    var conn = connState[0], setConn = connState[1];
+    var itemsState = React.useState([]);
+    var items = itemsState[0], setItems = itemsState[1];
+    var loadingState = React.useState(false);
+    var loading = loadingState[0], setLoading = loadingState[1];
+    var errState = React.useState(null);
+    var err = errState[0], setErr = errState[1];
+    var syncingState = React.useState(false);
+    var syncing = syncingState[0], setSyncing = syncingState[1];
+
+    function loadStatus() {
+      if (!userId) return;
+      /* Fidelity 401k */
+      fetch('/api/plaid-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
+        .then(function(r){ return r.json(); }).then(function(d){ setConn(d); }).catch(function(){});
+      /* Carteiras */
+      fetch('/api/plaid-wallet-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
+        .then(function(r){ return r.json(); }).then(function(d){ setItems(d.items || []); }).catch(function(){});
+    }
+
+    React.useEffect(function(){ loadStatus(); }, [userId]);
+
+    function openLink(endpoint, onSuccess) {
+      setLoading(true); setErr(null);
+      var doOpen = function() {
+        fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            if (!data.link_token) throw new Error(data.error || 'No link_token');
+            var handler = window.Plaid.create({ token: data.link_token,
+              onSuccess: function(pt, meta){ onSuccess(pt, meta); },
+              onExit: function(e){ setLoading(false); if (e) setErr(e.display_message || ''); }
+            });
+            handler.open();
+          }).catch(function(e){ setLoading(false); setErr(e.message); });
+      };
+      if (window.Plaid) { doOpen(); return; }
+      var s = document.createElement('script');
+      s.src = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
+      s.onload = doOpen;
+      s.onerror = function(){ setLoading(false); setErr('Plaid script failed to load'); };
+      document.head.appendChild(s);
+    }
+
+    function connectFidelity() {
+      openLink('/api/plaid-link-token', function(pt, meta) {
+        fetch('/api/plaid-exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ public_token: pt, institution_name: meta.institution ? meta.institution.name : 'Fidelity', userId: userId })
+        }).then(function(r){ return r.json(); }).then(function(d){
+          setLoading(false);
+          if (d.error) { setErr(d.error); return; }
+          loadStatus();
+        }).catch(function(e){ setLoading(false); setErr(e.message); });
+      });
+    }
+
+    function connectWallet() {
+      openLink('/api/plaid-wallet-link-token', function(pt, meta) {
+        fetch('/api/plaid-wallet-exchange', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ public_token: pt, institution_name: meta.institution ? meta.institution.name : null, userId: userId })
+        }).then(function(r){ return r.json(); }).then(function(d){
+          setLoading(false);
+          if (d.error) { setErr(d.error); return; }
+          loadStatus();
+        }).catch(function(e){ setLoading(false); setErr(e.message); });
+      });
+    }
+
+    function syncFidelity() {
+      setSyncing(true); setErr(null);
+      fetch('/api/plaid-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
+        .then(function(r){ return r.json(); }).then(function(d){ setSyncing(false); if (d.error) setErr(d.error); else loadStatus(); })
+        .catch(function(e){ setSyncing(false); setErr(e.message); });
+    }
+
+    function syncWallets() {
+      setSyncing(true); setErr(null);
+      fetch('/api/plaid-wallet-sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
+        .then(function(r){ return r.json(); }).then(function(d){ setSyncing(false); if (d.error) setErr(d.error); else loadStatus(); })
+        .catch(function(e){ setSyncing(false); setErr(e.message); });
+    }
+
+    function assignWallet(accountId, walletId) {
+      fetch('/api/plaid-wallet-assign', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: accountId, walletId: walletId || null })
+      }).then(function(){ loadStatus(); }).catch(function(e){ setErr(e.message); });
+    }
+
+    function disconnectFidelity() {
+      if (!confirm('Desconectar Fidelity?')) return;
+      fetch('/api/plaid-disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
+        .then(function(){ setConn({ connected: false }); }).catch(function(e){ setErr(e.message); });
+    }
+
+    return h('div', null,
+      err ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FB7185', padding: '6px 10px', background: '#1a0a0a', borderRadius: 6, marginBottom: 10 } }, err) : null,
+
+      /* ---- FIDELITY 401K ---- */
+      h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', letterSpacing: 1, marginBottom: 8 } }, 'FIDELITY 401K'),
+      conn && conn.connected ? h('div', { style: { background: '#0F2D2A', borderRadius: 10, padding: 14, marginBottom: 10, border: '1px solid #134E4A' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } },
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4' } }, '✓ ' + (conn.institution_name || 'Fidelity')),
+          h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: '#F9FAFB' } }, formatUSD(conn.current_balance || 0))
+        ),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#6B7280', marginBottom: 10 } },
+          conn.last_synced_at ? 'Sync: ' + new Date(conn.last_synced_at).toLocaleString('pt-BR') : 'Nunca sincronizado'
+        ),
+        h('div', { style: { display: 'flex', gap: 8 } },
+          h('button', { style: Object.assign({}, S.submitBtn, { flex: 2 }), onClick: syncFidelity, disabled: syncing },
+            syncing ? 'SINCRONIZANDO...' : '↻ SINCRONIZAR'),
+          h('button', { style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', color: '#FB7185', borderColor: '#7F1D1D' }), onClick: disconnectFidelity }, 'DESCONECTAR')
+        )
+      ) : h('button', {
+        style: Object.assign({}, S.submitBtn, { width: '100%', marginBottom: 10 }),
+        onClick: connectFidelity, disabled: loading
+      }, loading ? 'ABRINDO PLAID...' : '+ CONECTAR FIDELITY'),
+
+      /* ---- CARTEIRAS ---- */
+      h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', letterSpacing: 1, margin: '14px 0 8px' } }, 'CARTEIRAS (ROBINHOOD, MARCUS, ETC)'),
+      items.map(function(item) {
+        return h('div', { key: item.id, style: { background: '#111827', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid #1F2937' } },
+          h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', marginBottom: 8 } }, '✓ ' + (item.institution_name || 'Instituição')),
+          item.accounts.map(function(acc) {
+            return h('div', { key: acc.id, style: { borderTop: '1px solid #1F2937', paddingTop: 8, marginTop: 4 } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 4 } },
+                h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB' } }, acc.account_name),
+                h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, color: '#F9FAFB' } }, formatUSD(acc.current_balance || 0))
+              ),
+              h('select', {
+                style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, background: '#1F2937', color: '#9CA3AF', border: '1px solid #374151', borderRadius: 6, padding: '3px 8px', width: '100%' },
+                value: acc.wallet_id || '',
+                onChange: function(ev){ assignWallet(acc.id, ev.target.value); }
+              },
+                h('option', { value: '' }, '— associar à carteira —'),
+                funds.map(function(f){ return h('option', { key: f.name, value: f.name }, f.name); })
+              )
+            );
+          })
+        );
+      }),
+      h('div', { style: { display: 'flex', gap: 8 } },
+        h('button', { style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }), onClick: connectWallet, disabled: loading },
+          loading ? '...' : '+ CONECTAR INSTITUIÇÃO'),
+        items.length > 0 ? h('button', { style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }), onClick: syncWallets, disabled: syncing },
+          syncing ? '...' : '↻ SYNC CARTEIRAS') : null
+      )
+    );
+  }
+
   function ConfigTab() {
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
@@ -514,6 +670,12 @@
         h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: resetAll },
           h(Icon, { name: 'reset', size: 14 }), 'RESTAURAR PADRÕES'
         )
+      ),
+
+
+      /* ---- CONTAS PLAID ---- */
+      h(Section, { title: 'CONTAS · PLAID', defaultOpen: false },
+        h(PlaidSection, { userId: window.currentUserId ? window.currentUserId() : null, funds: cfg.funds || [] })
       ),
 
       h('div', { style: S.footer }, 'PARÂMETROS SALVOS NA NUVEM · SINCRONIZADO ENTRE APARELHOS')
