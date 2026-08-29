@@ -132,7 +132,7 @@
     }
 
     function disconnectFidelity() {
-      if (!confirm('Desconectar Fidelity?')) return;
+      /* disconnect */
       fetch('/api/plaid-disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: userId }) })
         .then(function(){ setConn({ connected: false }); }).catch(function(e){ setErr(e.message); });
     }
