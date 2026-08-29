@@ -1030,7 +1030,7 @@
 
       /* ---- Prévia ---- */
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, (periodStart && periodEnd) ? ('PERÍODO: ' + formatDateLabel(periodStart) + ' – ' + formatDateLabel(periodEnd)) : 'PRÉVIA · PRÓXIMO PAYCHECK'),
+        h('div', { style: S.gaugeLabel }, (periodStart && periodEnd) ? ('PERÍODO: ' + formatDateLabel(periodStart) + ' – ' + formatDateLabel(periodEnd)) : (periodStart || periodEnd ? 'PERÍODO: --/-- – --/--' : 'PRÉVIA · PRÓXIMO PAYCHECK')),
         h('div', { style: S.deltaRow },
           h('div', { style: S.deltaBox },
             h('div', { style: S.deltaLabel }, 'BRUTO (GROSS)'),
