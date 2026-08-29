@@ -518,14 +518,14 @@
       h('div', { style: S.card },
         h('div', { style: S.walletCardHeader, onClick: function () { if (hasMore) setExpanded(!expanded); } },
           h('span', { style: S.cardTitle }, 'REGISTRO DE LEITURAS 401K'),
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-            h('button', { style: S.addBtn, onClick: function (ev) { ev.stopPropagation(); setShowForm(!showForm); } },
-              h(Icon, { name: 'plus', size: 14 }),
-              showForm ? 'CANCELAR' : 'NOVA LEITURA'
-            ),
-            hasMore ? h('div', { style: { color: '#D1D5DB', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
-              h(Icon, { name: 'chevron', size: 16 })
-            ) : null
+          hasMore ? h('div', { style: { color: '#D1D5DB', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
+            h(Icon, { name: 'chevron', size: 16 })
+          ) : null
+        ),
+        h('div', { style: { marginBottom: 8 } },
+          h('button', { style: S.smallAddBtn, onClick: function () { setShowForm(!showForm); } },
+            h(Icon, { name: 'plus', size: 12 }),
+            showForm ? 'CANCELAR' : '+ LEITURA'
           )
         ),
 
