@@ -1,6 +1,4 @@
-// Vercel Serverless Function — 401K Tracker
-// Cria link_token para inicializar o Plaid Link (conectar Fidelity)
-
+// Cria link_token para conectar Fidelity 401K
 function plaidBaseUrl() {
   const env = process.env.PLAID_ENV || 'sandbox';
   return env === 'production' ? 'https://production.plaid.com' : 'https://sandbox.plaid.com';
@@ -8,13 +6,9 @@ function plaidBaseUrl() {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
-
   const clientId = process.env.PLAID_CLIENT_ID;
   const secret   = process.env.PLAID_SECRET;
-  if (!clientId || !secret) {
-    res.status(500).json({ error: 'PLAID_CLIENT_ID/PLAID_SECRET not configured' });
-    return;
-  }
+  if (!clientId || !secret) { res.status(500).json({ error: 'Plaid not configured' }); return; }
 
   try {
     const body = {
@@ -24,22 +18,14 @@ export default async function handler(req, res) {
       language: 'en',
       country_codes: ['US'],
       user: { client_user_id: req.body?.userId || '401k-user' },
-      products: ['investments'],  // investments para 401k/brokerage
+      products: ['investments'],
     };
-    if (process.env.PLAID_REDIRECT_URI) body.redirect_uri = process.env.PLAID_REDIRECT_URI;
 
-    const upstream = await fetch(`${plaidBaseUrl()}/link/token/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+    const r = await fetch(`${plaidBaseUrl()}/link/token/create`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
-    const data = await upstream.json();
-    if (!upstream.ok) {
-      res.status(upstream.status).json({ error: data.error_message || 'Error creating link_token', detail: data });
-      return;
-    }
+    const data = await r.json();
+    if (!r.ok) { res.status(r.status).json({ error: data.error_message, detail: data }); return; }
     res.status(200).json({ link_token: data.link_token });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 }
