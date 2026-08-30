@@ -12,14 +12,14 @@ export default async function handler(req, res) {
 
   try {
     const body = {
-      client_id: clientId, secret,
+      client_id: clientId,
+      secret,
       client_name: '401K Tracker',
       language: 'en',
       country_codes: ['US'],
       user: { client_user_id: req.body?.userId || '401k-user' },
-      products: ['investments', 'auth'],
+      products: ['investments'],
     };
-    if (process.env.PLAID_REDIRECT_URI) body.redirect_uri = process.env.PLAID_REDIRECT_URI;
 
     const r = await fetch(`${plaidBaseUrl()}/link/token/create`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
