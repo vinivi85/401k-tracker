@@ -71,6 +71,25 @@
       save(accounts.concat([newAcc]));
     }
 
+    function disconnectAccount(id) {
+      var acc = accounts.find(function(a){ return a.id === id; });
+      if (!acc) return;
+      confirm('Desconectar "' + acc.name + '" do Plaid e remover associação?', function() {
+        if (acc.plaidItemId && userId) {
+          fetch('/api/plaid-wallet-disconnect', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId: acc.plaidItemId, userId: userId })
+          }).catch(function(){});
+        }
+        var updated = accounts.map(function(a) {
+          if (a.id !== id) return a;
+          return Object.assign({}, a, { status: 'pending', plaidItemId: null, plaidAccounts: [], walletId: null, plaidAccountId: null, institutionName: null });
+        });
+        save(updated);
+        setAssociatingId(null);
+      });
+    }
+
     function deleteAccount(id) {
       var acc = accounts.find(function(a){ return a.id === id; });
       if (!acc) return;
@@ -143,16 +162,24 @@
     }
 
     function doAssociate(accId, plaidAccountId, walletId) {
-      confirm('Associar esta conta a "' + walletId + '"?', function() {
-        /* Save to Supabase */
+      /* Check if another account is already associated to this wallet */
+      var existing = accounts.find(function(a) {
+        return a.id !== accId && a.status === 'associated' && a.walletId === walletId;
+      });
+      var msg = existing
+        ? '"' + existing.name + '" já está associada a "' + walletId + '". Substituir?'
+        : 'Associar esta conta a "' + walletId + '"?';
+      confirm(msg, function() {
+        /* If replacing, clear old association */
+        var updated = accounts.map(function(a) {
+          if (a.id === accId) return Object.assign({}, a, { status: 'associated', walletId: walletId, plaidAccountId: plaidAccountId });
+          if (existing && a.id === existing.id) return Object.assign({}, a, { status: 'connected', walletId: null, plaidAccountId: null });
+          return a;
+        });
         fetch('/api/plaid-wallet-assign', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId })
         }).catch(function(){});
-        var updated = accounts.map(function(a) {
-          if (a.id !== accId) return a;
-          return Object.assign({}, a, { status: 'associated', walletId: walletId, plaidAccountId: plaidAccountId });
-        });
         save(updated);
         setAssociatingId(null);
       });
@@ -186,9 +213,13 @@
         return h('div', { key: acc.id, style: { background: '#111827', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid ' + (acc.status === 'associated' ? '#14532D' : acc.status === 'connected' ? '#422006' : '#1F2937') } },
           /* Header */
           h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: acc.status !== 'pending' ? 8 : 0 } },
-            h('div', { style: { display: 'flex', alignItems: 'center' } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
               statusDot(acc.status),
-              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#F9FAFB', fontWeight: 600 } }, acc.name)
+              h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#F9FAFB', fontWeight: 600 } }, acc.name),
+              (acc.status === 'connected' || acc.status === 'associated') ? h('span', {
+                style: { marginLeft: 'auto', fontFamily: 'sans-serif', fontSize: 8, fontWeight: 700,
+                  color: '#1A1A2E', background: '#000', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.5 }
+              }, 'plaid') : null
             ),
             h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: function(){ deleteAccount(acc.id); } },
               h(Icon, { name: 'trash', size: 12 })
@@ -217,7 +248,11 @@
             acc.status === 'associated' ? h('button', {
               style: Object.assign({}, S.smallAddBtn, { color: '#4ADE80', borderColor: '#14532D' }),
               onClick: function(){ associateAccount(acc.id); }
-            }, isAssociating ? 'FECHAR' : '✓ ASSOCIADO') : null
+            }, isAssociating ? 'FECHAR' : '✓ ASSOCIADO') : null,
+            acc.status === 'associated' ? h('button', {
+              style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D', marginLeft: 4 }),
+              onClick: function(){ disconnectAccount(acc.id); }
+            }, 'DESCONECTAR') : null
           ),
 
           /* Association panel */
