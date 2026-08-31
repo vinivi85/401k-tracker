@@ -43,7 +43,10 @@
      ================================================================ */
   function ConnectAccountsSection(props) {
     var userId = props.userId;
-    var trackerAccounts = props.trackerAccounts || []; // 401k + carteiras
+    var funds = props.funds || [];
+    var trackerAccounts = [{ id: '401k', label: '401K Fidelity' }].concat(
+      funds.map(function(f){ return { id: f.name, label: f.name }; })
+    );
 
     /* accounts stored in user_configs as plaidAccounts array */
     var accountsState = React.useState(props.savedAccounts || []);
@@ -795,9 +798,7 @@
         h(ConnectAccountsSection, {
           userId: window.currentUserId ? window.currentUserId() : null,
           savedAccounts: cfg.plaidAccounts || [],
-          trackerAccounts: [{ id: '401k', label: '401K Fidelity' }].concat(
-            (cfg.funds || []).map(function(f){ return { id: f.name, label: f.name }; })
-          ),
+          funds: cfg.funds || [],
           onSave: function(next) {
             update('plaidAccounts', next);
           }
