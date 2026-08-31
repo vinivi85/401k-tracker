@@ -209,11 +209,15 @@
               onClick: function(){ connectAccount(acc.id); }
             }, isLoading ? 'ABRINDO...' : 'CONECTAR') : null,
 
-            /* ASSOCIAR */
-            acc.status === 'connected' || acc.status === 'associated' ? h('button', {
+            /* ASSOCIAR / ASSOCIADO */
+            acc.status === 'connected' ? h('button', {
               style: Object.assign({}, S.smallAddBtn, isAssociating ? { color: '#5EEAD4', borderColor: '#134E4A' } : {}),
               onClick: function(){ associateAccount(acc.id); }
-            }, isAssociating ? 'FECHAR' : 'ASSOCIAR') : null
+            }, isAssociating ? 'FECHAR' : 'ASSOCIAR') : null,
+            acc.status === 'associated' ? h('button', {
+              style: Object.assign({}, S.smallAddBtn, { color: '#4ADE80', borderColor: '#14532D' }),
+              onClick: function(){ associateAccount(acc.id); }
+            }, isAssociating ? 'FECHAR' : '✓ ASSOCIADO') : null
           ),
 
           /* Association panel */
@@ -221,8 +225,8 @@
             h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
               'Selecione a conta Plaid e a conta do app:'
             ),
-            /* Plaid accounts from this item */
-            acc.plaidAccounts && acc.plaidAccounts.length > 1 ? h('div', { style: { marginBottom: 8 } },
+            /* Plaid accounts from this item — always show for selection */
+            acc.plaidAccounts && acc.plaidAccounts.length > 0 ? h('div', { style: { marginBottom: 8 } },
               h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'CONTA PLAID:'),
               acc.plaidAccounts.map(function(pa) {
                 return h('button', {
@@ -254,9 +258,8 @@
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB'
                 },
                 onClick: function() {
-                  var plaidAccId = acc.plaidAccounts && acc.plaidAccounts.length === 1
-                    ? acc.plaidAccounts[0].account_id
-                    : acc.plaidAccountId;
+                  var plaidAccId = acc.plaidAccountId || (acc.plaidAccounts && acc.plaidAccounts.length > 0 ? acc.plaidAccounts[0].account_id : null);
+                  if (!plaidAccId) { alert('Selecione a conta Plaid acima primeiro'); return; }
                   doAssociate(acc.id, plaidAccId, ta.id);
                 }
               }, ta.label);
