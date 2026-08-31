@@ -234,28 +234,40 @@
             acc.institutionName + (acc.walletId ? ' → ' + acc.walletId : '')
           ) : null,
 
-          /* Buttons row */
-          h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-            /* CONECTAR */
-            acc.status === 'pending' ? h('button', {
-              style: Object.assign({}, S.smallAddBtn, { opacity: isLoading ? 0.6 : 1 }),
-              disabled: isLoading,
+          /* Buttons row — sempre visíveis, cor/texto muda com status */
+          h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 } },
+            /* CONECTAR — vermelho pending, verde connected/associated */
+            h('button', {
+              style: Object.assign({}, S.smallAddBtn, {
+                color: acc.status === 'pending' ? '#FB7185' : '#4ADE80',
+                borderColor: acc.status === 'pending' ? '#7F1D1D' : '#14532D',
+                opacity: isLoading ? 0.6 : 1
+              }),
+              disabled: isLoading || acc.status !== 'pending',
               onClick: function(){ connectAccount(acc.id); }
-            }, isLoading ? 'ABRINDO...' : 'CONECTAR') : null,
+            }, isLoading ? 'ABRINDO...' : acc.status === 'pending' ? 'CONECTAR' : '✓ CONECTADO'),
 
-            /* ASSOCIAR / ASSOCIADO */
-            acc.status === 'connected' ? h('button', {
-              style: Object.assign({}, S.smallAddBtn, isAssociating ? { color: '#5EEAD4', borderColor: '#134E4A' } : {}),
-              onClick: function(){ associateAccount(acc.id); }
-            }, isAssociating ? 'FECHAR' : 'ASSOCIAR') : null,
-            acc.status === 'associated' ? h('button', {
-              style: Object.assign({}, S.smallAddBtn, { color: '#4ADE80', borderColor: '#14532D' }),
-              onClick: function(){ associateAccount(acc.id); }
-            }, isAssociating ? 'FECHAR' : '✓ ASSOCIADO') : null,
-            acc.status === 'associated' ? h('button', {
-              style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D', marginLeft: 4 }),
-              onClick: function(){ disconnectAccount(acc.id); }
-            }, 'DESCONECTAR') : null
+            /* ASSOCIAR — amarelo connected, verde associated */
+            h('button', {
+              style: Object.assign({}, S.smallAddBtn, {
+                color: acc.status === 'associated' ? '#4ADE80' : acc.status === 'connected' ? '#FCD34D' : '#4B5563',
+                borderColor: acc.status === 'associated' ? '#14532D' : acc.status === 'connected' ? '#78350F' : '#1F2937',
+                opacity: acc.status === 'pending' ? 0.4 : 1
+              }),
+              disabled: acc.status === 'pending',
+              onClick: function(){ if (acc.status !== 'pending') associateAccount(acc.id); }
+            }, acc.status === 'associated' ? (isAssociating ? 'FECHAR' : '✓ ASSOCIADO') : (isAssociating ? 'FECHAR' : 'ASSOCIAR')),
+
+            /* DESCONECTAR — sempre visível, vermelho quando conectado/associado */
+            h('button', {
+              style: Object.assign({}, S.smallAddBtn, {
+                color: acc.status === 'pending' ? '#4B5563' : '#FB7185',
+                borderColor: acc.status === 'pending' ? '#1F2937' : '#7F1D1D',
+                opacity: acc.status === 'pending' ? 0.4 : 1
+              }),
+              disabled: acc.status === 'pending',
+              onClick: function(){ if (acc.status !== 'pending') disconnectAccount(acc.id); }
+            }, 'DESCONECTAR')
           ),
 
           /* Association panel */
