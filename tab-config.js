@@ -234,39 +234,42 @@
             acc.institutionName + (acc.walletId ? ' → ' + acc.walletId : '')
           ) : null,
 
-          /* Buttons row — sempre visíveis, cor/texto muda com status */
+          /* Buttons row — habilitados apenas na sequência correta */
           h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 } },
-            /* CONECTAR — vermelho pending, verde connected/associated */
+            /* CONECTAR — só habilitado em pending */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
                 color: acc.status === 'pending' ? '#FB7185' : '#4ADE80',
                 borderColor: acc.status === 'pending' ? '#7F1D1D' : '#14532D',
-                opacity: isLoading ? 0.6 : 1
+                opacity: (isLoading || acc.status !== 'pending') ? 0.4 : 1,
+                cursor: acc.status !== 'pending' ? 'default' : 'pointer'
               }),
               disabled: isLoading || acc.status !== 'pending',
-              onClick: function(){ connectAccount(acc.id); }
+              onClick: function(){ if (acc.status === 'pending') connectAccount(acc.id); }
             }, isLoading ? 'ABRINDO...' : acc.status === 'pending' ? 'CONECTAR' : '✓ CONECTADO'),
 
-            /* ASSOCIAR — amarelo connected, verde associated */
+            /* ASSOCIAR — só habilitado em connected */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
                 color: acc.status === 'associated' ? '#4ADE80' : acc.status === 'connected' ? '#FCD34D' : '#4B5563',
                 borderColor: acc.status === 'associated' ? '#14532D' : acc.status === 'connected' ? '#78350F' : '#1F2937',
-                opacity: acc.status === 'pending' ? 0.4 : 1
+                opacity: acc.status === 'connected' ? 1 : 0.4,
+                cursor: acc.status === 'connected' ? 'pointer' : 'default'
               }),
-              disabled: acc.status === 'pending',
-              onClick: function(){ if (acc.status !== 'pending') associateAccount(acc.id); }
+              disabled: acc.status !== 'connected',
+              onClick: function(){ if (acc.status === 'connected') associateAccount(acc.id); }
             }, acc.status === 'associated' ? (isAssociating ? 'FECHAR' : '✓ ASSOCIADO') : (isAssociating ? 'FECHAR' : 'ASSOCIAR')),
 
-            /* DESCONECTAR — sempre visível, vermelho quando conectado/associado */
+            /* DESCONECTAR — só habilitado em associated */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
-                color: acc.status === 'pending' ? '#4B5563' : '#FB7185',
-                borderColor: acc.status === 'pending' ? '#1F2937' : '#7F1D1D',
-                opacity: acc.status === 'pending' ? 0.4 : 1
+                color: acc.status === 'associated' ? '#FB7185' : '#4B5563',
+                borderColor: acc.status === 'associated' ? '#7F1D1D' : '#1F2937',
+                opacity: acc.status === 'associated' ? 1 : 0.4,
+                cursor: acc.status === 'associated' ? 'pointer' : 'default'
               }),
-              disabled: acc.status === 'pending',
-              onClick: function(){ if (acc.status !== 'pending') disconnectAccount(acc.id); }
+              disabled: acc.status !== 'associated',
+              onClick: function(){ if (acc.status === 'associated') disconnectAccount(acc.id); }
             }, 'DESCONECTAR')
           ),
 
