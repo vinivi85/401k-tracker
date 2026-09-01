@@ -43,6 +43,8 @@
     var showForm = formState[0], setShowForm = formState[1];
     var syncingPlaidState = React.useState(false);
     var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
+    var lastSyncState = React.useState(null);
+    var lastSync = lastSyncState[0], setLastSync = lastSyncState[1];
 
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
@@ -287,6 +289,8 @@
     var showForm = formState[0], setShowForm = formState[1];
     var syncingPlaidState = React.useState(false);
     var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
+    var lastSyncState = React.useState(null);
+    var lastSync = lastSyncState[0], setLastSync = lastSyncState[1];
 
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
@@ -512,6 +516,7 @@
               }).then(function(r){ return r.json(); })
                 .then(function(d){
                   setSyncingPlaid(false);
+                  setLastSync(new Date());
                   if (d.error) { console.error(d.error); return; }
                   SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
                   Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
@@ -519,7 +524,10 @@
                     .catch(function(){});
                 }).catch(function(){ setSyncingPlaid(false); });
             }
-          }, syncingPlaid ? '↻ SINCRONIZANDO...' : '↻ SYNC CONTAS PLAID')
+          }, syncingPlaid ? '↻ SINCRONIZANDO...' : '↻ SYNC CONTAS PLAID'),
+          lastSync ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', textAlign: 'center', marginTop: 6 } },
+            'ÚLTIMO SYNC: ' + lastSync.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+          ) : null
         )
       ),
 
