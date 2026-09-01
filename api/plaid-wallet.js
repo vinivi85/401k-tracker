@@ -14,7 +14,7 @@ async function supa(path, opts = {}) {
   });
 }
 
-async function saveToTracker(userId, walletId, balance) {
+async function saveToTracker(userId, walletId, balance, walletUuid = null) {
   const today = new Date().toISOString().split('T')[0];
   if (walletId === '401k') {
     const ex = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}&select=id&limit=1`);
@@ -27,14 +27,17 @@ async function saveToTracker(userId, walletId, balance) {
       return { wallet: walletId, action: 'created', balance, ok: r.ok };
     }
   } else if (walletId) {
-    /* Look up wallet UUID by name */
-    const walletR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id,name&limit=1`);
-    const walletRows = walletR.ok ? await walletR.json() : [];
-    console.log('Wallet lookup:', walletId, '→', JSON.stringify(walletRows));
-    if (!walletRows.length) {
-      return { wallet: walletId, action: 'error', error: 'Wallet not found in DB: ' + walletId, balance };
+    /* Use pre-stored UUID if available, otherwise look up by name */
+    let wId = walletUuid || null;
+    if (!wId) {
+      const walletR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id,name&limit=1`);
+      const walletRows = walletR.ok ? await walletR.json() : [];
+      console.log('Wallet lookup:', walletId, '→', JSON.stringify(walletRows));
+      if (!walletRows.length) {
+        return { wallet: walletId, action: 'error', error: 'Wallet not found in DB: ' + walletId, balance };
+      }
+      wId = walletRows[0].id;
     }
-    const wId = walletRows[0].id;
     const ex = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
@@ -122,22 +125,41 @@ export default async function handler(req, res) {
       res.status(200).json({ items: result });
 
     } else if (action === 'assign') {
-      const { accountId, walletId, plaidAccountId } = req.body;
+      const { accountId, walletId, plaidAccountId, userId } = req.body;
+      /* Look up wallet UUID so we can store it directly */
+      let walletUuid = null;
+      if (walletId && walletId !== '401k' && userId) {
+        const wR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id&limit=1`);
+        const wRows = wR.ok ? await wR.json() : [];
+        if (wRows.length) walletUuid = wRows[0].id;
+      }
       await supa(`plaid_wallet_accounts?id=eq.${accountId}`, {
-        method: 'PATCH', body: JSON.stringify({ wallet_id: walletId || null, plaid_account_id: plaidAccountId || null })
+        method: 'PATCH', body: JSON.stringify({
+          wallet_id: walletId || null,
+          plaid_account_id: plaidAccountId || null,
+          wallet_uuid: walletUuid
+        })
       });
-      res.status(200).json({ ok: true });
+      res.status(200).json({ ok: true, wallet_uuid: walletUuid });
 
     } else if (action === 'sync-one') {
       const { userId, itemId, walletId, plaidAccountId } = req.body;
       /* Try by plaid_item_id first, then by UUID id */
-      let connR = await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}&select=plaid_access_token&limit=1`);
+      let connR = await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}&select=plaid_access_token,id&limit=1`);
       let conns = connR.ok ? await connR.json() : [];
       if (!conns.length) {
-        connR = await supa(`plaid_wallet_connections?id=eq.${itemId}&select=plaid_access_token&limit=1`);
+        connR = await supa(`plaid_wallet_connections?id=eq.${itemId}&select=plaid_access_token,id&limit=1`);
         conns = connR.ok ? await connR.json() : [];
       }
       if (!conns.length) { res.status(404).json({ error: 'Connection not found' }); return; }
+
+      /* Get stored wallet_uuid from plaid_wallet_accounts */
+      let walletUuid = null;
+      if (plaidAccountId) {
+        const accR = await supa(`plaid_wallet_accounts?plaid_account_id=eq.${plaidAccountId}&select=wallet_uuid&limit=1`);
+        const accRows = accR.ok ? await accR.json() : [];
+        if (accRows.length && accRows[0].wallet_uuid) walletUuid = accRows[0].wallet_uuid;
+      }
 
       const balR = await fetch(`${plaidBaseUrl()}/accounts/balance/get`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -149,7 +171,7 @@ export default async function handler(req, res) {
       const acc = plaidAccountId ? accounts.find(a => a.account_id === plaidAccountId) : null;
       const balance = acc ? (acc.balances?.current || 0) : accounts.reduce((s,a)=>s+(a.balances?.current||0),0);
 
-      const result = await saveToTracker(userId, walletId, balance);
+      const result = await saveToTracker(userId, walletId, balance, walletUuid);
       res.status(200).json({ ok: true, balance, result });
 
     } else if (action === 'sync-all') {
