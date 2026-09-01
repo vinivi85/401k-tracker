@@ -101,10 +101,8 @@
     }
 
     function addAccount() {
-      var name = window.prompt ? window.prompt('Nome da conta (ex: Fidelity 401K, Robinhood):') : 'Nova Conta';
-      if (!name || !name.trim()) return;
-      var newAcc = { id: Date.now().toString(), name: name.trim(), status: 'pending', plaidItemId: null, plaidAccounts: [], walletId: null, plaidAccountId: null };
-      save(accounts.concat([newAcc]));
+      /* Name comes from Tracker only - cannot be set manually */
+      alert('Use o botão IMPORTAR CONTA para adicionar contas do Tracker.');
     }
 
     function disconnectAccount(id) {
