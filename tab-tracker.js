@@ -41,6 +41,8 @@
 
     var formState = React.useState(false);
     var showForm = formState[0], setShowForm = formState[1];
+    var syncingPlaidState = React.useState(false);
+    var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
 
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
@@ -283,6 +285,8 @@
 
     var formState = React.useState(false);
     var showForm = formState[0], setShowForm = formState[1];
+    var syncingPlaidState = React.useState(false);
+    var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
 
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
@@ -522,7 +526,34 @@
             h(Icon, { name: 'chevron', size: 16 })
           ) : null
         ),
-        h('div', { style: { marginBottom: 8, display: 'flex', justifyContent: 'flex-end' } },
+        h('div', { style: { marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+          h('button', {
+            style: Object.assign({}, S.smallAddBtn, { opacity: syncingPlaid ? 0.6 : 1, color: '#5EEAD4', borderColor: '#134E4A' }),
+            disabled: syncingPlaid,
+            onClick: function() {
+              var uid = window.currentUserId ? window.currentUserId() : null;
+              if (!uid) return;
+              /* Check if already has reading today */
+              var today = new Date().toISOString().split('T')[0];
+              var hasToday = entries.some(function(e){ return e.date && e.date.startsWith(today); });
+              var msg = hasToday
+                ? 'Já existe uma leitura hoje. Atualizar o saldo com o Plaid?'
+                : 'Sincronizar saldo Plaid e salvar leitura de hoje?';
+              if (!window.confirm || window.confirm(msg)) {
+                setSyncingPlaid(true);
+                fetch('/api/plaid-cron-sync-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userId: uid })
+                }).then(function(r){ return r.json(); })
+                  .then(function(d){
+                    setSyncingPlaid(false);
+                    if (d.error) { console.error(d.error); return; }
+                    SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
+                  }).catch(function(){ setSyncingPlaid(false); });
+              }
+            }
+          }, syncingPlaid ? '↻ SYNC...' : '↻ SYNC PLAID'),
           h('button', {
             style: showForm
               ? Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' })
