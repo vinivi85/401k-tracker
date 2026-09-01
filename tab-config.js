@@ -43,12 +43,21 @@
      ================================================================ */
   function ConnectAccountsSection(props) {
     var userId = props.userId;
-    var funds = props.funds || [];
+
+    /* Load wallets from Tracker (Supabase) */
+    var walletsState = React.useState([]);
+    var wallets = walletsState[0], setWallets = walletsState[1];
+
+    React.useEffect(function() {
+      SupabaseAPI.fetchWallets().then(function(w) {
+        setWallets(w || []);
+      }).catch(function(){});
+    }, [userId]);
+
+    /* trackerAccounts = 401K + carteiras do Tracker */
     var trackerAccounts = [{ id: '401k', label: '401K Fidelity' }].concat(
-      funds.map(function(f){ return { id: f.name, label: f.name }; })
+      wallets.map(function(w){ return { id: w.name, label: w.name }; })
     );
-    /* Debug: log to verify funds are loaded */
-    if (funds.length === 0) console.warn('ConnectAccounts: no funds loaded from cfg');
 
     /* accounts stored in user_configs as plaidAccounts array */
     var accountsState = React.useState(props.savedAccounts || []);
@@ -845,10 +854,8 @@
       /* ---- CONECTAR CONTAS ---- */
       h(Section, { title: 'CONECTAR CONTAS', defaultOpen: false },
         h(ConnectAccountsSection, {
-          key: 'connect-' + (cfg.funds || []).length,
           userId: window.currentUserId ? window.currentUserId() : null,
           savedAccounts: cfg.plaidAccounts || [],
-          funds: cfg.funds || [],
           onSave: function(next) {
             update('plaidAccounts', next);
           }
