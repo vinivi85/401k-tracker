@@ -17,6 +17,13 @@ async function supa(path, opts = {}) {
 async function saveToTracker(userId, walletId, balance, walletUuid = null) {
   const today = new Date().toISOString().split('T')[0];
   if (walletId === '401k') {
+    /* Check last recorded balance — only save if value changed */
+    const lastR = await supa(`tracker_entries?user_id=eq.${userId}&order=date.desc&select=balance,date&limit=1`);
+    const lastRows = lastR.ok ? await lastR.json() : [];
+    const lastBalance = lastRows.length ? parseFloat(lastRows[0].balance) : null;
+    if (lastBalance !== null && Math.abs(lastBalance - balance) < 0.01) {
+      return { wallet: walletId, action: 'skipped', reason: 'no change', balance, lastBalance };
+    }
     const ex = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
@@ -32,12 +39,19 @@ async function saveToTracker(userId, walletId, balance, walletUuid = null) {
     if (!wId) {
       const walletR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id,name&limit=1`);
       const walletRows = walletR.ok ? await walletR.json() : [];
-      console.log('Wallet lookup:', walletId, '→', JSON.stringify(walletRows));
       if (!walletRows.length) {
         return { wallet: walletId, action: 'error', error: 'Wallet not found in DB: ' + walletId, balance };
       }
       wId = walletRows[0].id;
     }
+    /* Check last recorded balance — only save if value changed */
+    const lastR = await supa(`wallet_entries?wallet_id=eq.${wId}&order=entry_date.desc&select=balance,entry_date&limit=1`);
+    const lastRows = lastR.ok ? await lastR.json() : [];
+    const lastBalance = lastRows.length ? parseFloat(lastRows[0].balance) : null;
+    if (lastBalance !== null && Math.abs(lastBalance - balance) < 0.01) {
+      return { wallet: walletId, action: 'skipped', reason: 'no change', balance, lastBalance };
+    }
+    /* Check if entry exists for today */
     const ex = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
@@ -45,8 +59,6 @@ async function saveToTracker(userId, walletId, balance, walletUuid = null) {
       return { wallet: walletId, action: 'updated', balance, ok: r.ok };
     } else {
       const r = await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance }) });
-      const saved = r.ok ? await r.json() : [];
-      console.log('wallet_entries insert:', r.status, JSON.stringify(saved));
       return { wallet: walletId, action: 'created', balance, ok: r.ok };
     }
   }
