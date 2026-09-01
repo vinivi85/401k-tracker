@@ -129,6 +129,8 @@
             return Object.assign({}, a, { lastBalance: d.balance, lastSynced: new Date().toISOString(), lastMsg: msg });
           });
           save(updated);
+          /* Notify Tracker to reload wallet entries */
+          window.dispatchEvent(new Event('plaid-sync-done'));
         }).catch(function(e){ setLoadingId(null); alert(e.message); });
     }
 
