@@ -115,8 +115,13 @@ export default async function handler(req, res) {
 
     } else if (action === 'sync-one') {
       const { userId, itemId, walletId, plaidAccountId } = req.body;
-      const connR = await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}&select=plaid_access_token&limit=1`);
-      const conns = connR.ok ? await connR.json() : [];
+      /* Try by plaid_item_id first, then by UUID id */
+      let connR = await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}&select=plaid_access_token&limit=1`);
+      let conns = connR.ok ? await connR.json() : [];
+      if (!conns.length) {
+        connR = await supa(`plaid_wallet_connections?id=eq.${itemId}&select=plaid_access_token&limit=1`);
+        conns = connR.ok ? await connR.json() : [];
+      }
       if (!conns.length) { res.status(404).json({ error: 'Connection not found' }); return; }
 
       const balR = await fetch(`${plaidBaseUrl()}/accounts/balance/get`, {
