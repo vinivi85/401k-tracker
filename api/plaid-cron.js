@@ -44,7 +44,7 @@ async function syncUser(userId, clientId, secret) {
   const connsR = await supa(`plaid_wallet_connections?user_id=eq.${userId}&select=id,plaid_access_token`);
   const conns = connsR.ok ? await connsR.json() : [];
   for (const conn of conns) {
-    const accsR = await supa(`plaid_wallet_accounts?item_id=eq.${conn.id}&wallet_id=not.is.null&select=plaid_account_id,wallet_id`);
+    const accsR = await supa(`plaid_wallet_accounts?item_id=eq.${conn.id}&wallet_id=not.is.null&select=plaid_account_id,wallet_id,wallet_uuid`);
     const accs = accsR.ok ? await accsR.json() : [];
     if (!accs.length) continue;
     const balR = await fetch(`${plaidBaseUrl()}/accounts/balance/get`, {
@@ -56,8 +56,8 @@ async function syncUser(userId, clientId, secret) {
     for (const acc of accs) {
       const plaidAcc = balData.accounts?.find(a => a.account_id === acc.plaid_account_id);
       const balance = plaidAcc ? (plaidAcc.balances?.current || 0) : 0;
-      await saveToTracker(userId, acc.wallet_id, balance);
-      results.push({ wallet: acc.wallet_id, balance });
+      const result = await saveToTracker(userId, acc.wallet_id, balance, acc.wallet_uuid || null);
+      results.push({ wallet: acc.wallet_id, balance, action: result?.action });
     }
   }
   return results;
