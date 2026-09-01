@@ -18,19 +18,19 @@ async function saveToTracker(userId, walletId, balance, walletUuid = null) {
   const today = new Date().toISOString().split('T')[0];
   if (walletId === '401k') {
     /* Check last recorded balance — only save if value changed */
-    const lastR = await supa(`tracker_entries?user_id=eq.${userId}&order=date.desc&select=balance,date&limit=1`);
+    const lastR = await supa(`tracker_entries?user_id=eq.${userId}&order=entry_date.desc&select=balance,date&limit=1`);
     const lastRows = lastR.ok ? await lastR.json() : [];
     const lastBalance = lastRows.length ? parseFloat(lastRows[0].balance) : null;
     if (lastBalance !== null && Math.abs(lastBalance - balance) < 0.01) {
       return { wallet: walletId, action: 'skipped', reason: 'no change', balance, lastBalance };
     }
-    const ex = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}&select=id&limit=1`);
+    const ex = await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
-      const r = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
+      const r = await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
       return { wallet: walletId, action: 'updated', balance, ok: r.ok };
     } else {
-      const r = await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, date: today, balance }) });
+      const r = await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, entry_date: today, balance }) });
       return { wallet: walletId, action: 'created', balance, ok: r.ok };
     }
   } else if (walletId) {
