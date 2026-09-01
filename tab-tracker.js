@@ -482,7 +482,34 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K'))
+        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K')),
+        h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
+          h('button', {
+            style: Object.assign({}, S.smallAddBtn, {
+              width: '100%', justifyContent: 'center',
+              color: syncingPlaid ? '#9CA3AF' : '#00FFD1',
+              borderColor: syncingPlaid ? '#1F2937' : '#00AA8A',
+              opacity: syncingPlaid ? 0.6 : 1
+            }),
+            disabled: syncingPlaid,
+            onClick: function() {
+              var uid = window.currentUserId ? window.currentUserId() : null;
+              if (!uid) return;
+              setSyncingPlaid(true);
+              fetch('/api/plaid-cron?action=sync-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: uid })
+              }).then(function(r){ return r.json(); })
+                .then(function(d){
+                  setSyncingPlaid(false);
+                  if (d.error) { console.error(d.error); return; }
+                  SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
+                  SupabaseAPI.fetchWallets().then(function(w){ setWallets(w||[]); }).catch(function(){});
+                }).catch(function(){ setSyncingPlaid(false); });
+            }
+          }, syncingPlaid ? '↻ SINCRONIZANDO...' : '↻ SYNC CONTAS PLAID')
+        )
       ),
 
       h('div', { style: S.gaugeCard },
@@ -529,34 +556,7 @@
             h(Icon, { name: 'chevron', size: 16 })
           ) : null
         ),
-        h('div', { style: { marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-          h('button', {
-            style: Object.assign({}, S.smallAddBtn, { opacity: syncingPlaid ? 0.6 : 1, color: '#5EEAD4', borderColor: '#134E4A' }),
-            disabled: syncingPlaid,
-            onClick: function() {
-              var uid = window.currentUserId ? window.currentUserId() : null;
-              if (!uid) return;
-              /* Check if already has reading today */
-              var today = new Date().toISOString().split('T')[0];
-              var hasToday = entries.some(function(e){ return e.date && e.date.startsWith(today); });
-              var msg = hasToday
-                ? 'Já existe uma leitura hoje. Atualizar o saldo com o Plaid?'
-                : 'Sincronizar saldo Plaid e salvar leitura de hoje?';
-              if (!window.confirm || window.confirm(msg)) {
-                setSyncingPlaid(true);
-                fetch('/api/plaid-cron?action=sync-user', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ userId: uid })
-                }).then(function(r){ return r.json(); })
-                  .then(function(d){
-                    setSyncingPlaid(false);
-                    if (d.error) { console.error(d.error); return; }
-                    SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
-                  }).catch(function(){ setSyncingPlaid(false); });
-              }
-            }
-          }, syncingPlaid ? '↻ SYNC...' : '↻ SYNC PLAID'),
+        h('div', { style: { marginBottom: 8, display: 'flex', justifyContent: 'flex-end' } },
           h('button', {
             style: showForm
               ? Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' })
