@@ -115,7 +115,16 @@
       }).then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(e){ return { error: 'Resposta inválida do servidor: ' + t.slice(0,100) }; } }); })
         .then(function(d){
           setLoadingId(null);
-          if (d.error) { alert('Erro: ' + d.error); return; }
+          if (d.error) {
+            /* Check if it's a credential/reauth error */
+            var isReauth = d.error && (d.error.indexOf('login') !== -1 || d.error.indexOf('credentials') !== -1 || d.error.indexOf('ITEM_LOGIN_REQUIRED') !== -1);
+            var updated2 = accounts.map(function(a){
+              if (a.id !== id) return a;
+              return Object.assign({}, a, { needsReauth: isReauth, lastMsg: '⚠ ' + (isReauth ? 'Reautenticação necessária' : d.error), lastSynced: new Date().toISOString() });
+            });
+            save(updated2);
+            return;
+          }
           var result = d.result || {};
           var msg = result.action === 'created'
             ? '✓ Leitura criada: ' + formatUSD(d.balance)
@@ -162,6 +171,37 @@
       document.head.appendChild(s);
     }
 
+    function reauthAccount(id) {
+      var acc = accounts.find(function(a){ return a.id === id; });
+      if (!acc || !userId) return;
+      setLoadingId(id);
+      loadPlaidScript(function() {
+        /* Get update mode link token using the existing access token */
+        fetch('/api/plaid-wallet?action=reauth-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, itemId: acc.plaidItemId })
+        }).then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(e){ return {}; } }); })
+          .then(function(data) {
+            if (!data.link_token) { setLoadingId(null); alert('Erro: ' + (data.error || 'sem link_token')); return; }
+            var handler = window.Plaid.create({
+              token: data.link_token,
+              onSuccess: function() {
+                setLoadingId(null);
+                /* Clear needsReauth flag */
+                var updated = accounts.map(function(a){
+                  if (a.id !== id) return a;
+                  return Object.assign({}, a, { needsReauth: false, lastMsg: '✓ Reautenticado com sucesso', lastSynced: new Date().toISOString() });
+                });
+                save(updated);
+              },
+              onExit: function(e){ setLoadingId(null); if (e) alert(e.display_message || ''); }
+            });
+            handler.open();
+          }).catch(function(e){ setLoadingId(null); alert(e.message); });
+      });
+    }
+
     function connectAccount(id) {
       confirm('Conectar "' + (accounts.find(function(a){return a.id===id;})||{}).name + '" via Plaid?', function() {
         setLoadingId(id);
@@ -181,7 +221,16 @@
                   }).then(function(r){ return r.json(); })
                     .then(function(d) {
                       setLoadingId(null);
-                      if (d.error) { alert('Erro: ' + d.error); return; }
+                      if (d.error) {
+            /* Check if it's a credential/reauth error */
+            var isReauth = d.error && (d.error.indexOf('login') !== -1 || d.error.indexOf('credentials') !== -1 || d.error.indexOf('ITEM_LOGIN_REQUIRED') !== -1);
+            var updated2 = accounts.map(function(a){
+              if (a.id !== id) return a;
+              return Object.assign({}, a, { needsReauth: isReauth, lastMsg: '⚠ ' + (isReauth ? 'Reautenticação necessária' : d.error), lastSynced: new Date().toISOString() });
+            });
+            save(updated2);
+            return;
+          }
                       /* Update account with plaid data */
                       var updated = accounts.map(function(a) {
                         if (a.id !== id) return a;
@@ -280,8 +329,15 @@
 
           /* Buttons row — habilitados apenas na sequência correta */
           h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 } },
+            /* REAUTENTICAR — aparece quando credencial expirou */
+            acc.needsReauth ? h('button', {
+              style: Object.assign({}, S.smallAddBtn, { color: '#FFD700', borderColor: '#B8860B', opacity: isLoading ? 0.6 : 1 }),
+              disabled: isLoading,
+              onClick: function(){ reauthAccount(acc.id); }
+            }, isLoading ? 'ABRINDO...' : '⚠ REAUTENTICAR') : null,
+
             /* CONECTAR — só habilitado em pending */
-            h('button', {
+            !acc.needsReauth ? h('button', {
               style: Object.assign({}, S.smallAddBtn, {
                 color: acc.status === 'pending' ? '#FF4444' : '#00FF88',
                 borderColor: acc.status === 'pending' ? '#7F1D1D' : '#00AA55',
@@ -290,7 +346,7 @@
               }),
               disabled: isLoading || acc.status !== 'pending',
               onClick: function(){ if (acc.status === 'pending') connectAccount(acc.id); }
-            }, isLoading ? 'ABRINDO...' : acc.status === 'pending' ? 'CONECTAR' : '✓ CONECTADO'),
+            }, isLoading ? 'ABRINDO...' : acc.status === 'pending' ? 'CONECTAR' : '✓ CONECTADO') : null,
 
             /* ASSOCIAR — só habilitado em connected */
             h('button', {
