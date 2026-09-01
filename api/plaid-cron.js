@@ -24,12 +24,16 @@ async function saveToTracker(userId, walletId, balance) {
       await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, date: today, balance }) });
     }
   } else if (walletId) {
-    const ex = await supa(`wallet_entries?user_id=eq.${userId}&wallet_name=eq.${walletId}&date=eq.${today}&select=id&limit=1`);
+    const walletR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id&limit=1`);
+    const walletRows = walletR.ok ? await walletR.json() : [];
+    if (!walletRows.length) return;
+    const wId = walletRows[0].id;
+    const ex = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
-      await supa(`wallet_entries?user_id=eq.${userId}&wallet_name=eq.${walletId}&date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
+      await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
     } else {
-      await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, wallet_name: walletId, date: today, balance }) });
+      await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance, user_id: userId }) });
     }
   }
 }
