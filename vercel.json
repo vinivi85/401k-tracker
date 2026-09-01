@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/plaid-cron-sync",
+      "path": "/api/plaid-cron",
       "schedule": "0 14 * * *"
     }
   ]
