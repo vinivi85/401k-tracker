@@ -352,7 +352,18 @@
         Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()]).then(function(results){
           setWallets(results[0] || []);
         }).catch(function(){});
-        SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
+        Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
+                    .then(function(results) {
+                      var allWallets = results[0] || [];
+                      var allEntries = results[1] || [];
+                      var fw = allWallets.find(function(w){ return w.name === 'Fidelity 401k - AA'; });
+                      if (fw) {
+                        var fe = allEntries.filter(function(e){ return e.walletId === fw.id; })
+                          .map(function(e){ return { id: e.id, date: e.date, balance: e.balance }; });
+                        setEntries(fe);
+                        saveJSON(KEY_ENTRIES, fe);
+                      }
+                    }).catch(function(){});
       }
       window.addEventListener('plaid-sync-done', onPlaidSync);
 
@@ -432,8 +443,12 @@
       var bal = parseFloat(newBalance);
       if (!newBalance || isNaN(bal)) { setError('Informe um saldo válido.'); return; }
 
-      SupabaseAPI.insertTrackerEntry(newDate, bal).then(function (created) {
-        var next = entries.filter(function (e) { return e.date !== newDate; }).concat([created]);
+      /* Find Fidelity wallet and insert into wallet_entries */
+      var fidelityWallet = wallets.find(function(w){ return w.name === 'Fidelity 401k - AA'; });
+      if (!fidelityWallet) { setError('Conta Fidelity 401k - AA não encontrada.'); return; }
+      SupabaseAPI.insertWalletEntry(fidelityWallet.id, newDate, bal).then(function (created) {
+        var entry = { id: created.id, date: created.date, balance: created.balance };
+        var next = entries.filter(function (e) { return e.date !== newDate; }).concat([entry]);
         setEntries(next);
         saveJSON(KEY_ENTRIES, next);
         setNewDate('');
@@ -518,7 +533,18 @@
                   setSyncingPlaid(false);
                   setLastSync(new Date());
                   if (d.error) { console.error(d.error); return; }
-                  SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
+                  Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
+                    .then(function(results) {
+                      var allWallets = results[0] || [];
+                      var allEntries = results[1] || [];
+                      var fw = allWallets.find(function(w){ return w.name === 'Fidelity 401k - AA'; });
+                      if (fw) {
+                        var fe = allEntries.filter(function(e){ return e.walletId === fw.id; })
+                          .map(function(e){ return { id: e.id, date: e.date, balance: e.balance }; });
+                        setEntries(fe);
+                        saveJSON(KEY_ENTRIES, fe);
+                      }
+                    }).catch(function(){});
                   Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
                     .then(function(results){ setWallets(results[0]||[]); })
                     .catch(function(){});
