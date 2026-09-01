@@ -33,7 +33,7 @@ async function saveToTracker(userId, walletId, balance) {
     if (existing.length > 0) {
       await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
     } else {
-      await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance, user_id: userId }) });
+      await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance }) });
     }
   }
 }
