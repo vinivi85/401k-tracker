@@ -17,32 +17,37 @@ async function supa(path, opts = {}) {
 async function saveToTracker(userId, walletId, balance) {
   const today = new Date().toISOString().split('T')[0];
   if (walletId === '401k') {
-    /* Save to tracker_entries */
     const ex = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
-      await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
+      const r = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
+      return { wallet: walletId, action: 'updated', balance, ok: r.ok };
     } else {
-      await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, date: today, balance }) });
+      const r = await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, date: today, balance }) });
+      return { wallet: walletId, action: 'created', balance, ok: r.ok };
     }
   } else if (walletId) {
-    /* Look up wallet UUID by name first */
-    const walletR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id&limit=1`);
+    /* Look up wallet UUID by name */
+    const walletR = await supa(`wallets?user_id=eq.${userId}&name=eq.${encodeURIComponent(walletId)}&select=id,name&limit=1`);
     const walletRows = walletR.ok ? await walletR.json() : [];
+    console.log('Wallet lookup:', walletId, '→', JSON.stringify(walletRows));
     if (!walletRows.length) {
-      console.error('Wallet not found:', walletId);
-      return;
+      return { wallet: walletId, action: 'error', error: 'Wallet not found in DB: ' + walletId, balance };
     }
     const wId = walletRows[0].id;
-    /* Upsert wallet_entries using wallet_id UUID and entry_date */
     const ex = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
     if (existing.length > 0) {
-      await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
+      const r = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance }) });
+      return { wallet: walletId, action: 'updated', balance, ok: r.ok };
     } else {
-      await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance, user_id: userId }) });
+      const r = await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance, user_id: userId }) });
+      const saved = r.ok ? await r.json() : [];
+      console.log('wallet_entries insert:', r.status, JSON.stringify(saved));
+      return { wallet: walletId, action: 'created', balance, ok: r.ok };
     }
   }
+  return { wallet: walletId, action: 'skipped', balance };
 }
 
 export default async function handler(req, res) {
@@ -144,8 +149,8 @@ export default async function handler(req, res) {
       const acc = plaidAccountId ? accounts.find(a => a.account_id === plaidAccountId) : null;
       const balance = acc ? (acc.balances?.current || 0) : accounts.reduce((s,a)=>s+(a.balances?.current||0),0);
 
-      await saveToTracker(userId, walletId, balance);
-      res.status(200).json({ ok: true, balance });
+      const result = await saveToTracker(userId, walletId, balance);
+      res.status(200).json({ ok: true, balance, result });
 
     } else if (action === 'sync-all') {
       const { userId } = req.body;
