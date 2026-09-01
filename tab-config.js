@@ -47,6 +47,8 @@
     var trackerAccounts = [{ id: '401k', label: '401K Fidelity' }].concat(
       funds.map(function(f){ return { id: f.name, label: f.name }; })
     );
+    /* Debug: log to verify funds are loaded */
+    if (funds.length === 0) console.warn('ConnectAccounts: no funds loaded from cfg');
 
     /* accounts stored in user_configs as plaidAccounts array */
     var accountsState = React.useState(props.savedAccounts || []);
@@ -210,7 +212,7 @@
     }
 
     var statusDot = function(status) {
-      var color = status === 'associated' ? '#4ADE80' : status === 'connected' ? '#FCD34D' : '#FB7185';
+      var color = status === 'associated' ? '#00FF88' : status === 'connected' ? '#FFD700' : '#FF4444';
       return h('span', { style: { display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, marginRight: 6, flexShrink: 0 } });
     };
 
@@ -234,15 +236,16 @@
       accounts.map(function(acc) {
         var isLoading = loadingId === acc.id;
         var isAssociating = associatingId === acc.id;
-        return h('div', { key: acc.id, style: { background: '#111827', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid ' + (acc.status === 'associated' ? '#14532D' : acc.status === 'connected' ? '#422006' : '#1F2937') } },
+        return h('div', { key: acc.id, style: { background: '#111827', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid ' + (acc.status === 'associated' ? '#00FF88' : acc.status === 'connected' ? '#FFD700' : '#374151') } },
           /* Header */
           h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: acc.status !== 'pending' ? 8 : 0 } },
             h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
               statusDot(acc.status),
               h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#F9FAFB', fontWeight: 600 } }, acc.name),
               (acc.status === 'connected' || acc.status === 'associated') ? h('span', {
-                style: { marginLeft: 'auto', fontFamily: 'sans-serif', fontSize: 8, fontWeight: 700,
-                  color: '#1A1A2E', background: '#000', padding: '2px 6px', borderRadius: 4, letterSpacing: 0.5 }
+                style: { marginLeft: 'auto', fontFamily: "'Inter', sans-serif", fontSize: 9, fontWeight: 800,
+                  color: '#FFFFFF', background: '#000000', padding: '3px 8px', borderRadius: 6,
+                  letterSpacing: 0.5, border: '1px solid #333' }
               }, 'plaid') : null
             ),
             h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: function(){ deleteAccount(acc.id); } },
@@ -260,8 +263,8 @@
             /* CONECTAR — só habilitado em pending */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
-                color: acc.status === 'pending' ? '#FB7185' : '#4ADE80',
-                borderColor: acc.status === 'pending' ? '#7F1D1D' : '#14532D',
+                color: acc.status === 'pending' ? '#FF4444' : '#00FF88',
+                borderColor: acc.status === 'pending' ? '#7F1D1D' : '#00AA55',
                 opacity: (isLoading || acc.status !== 'pending') ? 0.4 : 1,
                 cursor: acc.status !== 'pending' ? 'default' : 'pointer'
               }),
@@ -272,8 +275,8 @@
             /* ASSOCIAR — só habilitado em connected */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
-                color: acc.status === 'associated' ? '#4ADE80' : acc.status === 'connected' ? '#FCD34D' : '#4B5563',
-                borderColor: acc.status === 'associated' ? '#14532D' : acc.status === 'connected' ? '#78350F' : '#1F2937',
+                color: acc.status === 'associated' ? '#00FF88' : acc.status === 'connected' ? '#FFD700' : '#4B5563',
+                borderColor: acc.status === 'associated' ? '#00AA55' : acc.status === 'connected' ? '#B8860B' : '#1F2937',
                 opacity: acc.status === 'connected' ? 1 : 0.4,
                 cursor: acc.status === 'connected' ? 'pointer' : 'default'
               }),
@@ -284,8 +287,8 @@
             /* DESCONECTAR — só habilitado em associated */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
-                color: acc.status === 'associated' ? '#FB7185' : '#4B5563',
-                borderColor: acc.status === 'associated' ? '#7F1D1D' : '#1F2937',
+                color: acc.status === 'associated' ? '#FF4444' : '#4B5563',
+                borderColor: acc.status === 'associated' ? '#CC0000' : '#1F2937',
                 opacity: acc.status === 'associated' ? 1 : 0.4,
                 cursor: acc.status === 'associated' ? 'pointer' : 'default'
               }),
@@ -296,8 +299,8 @@
             /* SYNC — só habilitado em associated */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
-                color: acc.status === 'associated' ? '#5EEAD4' : '#4B5563',
-                borderColor: acc.status === 'associated' ? '#134E4A' : '#1F2937',
+                color: acc.status === 'associated' ? '#00FFD1' : '#4B5563',
+                borderColor: acc.status === 'associated' ? '#00AA8A' : '#1F2937',
                 opacity: (acc.status === 'associated' && loadingId !== acc.id) ? 1 : 0.4,
                 cursor: acc.status === 'associated' ? 'pointer' : 'default'
               }),
@@ -340,6 +343,9 @@
             ) : null,
             /* Tracker accounts */
             h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'ASSOCIAR A:'),
+            trackerAccounts.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FB7185', padding: '6px 0' } },
+              'Nenhuma carteira encontrada. Verifique a seção FUNDOS no CONFIG.'
+            ) : null,
             trackerAccounts.map(function(ta) {
               return h('button', {
                 key: ta.id,
@@ -839,6 +845,7 @@
       /* ---- CONECTAR CONTAS ---- */
       h(Section, { title: 'CONECTAR CONTAS', defaultOpen: false },
         h(ConnectAccountsSection, {
+          key: 'connect-' + (cfg.funds || []).length,
           userId: window.currentUserId ? window.currentUserId() : null,
           savedAccounts: cfg.plaidAccounts || [],
           funds: cfg.funds || [],
