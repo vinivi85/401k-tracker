@@ -343,6 +343,15 @@
 
     React.useEffect(function () {
       var cancelled = false;
+      /* Listen for sync events from CONFIG */
+      function onPlaidSync() {
+        Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()]).then(function(results){
+          setWallets(results[0] || []);
+        }).catch(function(){});
+        SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
+      }
+      window.addEventListener('plaid-sync-done', onPlaidSync);
+
       Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()]).then(function (results) {
         if (cancelled) return;
         var remoteWallets = results[0], remoteEntries = results[1];
@@ -505,7 +514,9 @@
                   setSyncingPlaid(false);
                   if (d.error) { console.error(d.error); return; }
                   SupabaseAPI.fetchTrackerEntries().then(function(e){ setEntries(e||[]); }).catch(function(){});
-                  SupabaseAPI.fetchWallets().then(function(w){ setWallets(w||[]); }).catch(function(){});
+                  Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
+                    .then(function(results){ setWallets(results[0]||[]); })
+                    .catch(function(){});
                 }).catch(function(){ setSyncingPlaid(false); });
             }
           }, syncingPlaid ? '↻ SINCRONIZANDO...' : '↻ SYNC CONTAS PLAID')
