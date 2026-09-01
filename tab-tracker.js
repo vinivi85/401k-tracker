@@ -541,7 +541,7 @@
                 : 'Sincronizar saldo Plaid e salvar leitura de hoje?';
               if (!window.confirm || window.confirm(msg)) {
                 setSyncingPlaid(true);
-                fetch('/api/plaid-cron-sync-user', {
+                fetch('/api/plaid-cron?action=sync-user', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ userId: uid })
