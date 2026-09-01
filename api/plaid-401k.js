@@ -56,10 +56,10 @@ async function exchange(public_token, institution_name, userId) {
       last_synced_at: new Date().toISOString() })
   });
 
-  const ex = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}&select=id&limit=1`);
+  const ex = await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}&select=id&limit=1`);
   const existing = ex.ok ? await ex.json() : [];
   if (existing.length > 0) {
-    await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance: total }) });
+    await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance: total }) });
   } else if (total > 0) {
     await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, date: today, balance: total }) });
   }
@@ -88,10 +88,10 @@ async function syncBalance(userId) {
     body: JSON.stringify({ current_balance: total, last_synced_at: new Date().toISOString() })
   });
 
-  const ex = await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}&select=id&limit=1`);
+  const ex = await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}&select=id&limit=1`);
   const existing = ex.ok ? await ex.json() : [];
   if (existing.length > 0) {
-    await supa(`tracker_entries?user_id=eq.${userId}&date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance: total }) });
+    await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance: total }) });
   } else {
     await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, date: today, balance: total }) });
   }
