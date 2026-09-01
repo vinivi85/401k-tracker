@@ -121,6 +121,8 @@
             ? '✓ Leitura criada: ' + formatUSD(d.balance)
             : result.action === 'updated'
             ? '✓ Leitura atualizada: ' + formatUSD(d.balance)
+            : result.action === 'skipped'
+            ? '— Sem alteração: ' + formatUSD(d.balance)
             : result.action === 'error'
             ? '⚠ ' + result.error
             : '✓ Sync: ' + formatUSD(d.balance);
