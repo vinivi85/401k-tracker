@@ -116,10 +116,17 @@
         .then(function(d){
           setLoadingId(null);
           if (d.error) { alert('Erro: ' + d.error); return; }
-          /* Update balance in account state */
+          var result = d.result || {};
+          var msg = result.action === 'created'
+            ? '✓ Leitura criada: ' + formatUSD(d.balance)
+            : result.action === 'updated'
+            ? '✓ Leitura atualizada: ' + formatUSD(d.balance)
+            : result.action === 'error'
+            ? '⚠ ' + result.error
+            : '✓ Sync: ' + formatUSD(d.balance);
           var updated = accounts.map(function(a){
             if (a.id !== id) return a;
-            return Object.assign({}, a, { lastBalance: d.balance, lastSynced: new Date().toISOString() });
+            return Object.assign({}, a, { lastBalance: d.balance, lastSynced: new Date().toISOString(), lastMsg: msg });
           });
           save(updated);
         }).catch(function(e){ setLoadingId(null); alert(e.message); });
@@ -320,8 +327,7 @@
 
           /* Last sync info */
           acc.status === 'associated' && acc.lastSynced ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 6, padding: '4px 8px', background: '#0F2D2A', borderRadius: 6 } },
-            '↻ ' + new Date(acc.lastSynced).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) +
-            (acc.lastBalance !== undefined ? ' · ' + formatUSD(acc.lastBalance) : '')
+            (acc.lastMsg || ('↻ ' + formatUSD(acc.lastBalance))) + ' · ' + new Date(acc.lastSynced).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
           ) : null,
 
           /* Association panel */
