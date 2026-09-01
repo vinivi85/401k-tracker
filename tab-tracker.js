@@ -46,10 +46,6 @@
     var editing = editingState[0], setEditing = editingState[1];
     var editNameState = React.useState(wallet.name);
     var editName = editNameState[0], setEditName = editNameState[1];
-    var syncingPlaidState = React.useState(false);
-    var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
-    var lastSyncState = React.useState(null);
-    var lastSync = lastSyncState[0], setLastSync = lastSyncState[1];
 
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
