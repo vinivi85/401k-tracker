@@ -240,12 +240,12 @@
 
     return h(React.Fragment, null,
       h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS'),
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS DE INVESTIMENTO'),
         h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1 } }, syncBadge)
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS'),
+        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE INVESTIMENTO'),
         h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
         h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA')
       ),
@@ -263,7 +263,7 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA'),
+          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA DE INVESTIMENTO'),
           h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'ADICIONAR'
@@ -271,11 +271,11 @@
         ),
         showForm ? h('div', { style: S.formBox },
           h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'NOME (EX: ROBINHOOD, CRYPTO.COM)'),
+            h('label', { style: S.formLabel }, 'NOME (EX: ROBINHOOD, MARCUS)'),
             h('input', { type: 'text', placeholder: 'Robinhood', value: newName, style: S.input, onChange: function (ev) { setNewName(ev.target.value); } })
           ),
           error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR CARTEIRA')
+          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR CARTEIRA DE INVESTIMENTO')
         ) : null
       )
     );
