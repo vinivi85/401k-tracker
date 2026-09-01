@@ -79,7 +79,7 @@
       if (!acc) return;
       confirm('Desconectar "' + acc.name + '" do Plaid e remover associação?', function() {
         if (acc.plaidItemId && userId) {
-          fetch('/api/plaid-wallet-disconnect', {
+          fetch('/api/plaid-wallet?action=disconnect', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ itemId: acc.plaidItemId, userId: userId })
           }).catch(function(){});
@@ -97,7 +97,7 @@
       var acc = accounts.find(function(a){ return a.id === id; });
       if (!acc || !userId) return;
       setLoadingId(id);
-      fetch('/api/plaid-wallet-sync-one', {
+      fetch('/api/plaid-wallet?action=sync-one', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userId, itemId: acc.plaidItemId, walletId: acc.walletId, plaidAccountId: acc.plaidAccountId })
@@ -122,7 +122,7 @@
       confirm(msg, function() {
         /* If connected, disconnect from Plaid */
         if (acc.plaidItemId && userId) {
-          fetch('/api/plaid-wallet-disconnect', {
+          fetch('/api/plaid-wallet?action=disconnect', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ itemId: acc.plaidItemId, userId: userId })
           }).catch(function(){});
@@ -144,7 +144,7 @@
       confirm('Conectar "' + (accounts.find(function(a){return a.id===id;})||{}).name + '" via Plaid?', function() {
         setLoadingId(id);
         loadPlaidScript(function() {
-          fetch('/api/plaid-wallet-link-token', {
+          fetch('/api/plaid-wallet?action=link-token', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: userId })
           }).then(function(r){ return r.json(); })
@@ -153,7 +153,7 @@
               var handler = window.Plaid.create({
                 token: data.link_token,
                 onSuccess: function(public_token, meta) {
-                  fetch('/api/plaid-wallet-exchange', {
+                  fetch('/api/plaid-wallet?action=exchange', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ public_token: public_token, institution_name: meta.institution ? meta.institution.name : null, userId: userId })
                   }).then(function(r){ return r.json(); })
@@ -200,7 +200,7 @@
           if (existing && a.id === existing.id) return Object.assign({}, a, { status: 'connected', walletId: null, plaidAccountId: null });
           return a;
         });
-        fetch('/api/plaid-wallet-assign', {
+        fetch('/api/plaid-wallet?action=assign', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId })
         }).catch(function(){});
