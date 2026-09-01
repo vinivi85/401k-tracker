@@ -78,25 +78,11 @@
       setConfirmDialog({ msg: msg, onOk: onOk });
     }
 
-    /* Load tracker wallets for import */
-    var trackerWalletsState = React.useState([]);
-    var trackerWallets = trackerWalletsState[0], setTrackerWallets = trackerWalletsState[1];
-    var showImportState = React.useState(false);
-    var showImport = showImportState[0], setShowImport = showImportState[1];
-
-    React.useEffect(function() {
-      if (!userId) return;
-      SupabaseAPI.fetchWallets().then(function(w){ setTrackerWallets(w||[]); }).catch(function(){});
-    }, [userId]);
-
-    function importAccount(wallet) {
-      /* Check if already imported */
-      var already = accounts.find(function(a){ return a.walletId === wallet.id || a.name === wallet.name; });
-      if (already) { alert('"' + wallet.name + '" já foi importada.'); return; }
-      var newAcc = { id: Date.now().toString(), name: wallet.name, status: 'pending',
-        plaidItemId: null, plaidAccounts: [], walletId: wallet.id, plaidAccountId: null, trackerWalletId: wallet.id };
+    function addAccount() {
+      var name = window.prompt ? window.prompt('Nome da conta (ex: Fidelity 401K, Robinhood):') : 'Nova Conta';
+      if (!name || !name.trim()) return;
+      var newAcc = { id: Date.now().toString(), name: name.trim(), status: 'pending', plaidItemId: null, plaidAccounts: [], walletId: null, plaidAccountId: null };
       save(accounts.concat([newAcc]));
-      setShowImport(false);
     }
 
     function disconnectAccount(id) {
@@ -431,7 +417,7 @@
               })
             ) : null,
             /* Tracker accounts */
-            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'CONFIRMAR CONTA PLAID → TRACKER:'),
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'ASSOCIAR A:'),
             trackerAccounts.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FB7185', padding: '6px 0' } },
               'Nenhuma carteira encontrada. Verifique a seção FUNDOS no CONFIG.'
             ) : null,
@@ -456,34 +442,8 @@
       }),
 
       /* Add account button */
-      showImport ? h('div', { style: { marginTop: 8, background: '#111827', borderRadius: 10, padding: 12, border: '1px solid #1F2937' } },
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
-          'Selecione uma conta do Tracker para importar:'
-        ),
-        trackerWallets.filter(function(w){
-          return !accounts.find(function(a){ return a.walletId === w.id || a.name === w.name; });
-        }).map(function(w) {
-          return h('button', {
-            key: w.id,
-            style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', marginBottom: 6,
-              borderRadius: 8, border: '1px solid #1F2937', background: '#0D1117', cursor: 'pointer',
-              fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB' },
-            onClick: function(){ importAccount(w); }
-          },
-            h('span', { style: { color: w.category === 'retirement' ? '#5EEAD4' : '#9CA3AF', marginRight: 6 } },
-              w.category === 'retirement' ? '◆' : '◇'
-            ),
-            w.name
-          );
-        }),
-        trackerWallets.filter(function(w){
-          return !accounts.find(function(a){ return a.walletId === w.id || a.name === w.name; });
-        }).length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } },
-          'Todas as contas do Tracker já foram importadas.'
-        ) : null,
-        h('button', { style: Object.assign({}, S.ghostBtn, { width: '100%', marginTop: 4 }), onClick: function(){ setShowImport(false); } }, 'CANCELAR')
-      ) : h('button', { style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center', marginTop: 4 }), onClick: function(){ setShowImport(true); } },
-        h(Icon, { name: 'plus', size: 14 }), 'IMPORTAR CONTA'
+      h('button', { style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center', marginTop: 4 }), onClick: addAccount },
+        h(Icon, { name: 'plus', size: 14 }), 'INCLUIR CONTA'
       )
     );
   }
