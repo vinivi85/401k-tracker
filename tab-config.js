@@ -93,6 +93,27 @@
       });
     }
 
+    function syncAccount(id) {
+      var acc = accounts.find(function(a){ return a.id === id; });
+      if (!acc || !userId) return;
+      setLoadingId(id);
+      fetch('/api/plaid-wallet-sync-one', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, itemId: acc.plaidItemId, walletId: acc.walletId, plaidAccountId: acc.plaidAccountId })
+      }).then(function(r){ return r.json(); })
+        .then(function(d){
+          setLoadingId(null);
+          if (d.error) { alert('Erro: ' + d.error); return; }
+          /* Update balance in account state */
+          var updated = accounts.map(function(a){
+            if (a.id !== id) return a;
+            return Object.assign({}, a, { lastBalance: d.balance, lastSynced: new Date().toISOString() });
+          });
+          save(updated);
+        }).catch(function(e){ setLoadingId(null); alert(e.message); });
+    }
+
     function deleteAccount(id) {
       var acc = accounts.find(function(a){ return a.id === id; });
       if (!acc) return;
@@ -270,8 +291,26 @@
               }),
               disabled: acc.status !== 'associated',
               onClick: function(){ if (acc.status === 'associated') disconnectAccount(acc.id); }
-            }, 'DESCONECTAR')
+            }, 'DESCONECTAR'),
+
+            /* SYNC — só habilitado em associated */
+            h('button', {
+              style: Object.assign({}, S.smallAddBtn, {
+                color: acc.status === 'associated' ? '#5EEAD4' : '#4B5563',
+                borderColor: acc.status === 'associated' ? '#134E4A' : '#1F2937',
+                opacity: (acc.status === 'associated' && loadingId !== acc.id) ? 1 : 0.4,
+                cursor: acc.status === 'associated' ? 'pointer' : 'default'
+              }),
+              disabled: acc.status !== 'associated' || loadingId === acc.id,
+              onClick: function(){ if (acc.status === 'associated') syncAccount(acc.id); }
+            }, loadingId === acc.id ? '...' : '↻ SYNC')
           ),
+
+          /* Last sync info */
+          acc.status === 'associated' && acc.lastSynced ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#6B7280', marginTop: 4 } },
+            'Último sync: ' + new Date(acc.lastSynced).toLocaleString('pt-BR') +
+            (acc.lastBalance !== undefined ? ' · ' + formatUSD(acc.lastBalance) : '')
+          ) : null,
 
           /* Association panel */
           isAssociating ? h('div', { style: { marginTop: 10, borderTop: '1px solid #1F2937', paddingTop: 10 } },
