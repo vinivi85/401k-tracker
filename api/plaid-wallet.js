@@ -201,15 +201,24 @@ export default async function handler(req, res) {
     } else if (action === 'disconnect') {
       const { itemId, userId } = req.body;
       if (itemId) {
-        const r = await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}&select=plaid_access_token&limit=1`);
-        const rows = r.ok ? await r.json() : [];
-        if (rows.length) {
-          await fetch(`${plaidBaseUrl()}/item/remove`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: clientId, secret, access_token: rows[0].plaid_access_token })
-          });
+        /* Try by plaid_item_id and by UUID */
+        let r = await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}&select=plaid_access_token,id&limit=1`);
+        let rows = r.ok ? await r.json() : [];
+        if (!rows.length) {
+          r = await supa(`plaid_wallet_connections?id=eq.${itemId}&select=plaid_access_token,id&limit=1`);
+          rows = r.ok ? await r.json() : [];
         }
-        await supa(`plaid_wallet_connections?plaid_item_id=eq.${itemId}`, { method: 'DELETE' });
+        if (rows.length) {
+          /* Remove from Plaid */
+          try {
+            await fetch(`${plaidBaseUrl()}/item/remove`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ client_id: clientId, secret, access_token: rows[0].plaid_access_token })
+            });
+          } catch(e) { console.error('Plaid item/remove error:', e.message); }
+          /* Delete from Supabase by id */
+          await supa(`plaid_wallet_connections?id=eq.${rows[0].id}`, { method: 'DELETE' });
+        }
       }
       res.status(200).json({ ok: true });
 
