@@ -220,7 +220,7 @@
         });
         fetch('/api/plaid-wallet?action=assign', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId })
+          body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId, userId: userId })
         }).catch(function(){});
         save(updated);
         setAssociatingId(null);
