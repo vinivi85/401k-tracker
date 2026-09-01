@@ -35,12 +35,6 @@
     var onAddEntry = props.onAddEntry;
     var onDeleteEntry = props.onDeleteEntry;
     var onDeleteWallet = props.onDeleteWallet;
-    var onRenameWallet = props.onRenameWallet;
-
-    var editingState = React.useState(false);
-    var editing = editingState[0], setEditing = editingState[1];
-    var editNameState = React.useState(wallet.name);
-    var editName = editNameState[0], setEditName = editNameState[1];
 
     var expandState = React.useState(false);
     var expanded = expandState[0], setExpanded = expandState[1];
@@ -133,33 +127,14 @@
 
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
           h('span', { style: S.cardSub }, 'HISTÓRICO'),
-          editing
-            ? h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
-                h('input', { type: 'text', value: editName, style: Object.assign({}, S.input, { fontSize: 10, padding: '3px 8px', flex: 1 }),
-                  onChange: function(ev){ setEditName(ev.target.value); },
-                  onClick: function(ev){ ev.stopPropagation(); }
-                }),
-                h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#00FF88', borderColor: '#00AA55' }),
-                  onClick: function(ev){ ev.stopPropagation();
-                    if (editName.trim() && onRenameWallet) onRenameWallet(wallet.id, editName.trim());
-                    setEditing(false);
-                  }
-                }, '✓'),
-                h('button', { style: S.smallAddBtn,
-                  onClick: function(ev){ ev.stopPropagation(); setEditing(false); setEditName(wallet.name); }
-                }, '✕')
-              )
-            : h('div', { style: { display: 'flex', gap: 6 } },
-                h('button', { style: S.smallAddBtn, onClick: function (ev) { ev.stopPropagation(); setShowForm(!showForm); } },
-                  h(Icon, { name: 'plus', size: 12 }), showForm ? 'CANCELAR' : 'LEITURA'
-                ),
-                h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#5EEAD4', borderColor: '#134E4A' }),
-                  onClick: function(ev){ ev.stopPropagation(); setEditName(wallet.name); setEditing(true); }
-                }, h(Icon, { name: 'pencil', size: 12 }), 'EDITAR'),
-                h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: function (ev) { ev.stopPropagation(); onDeleteWallet(wallet.id); } },
-                  h(Icon, { name: 'trash', size: 12 }), 'CONTA'
-                )
-              )
+          h('div', { style: { display: 'flex', gap: 6 } },
+            h('button', { style: S.smallAddBtn, onClick: function (ev) { ev.stopPropagation(); setShowForm(!showForm); } },
+              h(Icon, { name: 'plus', size: 12 }), showForm ? 'CANCELAR' : 'LEITURA'
+            ),
+            h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: function (ev) { ev.stopPropagation(); onDeleteWallet(wallet.id); } },
+              h(Icon, { name: 'trash', size: 12 }), 'CARTEIRA'
+            )
+          )
         ),
 
         showForm ? h('div', { style: S.formBox },
@@ -282,8 +257,7 @@
           entries: wc.entries,
           onAddEntry: handleAddEntry,
           onDeleteEntry: handleDeleteEntry,
-          onDeleteWallet: handleDeleteWallet,
-          onRenameWallet: handleRenameWallet
+          onDeleteWallet: handleDeleteWallet
         });
       }),
 
