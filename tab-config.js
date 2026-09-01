@@ -319,8 +319,8 @@
           ),
 
           /* Last sync info */
-          acc.status === 'associated' && acc.lastSynced ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: '#6B7280', marginTop: 4 } },
-            'Último sync: ' + new Date(acc.lastSynced).toLocaleString('pt-BR') +
+          acc.status === 'associated' && acc.lastSynced ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginTop: 6, padding: '4px 8px', background: '#0F2D2A', borderRadius: 6 } },
+            '↻ ' + new Date(acc.lastSynced).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) +
             (acc.lastBalance !== undefined ? ' · ' + formatUSD(acc.lastBalance) : '')
           ) : null,
 
