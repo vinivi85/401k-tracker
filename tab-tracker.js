@@ -31,15 +31,10 @@
 
   function WalletCard(props) {
     var wallet = props.wallet;
-    var entries = props.entries;
+    var entries = props.entries; // já filtradas para esta carteira, ordenadas asc
     var onAddEntry = props.onAddEntry;
     var onDeleteEntry = props.onDeleteEntry;
     var onDeleteWallet = props.onDeleteWallet;
-    var onRenameWallet = props.onRenameWallet;
-    var editingNameState = React.useState(false);
-    var editingName = editingNameState[0], setEditingName = editingNameState[1];
-    var editNameValState = React.useState(wallet.name);
-    var editNameVal = editNameValState[0], setEditNameVal = editNameValState[1];
 
     var expandState = React.useState(false);
     var expanded = expandState[0], setExpanded = expandState[1];
@@ -105,26 +100,11 @@
     });
 
     return h('div', { style: S.card },
-      h('div', { style: S.walletCardHeader, onClick: function () { if (!editingName) setExpanded(!expanded); } },
+      h('div', { style: S.walletCardHeader, onClick: function () { setExpanded(!expanded); } },
         h('div', { style: S.walletHeaderLeft },
           h(Icon, { name: 'wallet', size: 15, color: '#5EEAD4' }),
           h('div', null,
-            editingName
-              ? h('div', { style: { display: 'flex', gap: 6, alignItems: 'center' }, onClick: function(ev){ ev.stopPropagation(); } },
-                  h('input', { type: 'text', value: editNameVal, style: Object.assign({}, S.input, { fontSize: 11, padding: '2px 6px', width: 130 }),
-                    onChange: function(ev){ setEditNameVal(ev.target.value); }
-                  }),
-                  h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#5EEAD4', borderColor: '#134E4A' }),
-                    onClick: function(ev){ ev.stopPropagation(); onRenameWallet && onRenameWallet(wallet.id, editNameVal); setEditingName(false); }
-                  }, String.fromCharCode(10003)),
-                  h('button', { style: S.smallAddBtn,
-                    onClick: function(ev){ ev.stopPropagation(); setEditingName(false); }
-                  }, String.fromCharCode(10007))
-                )
-              : h('div', { style: Object.assign({}, S.walletName, { cursor: 'text' }),
-                  onClick: function(ev){ ev.stopPropagation(); setEditNameVal(wallet.name); setEditingName(true); } },
-                  wallet.name, h('span', { style: { fontSize: 9, color: '#6B7280', marginLeft: 4 } }, String.fromCharCode(9998))
-                ),
+            h('div', { style: S.walletName }, wallet.name),
             h('div', { style: S.walletMeta }, latest ? (formatDateLabel(latest.date) + ' · ' + entries.length + ' leitura' + (entries.length > 1 ? 's' : '')) : 'SEM LEITURAS')
           )
         ),
@@ -190,24 +170,6 @@
 
     var errState = React.useState('');
     var error = errState[0], setError = errState[1];
-
-    function handleAddRetirementWallet() {
-      var name = newRetirementName.trim();
-      if (!name) { setError('Informe um nome.'); return; }
-      setError('');
-      SupabaseAPI.insertWallet(name, 'retirement').then(function(w) {
-        setWallets(wallets.concat([w]));
-        setNewRetirementName('');
-        setShowRetirementForm(false);
-      }).catch(function(e){ setError('Erro: ' + e.message); });
-    }
-
-    function handleRenameWallet(id, newName) {
-      if (!newName || !newName.trim()) return;
-      SupabaseAPI.updateWallet(id, newName.trim()).then(function(w) {
-        setWallets(wallets.map(function(x){ return x.id === id ? w : x; }));
-      }).catch(function(e){ console.error('Rename failed:', e); });
-    }
 
     function handleAddWallet() {
       setError('');
@@ -277,46 +239,15 @@
     else syncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
 
     return h(React.Fragment, null,
-      /* ---- CONTAS DE APOSENTADORIA ---- */
       h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CONTAS DE APOSENTADORIA'),
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS'),
         h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1 } }, syncBadge)
       ),
 
-      retirementCards.map(function (wc) {
-        return h(WalletCard, {
-          key: wc.wallet.id,
-          wallet: wc.wallet,
-          entries: wc.entries,
-          onAddEntry: handleAddEntry,
-          onDeleteEntry: handleDeleteEntry,
-          onDeleteWallet: handleDeleteWallet,
-          onRenameWallet: handleRenameWallet
-        });
-      }),
-
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'NOVA CONTA DE APOSENTADORIA'),
-          h('button', { style: S.addBtn, onClick: function () { setShowRetirementForm(!showRetirementForm); } },
-            h(Icon, { name: 'plus', size: 14 }),
-            showRetirementForm ? 'CANCELAR' : 'ADICIONAR'
-          )
-        ),
-        showRetirementForm ? h('div', { style: S.formBox },
-          h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'NOME (EX: IRA, 401K ANTERIOR)'),
-            h('input', { type: 'text', placeholder: 'IRA - Fidelity', value: newRetirementName, style: S.input, onChange: function (ev) { setNewRetirementName(ev.target.value); } })
-          ),
-          error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAddRetirementWallet }, 'CRIAR CONTA')
-        ) : null
-      ),
-
-      /* ---- CARTEIRAS DE INVESTIMENTO ---- */
-      h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS DE INVESTIMENTO'),
-        h('span', null)
+      h('div', { style: S.gaugeCard },
+        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS'),
+        h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
+        h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA')
       ),
 
       walletCards.map(function (wc) {
@@ -326,14 +257,13 @@
           entries: wc.entries,
           onAddEntry: handleAddEntry,
           onDeleteEntry: handleDeleteEntry,
-          onDeleteWallet: handleDeleteWallet,
-          onRenameWallet: handleRenameWallet
+          onDeleteWallet: handleDeleteWallet
         });
       }),
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA DE INVESTIMENTO'),
+          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA'),
           h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'ADICIONAR'
@@ -485,28 +415,16 @@
       return { label: formatDateLabel(e.date), value: e.balance };
     });
 
-    /* ---------- Split wallets by category ---------- */
-    var retirementWallets = wallets.filter(function(w){ return w.category === 'retirement'; });
-    var investmentWallets = wallets.filter(function(w){ return w.category !== 'retirement'; });
-
-    var retirementTotal = 0;
-    var retirementCards = retirementWallets.map(function(w) {
-      var ownEntries = walletEntries.filter(function(e){ return e.walletId === w.id; })
-        .slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
-      if (ownEntries.length) retirementTotal += ownEntries[ownEntries.length - 1].balance;
-      return { wallet: w, entries: ownEntries };
-    });
-
-    var investmentTotal = 0;
-    var walletCards = investmentWallets.map(function (w) {
+    /* ---------- Total das carteiras (soma da leitura mais recente de cada) ---------- */
+    var walletsTotal = 0;
+    var walletCards = wallets.map(function (w) {
       var ownEntries = walletEntries.filter(function (e) { return e.walletId === w.id; })
         .slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
-      if (ownEntries.length) investmentTotal += ownEntries[ownEntries.length - 1].balance;
+      if (ownEntries.length) walletsTotal += ownEntries[ownEntries.length - 1].balance;
       return { wallet: w, entries: ownEntries };
     });
 
-    var walletsTotal = retirementTotal + investmentTotal;
-    var globalTotal = walletsTotal;
+    var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
 
     function handleAdd() {
       setError('');
@@ -577,7 +495,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTO ' + formatUSD(investmentTotal)),
+        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K')),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
@@ -614,9 +532,12 @@
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'CONTAS DE APOSENTADORIA'),
-        h('div', { style: S.gaugeValue }, formatUSD(retirementTotal)),
-        h('div', { style: S.gaugeDate }, retirementCards.length + ' conta' + (retirementCards.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA'),
+        h('div', { style: S.gaugeLabel }, 'SALDO ATUAL 401K'),
+        h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
+        h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
+        latest && (latest.updated_at || latest.created_at) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' } },
+          'SYNC: ' + new Date(latest.updated_at || latest.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        ) : null,
 
         h('div', { style: S.deltaRow },
           h('div', { style: S.deltaBox },
