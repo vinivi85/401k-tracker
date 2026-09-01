@@ -62,6 +62,28 @@
     /* accounts stored in user_configs as plaidAccounts array */
     var accountsState = React.useState(props.savedAccounts || []);
     var accounts = accountsState[0], setAccounts = accountsState[1];
+
+    /* Sync account names from tracker wallets */
+    React.useEffect(function() {
+      if (!wallets.length || !accounts.length) return;
+      var needsUpdate = false;
+      var synced = accounts.map(function(acc) {
+        if (!acc.walletId) return acc;
+        /* Find matching tracker wallet by ID or by name */
+        var trackerWallet = wallets.find(function(w) {
+          return w.id === acc.walletId || w.name === acc.walletId;
+        });
+        if (trackerWallet && trackerWallet.name !== acc.name) {
+          needsUpdate = true;
+          return Object.assign({}, acc, { name: trackerWallet.name });
+        }
+        return acc;
+      });
+      if (needsUpdate) {
+        setAccounts(synced);
+        props.onSave && props.onSave(synced);
+      }
+    }, [wallets]);
     var loadingState = React.useState(null); // id being loaded
     var loadingId = loadingState[0], setLoadingId = loadingState[1];
     var confirmState = React.useState(null); // {type, id, msg, onOk}
@@ -323,8 +345,8 @@
           ),
 
           /* Institution name if connected */
-          acc.institutionName ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
-            acc.institutionName + (acc.walletId ? ' → ' + acc.walletId : '')
+          (acc.institutionName || acc.walletId) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
+            (acc.institutionName || 'Plaid') + (acc.walletId ? h('span', { style: { color: '#5EEAD4' } }, ' → ' + acc.name) : '')
           ) : null,
 
           /* Buttons row — habilitados apenas na sequência correta */
