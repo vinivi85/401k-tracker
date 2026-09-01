@@ -836,17 +836,6 @@
         )
       ),
 
-      /* ---- RESET GERAL ---- */
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'RESTAURAR TUDO')),
-        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12 } },
-          'Volta todos os parâmetros para os valores padrão da AA (Shift 2, 2023+). Não afeta seus dados de pagamentos, leituras ou carteiras.'
-        ),
-        h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: resetAll },
-          h(Icon, { name: 'reset', size: 14 }), 'RESTAURAR PADRÕES'
-        )
-      ),
-
       /* ---- CONECTAR CONTAS ---- */
       h(Section, { title: 'CONECTAR CONTAS', defaultOpen: false },
         h(ConnectAccountsSection, {
@@ -857,6 +846,17 @@
             update('plaidAccounts', next);
           }
         })
+      ),
+
+      /* ---- RESET GERAL ---- */
+      h('div', { style: S.card },
+        h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'RESTAURAR TUDO')),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 12 } },
+          'Volta todos os parâmetros para os valores padrão da AA (Shift 2, 2023+). Não afeta seus dados de pagamentos, leituras ou carteiras.'
+        ),
+        h('button', { style: Object.assign({}, S.addBtn, { color: '#FB7185', borderColor: '#7F1D1D' }), onClick: resetAll },
+          h(Icon, { name: 'reset', size: 14 }), 'RESTAURAR PADRÕES'
+        )
       ),
 
       h('div', { style: S.footer }, 'PARÂMETROS SALVOS NA NUVEM · SINCRONIZADO ENTRE APARELHOS')
