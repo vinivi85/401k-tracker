@@ -93,7 +93,7 @@
           fetch('/api/plaid-wallet?action=disconnect', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ itemId: acc.plaidItemId, userId: userId })
-          }).catch(function(){});
+          }).then(function(r){ return r.text(); }).catch(function(){});
         }
         var updated = accounts.map(function(a) {
           if (a.id !== id) return a;
@@ -112,7 +112,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userId, itemId: acc.plaidItemId, walletId: acc.walletId, plaidAccountId: acc.plaidAccountId })
-      }).then(function(r){ return r.json(); })
+      }).then(function(r){ return r.text().then(function(t){ try{ return JSON.parse(t); }catch(e){ return { error: 'Resposta inválida do servidor: ' + t.slice(0,100) }; } }); })
         .then(function(d){
           setLoadingId(null);
           if (d.error) { alert('Erro: ' + d.error); return; }
@@ -145,7 +145,7 @@
           fetch('/api/plaid-wallet?action=disconnect', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ itemId: acc.plaidItemId, userId: userId })
-          }).catch(function(){});
+          }).then(function(r){ return r.text(); }).catch(function(){});
         }
         save(accounts.filter(function(a){ return a.id !== id; }));
       });
