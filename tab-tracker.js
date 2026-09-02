@@ -129,21 +129,25 @@
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
           h('span', { style: S.cardSub }, 'HISTÓRICO'),
           editing
-            ? h('div', { style: { display: 'flex', gap: 6, flex: 1 } },
-                h('input', { type: 'text', value: editName, style: Object.assign({}, S.input, { fontSize: 10, padding: '3px 8px', flex: 1 }),
+            ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1 } },
+                h('input', { type: 'text', value: editName, style: Object.assign({}, S.input, { fontSize: 10, padding: '4px 8px' }),
                   onChange: function(ev){ setEditName(ev.target.value); },
                   onClick: function(ev){ ev.stopPropagation(); }
                 }),
-                h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#00FF88', borderColor: '#00AA55' }),
-                  onClick: function(ev){
-                    ev.stopPropagation();
-                    if (editName.trim() && onRenameWallet) onRenameWallet(wallet.id, editName.trim());
-                    setEditing(false);
-                  }
-                }, '✓'),
-                h('button', { style: S.smallAddBtn,
-                  onClick: function(ev){ ev.stopPropagation(); setEditing(false); setEditName(wallet.name); }
-                }, '✕')
+                h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 6 } },
+                  h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#9CA3AF', borderColor: '#374151' }),
+                    onClick: function(ev){ ev.stopPropagation(); setEditing(false); setEditName(wallet.name); }
+                  }, 'CANCELAR'),
+                  h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#00FF88', borderColor: '#00AA55' }),
+                    onClick: function(ev){
+                      ev.stopPropagation();
+                      if (editName.trim()) {
+                        if (onRenameWallet) onRenameWallet(wallet.id, editName.trim());
+                        setEditing(false);
+                      }
+                    }
+                  }, 'CONFIRMAR')
+                )
               )
             : h('div', { style: { display: 'flex', gap: 6 } },
                 h('button', { style: S.smallAddBtn, onClick: function (ev) { ev.stopPropagation(); setShowForm(!showForm); } },
