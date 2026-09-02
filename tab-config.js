@@ -165,7 +165,7 @@
             : result.action === 'skipped'
             ? '— Sem alteração: ' + formatUSD(d.balance)
             : result.action === 'error'
-            ? '⚠ ' + result.error
+            ? '⚠ ' + (result.error || 'Erro desconhecido')
             : '✓ Sync: ' + formatUSD(d.balance);
           var updated = accounts.map(function(a){
             if (a.id !== id) return a;
@@ -356,7 +356,7 @@
 
           /* Institution name if connected */
           (acc.institutionName || acc.walletId) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
-            (acc.institutionName || 'Plaid') + (acc.walletId ? h('span', { style: { color: '#5EEAD4' } }, ' → ' + acc.name) : '')
+            (acc.institutionName || 'Plaid') + (acc.walletId ? ' → ' + acc.name : '')
           ) : null,
 
           /* Buttons row — habilitados apenas na sequência correta */
