@@ -353,36 +353,6 @@
     var walletSyncState = React.useState('syncing');
     var walletSyncStatus = walletSyncState[0], setWalletSyncStatus = walletSyncState[1];
 
-    React.useEffect(function () {
-      var cancelled = false;
-      SupabaseAPI.fetchTrackerEntries().then(function (remote) {
-        if (cancelled) return;
-        if (remote && remote.length > 0) {
-          setEntries(remote);
-          saveJSON(KEY_ENTRIES, remote);
-          setTrackerSyncStatus('synced');
-        } else if (entries && entries.length > 0) {
-          // Nuvem vazia, mas existe histórico local (de antes do login) — migra pra nuvem
-          Promise.all(entries.map(function (e) { return SupabaseAPI.insertTrackerEntry(e.date, e.balance); }))
-            .then(function (created) {
-              if (cancelled) return;
-              setEntries(created);
-              saveJSON(KEY_ENTRIES, created);
-              setTrackerSyncStatus('synced');
-            })
-            .catch(function (e) {
-              console.error('Falha ao migrar leituras locais do 401k para a nuvem', e);
-              setTrackerSyncStatus('offline');
-            });
-        } else {
-          setTrackerSyncStatus('synced');
-        }
-      }).catch(function (e) {
-        console.error('Supabase fetch tracker_entries falhou, usando cache local', e);
-        setTrackerSyncStatus('offline');
-      });
-      return function () { cancelled = true; };
-    }, []);
 
     React.useEffect(function () {
       var cancelled = false;
@@ -512,9 +482,8 @@
       setEntries(next);
       saveJSON(KEY_ENTRIES, next);
       if (String(id).indexOf('local-') === 0) return;
-      SupabaseAPI.deleteTrackerEntry(id).catch(function (e) {
-        console.error('Falha ao deletar leitura 401k na nuvem', e);
-        setTrackerSyncStatus('offline');
+      SupabaseAPI.deleteWalletEntry(id).catch(function (e) {
+        console.error('Falha ao deletar leitura na nuvem', e);
       });
     }
 
