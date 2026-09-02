@@ -994,6 +994,9 @@
         })
       ),
 
+      /* ---- GOOGLE DRIVE ---- */
+      h(GoogleDriveSection, { userId: window.currentUserId ? window.currentUserId() : null, cfg: cfg, update: update }),
+
       /* ---- RESET GERAL ---- */
       h('div', { style: S.card },
         h('div', { style: S.cardHeader }, h('span', { style: S.cardTitle }, 'RESTAURAR TUDO')),
