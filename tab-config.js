@@ -49,9 +49,14 @@
     var wallets = walletsState[0], setWallets = walletsState[1];
 
     React.useEffect(function() {
-      SupabaseAPI.fetchWallets().then(function(w) {
-        setWallets(w || []);
-      }).catch(function(){});
+      function loadWallets() {
+        SupabaseAPI.fetchWallets().then(function(w) {
+          setWallets(w || []);
+        }).catch(function(){});
+      }
+      loadWallets();
+      window.addEventListener('wallet-renamed', loadWallets);
+      return function() { window.removeEventListener('wallet-renamed', loadWallets); };
     }, [userId]);
 
     /* trackerAccounts = 401K + carteiras do Tracker */
