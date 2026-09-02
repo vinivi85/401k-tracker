@@ -221,9 +221,10 @@
       setWallets(wallets.map(function(w){ return w.id === id ? Object.assign({}, w, { name: newName }) : w; }));
       SupabaseAPI.updateWallet(id, newName).then(function(updated) {
         console.log('Renamed OK:', updated);
+        /* Notify CONFIG to reload wallets */
+        window.dispatchEvent(new Event('wallet-renamed'));
       }).catch(function(e){
         console.error('Rename failed:', e);
-        /* Revert on failure */
         SupabaseAPI.fetchWallets().then(function(w){ setWallets(w||[]); }).catch(function(){});
       });
     }
