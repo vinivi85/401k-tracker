@@ -88,19 +88,28 @@ async function syncBalance(userId) {
     body: JSON.stringify({ current_balance: total, last_synced_at: new Date().toISOString() })
   });
 
-  /* Only save tracker entry if value changed */
-  const lastR = await supa(`tracker_entries?user_id=eq.${userId}&order=entry_date.desc&select=balance&limit=1`);
+  /* Find Fidelity 401k - AA wallet and save to wallet_entries */
+  const wR = await supa(`wallets?user_id=eq.${userId}&name=eq.Fidelity%20401k%20-%20AA&select=id&limit=1`);
+  const wRows = wR.ok ? await wR.json() : [];
+  if (!wRows.length) {
+    return { total, synced_at: new Date().toISOString(), action: 'error', error: 'Fidelity 401k - AA wallet not found' };
+  }
+  const wId = wRows[0].id;
+
+  /* Only save if value changed */
+  const lastR = await supa(`wallet_entries?wallet_id=eq.${wId}&order=entry_date.desc&select=balance&limit=1`);
   const lastRows = lastR.ok ? await lastR.json() : [];
   const lastBalance = lastRows.length ? parseFloat(lastRows[0].balance) : null;
   if (lastBalance !== null && Math.abs(lastBalance - total) < 0.01) {
     return { total, synced_at: new Date().toISOString(), action: 'skipped', reason: 'no change', lastBalance };
   }
-  const ex = await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}&select=id&limit=1`);
+
+  const ex = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}&select=id&limit=1`);
   const existing = ex.ok ? await ex.json() : [];
   if (existing.length > 0) {
-    await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance: total }) });
+    await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}`, { method: 'PATCH', body: JSON.stringify({ balance: total }) });
   } else {
-    await supa('tracker_entries', { method: 'POST', body: JSON.stringify({ user_id: userId, entry_date: today, balance: total }) });
+    await supa('wallet_entries', { method: 'POST', body: JSON.stringify({ wallet_id: wId, entry_date: today, balance: total }) });
   }
   return { total, synced_at: new Date().toISOString(), action: existing.length > 0 ? 'updated' : 'created' };
 }
