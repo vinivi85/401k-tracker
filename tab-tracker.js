@@ -625,53 +625,6 @@
         )
       ),
 
-      h('div', { style: S.card },
-        h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'ALTÍMETRO DE SALDO 401K'),
-          h('span', { style: S.cardSub }, sorted.length + ' leituras')
-        ),
-        h(MiniChart, { data: chartData })
-      ),
-
-      h('div', { style: S.card },
-        h('div', { style: S.walletCardHeader, onClick: function () { if (hasMore) setExpanded(!expanded); } },
-          h('span', { style: S.cardTitle }, 'REGISTRO DE LEITURAS 401K'),
-          hasMore ? h('div', { style: { color: '#D1D5DB', transition: 'transform 0.2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' } },
-            h(Icon, { name: 'chevron', size: 16 })
-          ) : null
-        ),
-        h('div', { style: { marginBottom: 8, display: 'flex', justifyContent: 'flex-end' } },
-          h('button', {
-            style: showForm
-              ? Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' })
-              : S.smallAddBtn,
-            onClick: function () { setShowForm(!showForm); }
-          },
-            showForm ? '− CANCELAR' : h(React.Fragment, null, h(Icon, { name: 'plus', size: 12 }), ' LEITURA')
-          )
-        ),
-
-        showForm ? h('div', { style: S.formBox },
-          h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'DATA'),
-            h('input', { type: 'date', value: newDate, style: S.input, max: '2026-12-31', onChange: function (ev) { setNewDate(ev.target.value); } })
-          ),
-          h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'SALDO (USD)'),
-            h('input', { type: 'number', step: '0.01', placeholder: '17866.49', value: newBalance, style: S.input, onChange: function (ev) { setNewBalance(ev.target.value); } })
-          ),
-          error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAdd }, 'REGISTRAR LEITURA')
-        ) : null,
-
-        h('div', { style: S.entryList }, visibleRows),
-
-        hasMore && !expanded ? h('div', {
-          style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', padding: '8px 0 2px', cursor: 'pointer' },
-          onClick: function () { setExpanded(true); }
-        }, '+ ' + (allEntryRows.length - PREVIEW_COUNT) + ' leituras anteriores') : null
-      ),
-
       h(WalletsSection, {
         wallets: wallets,
         setWallets: setWallets,
