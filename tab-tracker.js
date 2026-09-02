@@ -217,9 +217,15 @@
     }
 
     function handleRenameWallet(id, newName) {
-      SupabaseAPI.updateWallet(id, newName).then(function() {
-        setWallets(wallets.map(function(w){ return w.id === id ? Object.assign({}, w, { name: newName }) : w; }));
-      }).catch(function(e){ console.error('Rename failed:', e); });
+      /* Optimistic update first */
+      setWallets(wallets.map(function(w){ return w.id === id ? Object.assign({}, w, { name: newName }) : w; }));
+      SupabaseAPI.updateWallet(id, newName).then(function(updated) {
+        console.log('Renamed OK:', updated);
+      }).catch(function(e){
+        console.error('Rename failed:', e);
+        /* Revert on failure */
+        SupabaseAPI.fetchWallets().then(function(w){ setWallets(w||[]); }).catch(function(){});
+      });
     }
 
     function handleDeleteWallet(walletId) {
