@@ -481,6 +481,18 @@
     var importingState = React.useState(false);
     var importingWSState = React.useState(false);
     var importingWS = importingWSState[0], setImportingWS = importingWSState[1];
+
+    /* Google Drive PDF picker state */
+    var showDriveState = React.useState(false);
+    var showDrive = showDriveState[0], setShowDrive = showDriveState[1];
+    var driveFoldersState = React.useState([]);
+    var driveFolders = driveFoldersState[0], setDriveFolders = driveFoldersState[1];
+    var driveFilesState = React.useState([]);
+    var driveFiles = driveFilesState[0], setDriveFiles = driveFilesState[1];
+    var selectedFolderState = React.useState(null);
+    var selectedFolder = selectedFolderState[0], setSelectedFolder = selectedFolderState[1];
+    var driveLoadingState = React.useState(false);
+    var driveLoading = driveLoadingState[0], setDriveLoading = driveLoadingState[1];
     var importing = importingState[0], setImporting = importingState[1];
     var importMsgState = React.useState('');
     var importMsg = importMsgState[0], setImportMsg = importMsgState[1];
@@ -1059,7 +1071,7 @@
           h('span', { style: S.cardTitle }, 'HORAS DA QUINZENA')
         ),
         h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', letterSpacing: 1, marginBottom: 6 } }, 'IMPORTAR:'),
-        h('div', { style: { display: 'flex', gap: 8, marginBottom: 14 } },
+        h('div', { style: { display: 'flex', gap: 8, marginBottom: 8 } },
           h('button', {
             style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 10, padding: '8px 4px' }, importing ? { opacity: 0.6 } : {}),
             onClick: function () { if (!importing) document.getElementById('paystub-pdf-input').click(); },
@@ -1071,10 +1083,52 @@
             disabled: importingWS
           }, h(Icon, { name: 'chart', size: 12 }), importingWS ? '...' : 'JPG'),
           h('button', {
+            style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 10, padding: '8px 4px', color: '#5EEAD4', borderColor: '#134E4A' }),
+            onClick: openDrivePicker,
+            disabled: importing || importingWS
+          }, '☁ DRIVE'),
+          h('button', {
             style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center', fontSize: 10, padding: '8px 4px', color: '#FB7185', borderColor: '#7F1D1D' }),
             onClick: clearAllHours
           }, h(Icon, { name: 'reset', size: 12 }), 'LIMPAR')
         ),
+
+        /* Google Drive picker panel */
+        showDrive ? h('div', { style: { background: '#111827', borderRadius: 10, padding: 12, border: '1px solid #1F2937', marginBottom: 10 } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 } },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3' } },
+              selectedFolder ? ('📁 ' + selectedFolder.name) : '📁 AA-paystub'
+            ),
+            h('button', { style: Object.assign({}, S.smallAddBtn, { color: '#FB7185', borderColor: '#7F1D1D' }),
+              onClick: function(){
+                if (selectedFolder) { setSelectedFolder(null); setDriveFiles([]); }
+                else setShowDrive(false);
+              }
+            }, selectedFolder ? '← VOLTAR' : 'FECHAR')
+          ),
+          driveLoading ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', padding: '8px 0' } }, 'Carregando...') : null,
+          /* Show year folders */
+          !selectedFolder && !driveLoading ? driveFolders.map(function(f) {
+            return h('button', { key: f.id,
+              style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', marginBottom: 4,
+                borderRadius: 8, border: '1px solid #1F2937', background: '#0D1117',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#D1D5DB', cursor: 'pointer' },
+              onClick: function(){ openDriveFolder(f); }
+            }, '📁 ' + f.name);
+          }) : null,
+          /* Show PDF files in selected folder */
+          selectedFolder && !driveLoading ? driveFiles.length === 0
+            ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'Nenhum PDF encontrado.')
+            : driveFiles.map(function(f) {
+              return h('button', { key: f.id,
+                style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', marginBottom: 4,
+                  borderRadius: 8, border: '1px solid #134E4A', background: '#0D1117',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#5EEAD4', cursor: 'pointer' },
+                onClick: function(){ importDriveFile(f); }
+              }, '📄 ' + f.name);
+            })
+          : null
+        ) : null,
         /* Mensagem de status do import */
         (importing || importingWS) && importMsg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 6 } }, importMsg) : null,
 
