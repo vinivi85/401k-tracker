@@ -274,6 +274,20 @@ var SupabaseAPI = {
       });
   },
 
+  updateWallet: function (id, name) {
+    return authFetch(SUPABASE_URL + '/rest/v1/wallets?id=eq.' + encodeURIComponent(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({ name: name })
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('Supabase update wallet failed: ' + resp.status);
+      return resp.json();
+    }).then(function (rows) {
+      var r = rows[0];
+      return { id: r.id, name: r.name, category: r.category || 'investment' };
+    });
+  },
+
   fetchWalletEntries: function () {
     return authFetch(SUPABASE_URL + '/rest/v1/wallet_entries?select=*&order=entry_date.asc').then(function (resp) {
       if (!resp.ok) throw new Error('Supabase fetch wallet_entries failed: ' + resp.status);
