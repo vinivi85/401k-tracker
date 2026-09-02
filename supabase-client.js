@@ -275,16 +275,13 @@ var SupabaseAPI = {
   },
 
   updateWallet: function (id, name) {
-    return authFetch(SUPABASE_URL + '/rest/v1/wallets?id=eq.' + encodeURIComponent(id), {
+    return authFetch(SUPABASE_URL + '/rest/v1/wallets?id=eq.' + id, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name })
     }).then(function (resp) {
       if (!resp.ok) throw new Error('Supabase update wallet failed: ' + resp.status);
-      return resp.json();
-    }).then(function (rows) {
-      var r = rows[0];
-      return { id: r.id, name: r.name, category: r.category || 'investment' };
+      return { id: id, name: name };
     });
   },
 
