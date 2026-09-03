@@ -584,47 +584,6 @@
       ),
 
       /* ---- CONTAS DE APOSENTADORIA ---- */
-      h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CONTAS DE APOSENTADORIA'),
-        h('span', null)
-      ),
-
-      /* ---- CONTAS DE APOSENTADORIA ---- */
-      h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CONTAS DE APOSENTADORIA'),
-        h('span', null)
-      ),
-
-      h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE APOSENTADORIA'),
-        h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
-        h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
-        latest && (latest.updated_at || latest.created_at) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' } },
-          'SYNC: ' + new Date(latest.updated_at || latest.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-        ) : null,
-
-        h('div', { style: S.deltaRow },
-          h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS (' + prevMonthLabel + ')'),
-            lastMonthChange !== null ? h('div', { style: Object.assign({}, S.deltaValue, { color: lastMonthChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
-              h(Icon, { name: lastMonthChange >= 0 ? 'up' : 'down', size: 14 }),
-              (lastMonthChange >= 0 ? '+' : '') + formatUSD(lastMonthChange),
-              h('span', { style: S.deltaPct }, '(' + (lastMonthChangePct >= 0 ? '+' : '') + lastMonthChangePct.toFixed(2) + '%)')
-            ) : h('div', { style: Object.assign({}, S.deltaValue, { color: '#6B7280', fontSize: 11 }) }, 'SEM LEITURAS')
-          ),
-          h('div', { style: S.deltaDivider }),
-          h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'DESDE O INÍCIO'),
-            h('div', { style: Object.assign({}, S.deltaValue, { color: totalChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
-              h(Icon, { name: totalChange >= 0 ? 'up' : 'down', size: 14 }),
-              (totalChange >= 0 ? '+' : '') + formatUSD(totalChange),
-              h('span', { style: S.deltaPct }, '(' + (totalChangePct >= 0 ? '+' : '') + totalChangePct.toFixed(2) + '%)')
-            )
-          )
-        )
-      ),
-
-      /* Retirement account cards rendered via WalletsSection */
       h(WalletsSection, {
         wallets: wallets,
         setWallets: setWallets,
@@ -634,8 +593,10 @@
         setSyncStatus: setWalletSyncStatus,
         walletCards: retirementWalletCards,
         grandTotal: retirementTotal,
-        hideAddButton: true,
-        sectionLabel: null
+        sectionTitle: 'CONTAS DE APOSENTADORIA',
+        totalLabel: 'TOTAL EM CARTEIRAS DE APOSENTADORIA',
+        addLabel: 'NOVA CONTA DE APOSENTADORIA',
+        hideAdd: false
       }),
 
       /* ---- CARTEIRAS DE INVESTIMENTO ---- */
