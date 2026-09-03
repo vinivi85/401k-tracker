@@ -248,21 +248,21 @@ var SupabaseAPI = {
       if (!resp.ok) throw new Error('Supabase fetch wallets failed: ' + resp.status);
       return resp.json();
     }).then(function (rows) {
-      return rows.map(function (r) { return { id: r.id, name: r.name, category: r.category || 'investment' }; });
+      return rows.map(function (r) { return { id: r.id, name: r.name }; });
     });
   },
 
-  insertWallet: function (name, category) {
+  insertWallet: function (name) {
     return authFetch(SUPABASE_URL + '/rest/v1/wallets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-      body: JSON.stringify({ name: name, user_id: currentUserId(), category: category || 'investment' })
+      body: JSON.stringify({ name: name, user_id: currentUserId() })
     }).then(function (resp) {
       if (!resp.ok) throw new Error('Supabase insert wallet failed: ' + resp.status);
       return resp.json();
     }).then(function (rows) {
       var r = rows[0];
-      return { id: r.id, name: r.name, category: r.category || 'investment' };
+      return { id: r.id, name: r.name };
     });
   },
 
