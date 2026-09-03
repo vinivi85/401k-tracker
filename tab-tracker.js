@@ -162,7 +162,7 @@
               )
         ),
 
-        showForm ? h('div', { style: S.formBox },
+        !hideAddButton && showForm ? h('div', { style: S.formBox },
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'DATA'),
             h('input', { type: 'date', value: newDate, style: S.input, onChange: function (ev) { setNewDate(ev.target.value); } })
@@ -186,6 +186,7 @@
     var syncStatus = props.syncStatus, setSyncStatus = props.setSyncStatus;
     var walletCards = props.walletCards;
     var grandTotal = props.grandTotal;
+    var hideAddButton = props.hideAddButton || false;
 
     var showNewWallet = React.useState(false);
     var showForm = showNewWallet[0], setShowForm = showNewWallet[1];
@@ -199,6 +200,7 @@
     function handleAddWallet() {
       setError('');
       if (!newName.trim()) { setError('Dê um nome pra carteira.'); return; }
+      // hideAddButton means this section is read-only
       SupabaseAPI.insertWallet(newName.trim()).then(function (created) {
         var next = wallets.concat([created]);
         setWallets(next);
@@ -303,12 +305,12 @@
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'NOVA CARTEIRA DE INVESTIMENTO'),
-          h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
+          !hideAddButton ? h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'ADICIONAR'
-          )
+          ) : null
         ),
-        showForm ? h('div', { style: S.formBox },
+        !hideAddButton && showForm ? h('div', { style: S.formBox },
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'NOME (EX: ROBINHOOD, MARCUS)'),
             h('input', { type: 'text', placeholder: 'Robinhood', value: newName, style: S.input, onChange: function (ev) { setNewName(ev.target.value); } })
@@ -444,33 +446,23 @@
       return { wallet: w, entries: ownEntries };
     });
 
-    /* Split by category */
-    var retirementCards = [];
-    var investmentCards = [];
+    /* Split wallets by category */
     var retirementTotal = 0;
+    var investmentTotal = 0;
+    var retirementWalletCards = [];
+    var investmentWalletCards = [];
     walletCards.forEach(function(wc) {
+      var lastBal = wc.entries.length ? wc.entries[wc.entries.length - 1].balance : 0;
       if (wc.wallet.category === 'retirement') {
-        retirementCards.push(wc);
-        if (wc.entries.length) retirementTotal += wc.entries[wc.entries.length - 1].balance;
+        retirementTotal += lastBal;
+        retirementWalletCards.push(wc);
       } else {
-        investmentCards.push(wc);
+        investmentTotal += lastBal;
+        investmentWalletCards.push(wc);
       }
     });
 
-    /* Pre-build retirement elements to avoid issues in JSX */
-    var retirementElements = retirementCards.map(function(wc) {
-      return h(WalletCard, {
-        key: wc.wallet.id,
-        wallet: wc.wallet,
-        entries: wc.entries,
-        onAddEntry: handleAddEntry,
-        onDeleteEntry: handleDeleteEntry,
-        onDeleteWallet: handleDeleteWallet,
-        onRenameWallet: handleRenameWallet
-      });
-    });
-
-    var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
+    var globalTotal = (latest ? latest.balance : 0) + retirementTotal + investmentTotal;
 
     function handleAdd() {
       setError('');
@@ -544,7 +536,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTO ' + formatUSD(walletsTotal - retirementTotal)),
+        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTO ' + formatUSD(investmentTotal)),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
@@ -597,6 +589,12 @@
         h('span', null)
       ),
 
+      /* ---- CONTAS DE APOSENTADORIA ---- */
+      h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CONTAS DE APOSENTADORIA'),
+        h('span', null)
+      ),
+
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE APOSENTADORIA'),
         h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
@@ -626,9 +624,7 @@
         )
       ),
 
-      /* Retirement accounts (pre-built) */
-      retirementElements.length > 0 ? retirementElements : null,
-
+      /* Retirement account cards rendered via WalletsSection */
       h(WalletsSection, {
         wallets: wallets,
         setWallets: setWallets,
@@ -636,8 +632,22 @@
         setWalletEntries: setWalletEntries,
         syncStatus: walletSyncStatus,
         setSyncStatus: setWalletSyncStatus,
-        walletCards: investmentCards,
-        grandTotal: walletsTotal - retirementTotal
+        walletCards: retirementWalletCards,
+        grandTotal: retirementTotal,
+        hideAddButton: true,
+        sectionLabel: null
+      }),
+
+      /* ---- CARTEIRAS DE INVESTIMENTO ---- */
+      h(WalletsSection, {
+        wallets: wallets,
+        setWallets: setWallets,
+        walletEntries: walletEntries,
+        setWalletEntries: setWalletEntries,
+        syncStatus: walletSyncStatus,
+        setSyncStatus: setWalletSyncStatus,
+        walletCards: investmentWalletCards,
+        grandTotal: investmentTotal
       }),
 
       h('div', { style: S.footer }, 'DADOS SALVOS NESTE DISPOSITIVO · NETBENEFITS / FIDELITY')
