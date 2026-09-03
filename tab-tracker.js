@@ -609,7 +609,7 @@
       ),
 
       /* Retirement wallet cards */
-      h(React.Fragment, null, retirementCards.map(function(wc) {
+      retirementCards.length > 0 ? retirementCards.map(function(wc) {
         return h(WalletCard, {
           key: wc.wallet.id,
           wallet: wc.wallet,
@@ -619,7 +619,7 @@
           onDeleteWallet: handleDeleteWallet,
           onRenameWallet: handleRenameWallet
         });
-      })),
+      }) : null,
 
       h(WalletsSection, {
         wallets: wallets,
