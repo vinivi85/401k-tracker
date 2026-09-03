@@ -162,7 +162,7 @@
               )
         ),
 
-        !hideAddButton && showForm ? h('div', { style: S.formBox },
+        showForm ? h('div', { style: S.formBox },
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'DATA'),
             h('input', { type: 'date', value: newDate, style: S.input, onChange: function (ev) { setNewDate(ev.target.value); } })
@@ -186,10 +186,6 @@
     var syncStatus = props.syncStatus, setSyncStatus = props.setSyncStatus;
     var walletCards = props.walletCards;
     var grandTotal = props.grandTotal;
-    var hideAddButton = props.hideAddButton || props.hideAdd || false;
-    var sectionTitle = props.sectionTitle || 'CARTEIRAS DE INVESTIMENTO';
-    var totalLabel = props.totalLabel || 'TOTAL EM CARTEIRAS DE INVESTIMENTO';
-    var addLabel = props.addLabel || 'NOVA CARTEIRA DE INVESTIMENTO';
 
     var showNewWallet = React.useState(false);
     var showForm = showNewWallet[0], setShowForm = showNewWallet[1];
@@ -203,7 +199,6 @@
     function handleAddWallet() {
       setError('');
       if (!newName.trim()) { setError('Dê um nome pra carteira.'); return; }
-      // hideAddButton means this section is read-only
       SupabaseAPI.insertWallet(newName.trim()).then(function (created) {
         var next = wallets.concat([created]);
         setWallets(next);
@@ -283,12 +278,12 @@
 
     return h(React.Fragment, null,
       h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, sectionTitle),
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS DE INVESTIMENTO'),
         h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1 } }, syncBadge)
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, totalLabel),
+        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE INVESTIMENTO'),
         h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
         h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA')
       ),
@@ -307,26 +302,26 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, addLabel),
-          !hideAddButton ? h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
+          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA DE INVESTIMENTO'),
+          h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'ADICIONAR'
-          ) : null
+          )
         ),
-        !hideAddButton && showForm ? h('div', { style: S.formBox },
+        showForm ? h('div', { style: S.formBox },
           h('div', { style: S.formRow },
             h('label', { style: S.formLabel }, 'NOME (EX: ROBINHOOD, MARCUS)'),
             h('input', { type: 'text', placeholder: 'Robinhood', value: newName, style: S.input, onChange: function (ev) { setNewName(ev.target.value); } })
           ),
           error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR ' + addLabel)
+          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR CARTEIRA DE INVESTIMENTO')
         ) : null
       )
     );
   }
 
   function TrackerTab() {
-    var state = React.useState(loadJSON(KEY_ENTRIES) || []);
+    var state = React.useState(loadEntries());
     var entries = state[0], setEntries = state[1];
 
     var formState = React.useState(false);
@@ -358,6 +353,36 @@
     var walletSyncState = React.useState('syncing');
     var walletSyncStatus = walletSyncState[0], setWalletSyncStatus = walletSyncState[1];
 
+    React.useEffect(function () {
+      var cancelled = false;
+      SupabaseAPI.fetchTrackerEntries().then(function (remote) {
+        if (cancelled) return;
+        if (remote && remote.length > 0) {
+          setEntries(remote);
+          saveJSON(KEY_ENTRIES, remote);
+          setTrackerSyncStatus('synced');
+        } else if (entries && entries.length > 0) {
+          // Nuvem vazia, mas existe histórico local (de antes do login) — migra pra nuvem
+          Promise.all(entries.map(function (e) { return SupabaseAPI.insertTrackerEntry(e.date, e.balance); }))
+            .then(function (created) {
+              if (cancelled) return;
+              setEntries(created);
+              saveJSON(KEY_ENTRIES, created);
+              setTrackerSyncStatus('synced');
+            })
+            .catch(function (e) {
+              console.error('Falha ao migrar leituras locais do 401k para a nuvem', e);
+              setTrackerSyncStatus('offline');
+            });
+        } else {
+          setTrackerSyncStatus('synced');
+        }
+      }).catch(function (e) {
+        console.error('Supabase fetch tracker_entries falhou, usando cache local', e);
+        setTrackerSyncStatus('offline');
+      });
+      return function () { cancelled = true; };
+    }, []);
 
     React.useEffect(function () {
       var cancelled = false;
@@ -449,23 +474,7 @@
       return { wallet: w, entries: ownEntries };
     });
 
-    /* Split wallets by category */
-    var retirementTotal = 0;
-    var investmentTotal = 0;
-    var retirementWalletCards = [];
-    var investmentWalletCards = [];
-    walletCards.forEach(function(wc) {
-      var lastBal = wc.entries.length ? wc.entries[wc.entries.length - 1].balance : 0;
-      if (wc.wallet.category === 'retirement') {
-        retirementTotal += lastBal;
-        retirementWalletCards.push(wc);
-      } else {
-        investmentTotal += lastBal;
-        investmentWalletCards.push(wc);
-      }
-    });
-
-    var globalTotal = (latest ? latest.balance : 0) + retirementTotal + investmentTotal;
+    var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
 
     function handleAdd() {
       setError('');
@@ -503,8 +512,9 @@
       setEntries(next);
       saveJSON(KEY_ENTRIES, next);
       if (String(id).indexOf('local-') === 0) return;
-      SupabaseAPI.deleteWalletEntry(id).catch(function (e) {
-        console.error('Falha ao deletar leitura na nuvem', e);
+      SupabaseAPI.deleteTrackerEntry(id).catch(function (e) {
+        console.error('Falha ao deletar leitura 401k na nuvem', e);
+        setTrackerSyncStatus('offline');
       });
     }
 
@@ -539,7 +549,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTO ' + formatUSD(investmentTotal)),
+        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K')),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
@@ -586,23 +596,35 @@
         )
       ),
 
-      /* ---- CONTAS DE APOSENTADORIA ---- */
-      h(WalletsSection, {
-        wallets: wallets,
-        setWallets: setWallets,
-        walletEntries: walletEntries,
-        setWalletEntries: setWalletEntries,
-        syncStatus: walletSyncStatus,
-        setSyncStatus: setWalletSyncStatus,
-        walletCards: retirementWalletCards,
-        grandTotal: retirementTotal,
-        sectionTitle: 'CONTAS DE APOSENTADORIA',
-        totalLabel: 'TOTAL EM CARTEIRAS DE APOSENTADORIA',
-        addLabel: 'NOVA CONTA DE APOSENTADORIA',
-        hideAdd: false
-      }),
+      h('div', { style: S.gaugeCard },
+        h('div', { style: S.gaugeLabel }, 'SALDO ATUAL 401K'),
+        h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
+        h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
+        latest && (latest.updated_at || latest.created_at) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' } },
+          'SYNC: ' + new Date(latest.updated_at || latest.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        ) : null,
 
-      /* ---- CARTEIRAS DE INVESTIMENTO ---- */
+        h('div', { style: S.deltaRow },
+          h('div', { style: S.deltaBox },
+            h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS (' + prevMonthLabel + ')'),
+            lastMonthChange !== null ? h('div', { style: Object.assign({}, S.deltaValue, { color: lastMonthChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
+              h(Icon, { name: lastMonthChange >= 0 ? 'up' : 'down', size: 14 }),
+              (lastMonthChange >= 0 ? '+' : '') + formatUSD(lastMonthChange),
+              h('span', { style: S.deltaPct }, '(' + (lastMonthChangePct >= 0 ? '+' : '') + lastMonthChangePct.toFixed(2) + '%)')
+            ) : h('div', { style: Object.assign({}, S.deltaValue, { color: '#6B7280', fontSize: 11 }) }, 'SEM LEITURAS')
+          ),
+          h('div', { style: S.deltaDivider }),
+          h('div', { style: S.deltaBox },
+            h('div', { style: S.deltaLabel }, 'DESDE O INÍCIO'),
+            h('div', { style: Object.assign({}, S.deltaValue, { color: totalChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
+              h(Icon, { name: totalChange >= 0 ? 'up' : 'down', size: 14 }),
+              (totalChange >= 0 ? '+' : '') + formatUSD(totalChange),
+              h('span', { style: S.deltaPct }, '(' + (totalChangePct >= 0 ? '+' : '') + totalChangePct.toFixed(2) + '%)')
+            )
+          )
+        )
+      ),
+
       h(WalletsSection, {
         wallets: wallets,
         setWallets: setWallets,
@@ -610,8 +632,8 @@
         setWalletEntries: setWalletEntries,
         syncStatus: walletSyncStatus,
         setSyncStatus: setWalletSyncStatus,
-        walletCards: investmentWalletCards,
-        grandTotal: investmentTotal
+        walletCards: walletCards,
+        grandTotal: walletsTotal
       }),
 
       h('div', { style: S.footer }, 'DADOS SALVOS NESTE DISPOSITIVO · NETBENEFITS / FIDELITY')
