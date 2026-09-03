@@ -248,7 +248,7 @@ var SupabaseAPI = {
       if (!resp.ok) throw new Error('Supabase fetch wallets failed: ' + resp.status);
       return resp.json();
     }).then(function (rows) {
-      return rows.map(function (r) { return { id: r.id, name: r.name }; });
+      return rows.map(function (r) { return { id: r.id, name: r.name, category: r.category || 'investment' }; });
     });
   },
 
