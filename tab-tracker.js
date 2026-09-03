@@ -186,7 +186,10 @@
     var syncStatus = props.syncStatus, setSyncStatus = props.setSyncStatus;
     var walletCards = props.walletCards;
     var grandTotal = props.grandTotal;
-    var hideAddButton = props.hideAddButton || false;
+    var hideAddButton = props.hideAddButton || props.hideAdd || false;
+    var sectionTitle = props.sectionTitle || 'CARTEIRAS DE INVESTIMENTO';
+    var totalLabel = props.totalLabel || 'TOTAL EM CARTEIRAS DE INVESTIMENTO';
+    var addLabel = props.addLabel || 'NOVA CARTEIRA DE INVESTIMENTO';
 
     var showNewWallet = React.useState(false);
     var showForm = showNewWallet[0], setShowForm = showNewWallet[1];
@@ -280,12 +283,12 @@
 
     return h(React.Fragment, null,
       h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS DE INVESTIMENTO'),
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, sectionTitle),
         h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1 } }, syncBadge)
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE INVESTIMENTO'),
+        h('div', { style: S.gaugeLabel }, totalLabel),
         h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
         h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA')
       ),
@@ -304,7 +307,7 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA DE INVESTIMENTO'),
+          h('span', { style: S.cardTitle }, addLabel),
           !hideAddButton ? h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'ADICIONAR'
@@ -316,7 +319,7 @@
             h('input', { type: 'text', placeholder: 'Robinhood', value: newName, style: S.input, onChange: function (ev) { setNewName(ev.target.value); } })
           ),
           error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR CARTEIRA DE INVESTIMENTO')
+          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR ' + addLabel)
         ) : null
       )
     );
