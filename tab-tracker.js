@@ -435,16 +435,24 @@
       return { label: formatDateLabel(e.date), value: e.balance };
     });
 
-    /* ---------- Total das carteiras (soma da leitura mais recente de cada) ---------- */
+    /* ---------- Split wallets by category ---------- */
+    var retirementTotal = 0;
+    var retirementCards = wallets.filter(function(w){ return w.category === 'retirement'; }).map(function(w) {
+      var ownEntries = walletEntries.filter(function(e){ return e.walletId === w.id; })
+        .slice().sort(function(a,b){ return new Date(a.date) - new Date(b.date); });
+      if (ownEntries.length) retirementTotal += ownEntries[ownEntries.length - 1].balance;
+      return { wallet: w, entries: ownEntries };
+    });
+
     var walletsTotal = 0;
-    var walletCards = wallets.map(function (w) {
+    var walletCards = wallets.filter(function(w){ return w.category !== 'retirement'; }).map(function (w) {
       var ownEntries = walletEntries.filter(function (e) { return e.walletId === w.id; })
         .slice().sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
       if (ownEntries.length) walletsTotal += ownEntries[ownEntries.length - 1].balance;
       return { wallet: w, entries: ownEntries };
     });
 
-    var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
+    var globalTotal = (latest ? latest.balance : 0) + retirementTotal + walletsTotal;
 
     function handleAdd() {
       setError('');
@@ -518,7 +526,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K')),
+        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTO ' + formatUSD(walletsTotal)),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
@@ -573,7 +581,7 @@
 
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE APOSENTADORIA'),
-        h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
+        h('div', { style: S.gaugeValue }, formatUSD(retirementTotal)),
         h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
         latest && (latest.updated_at || latest.created_at) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' } },
           'SYNC: ' + new Date(latest.updated_at || latest.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -599,6 +607,19 @@
           )
         )
       ),
+
+      /* Retirement wallet cards */
+      retirementCards.map(function(wc) {
+        return h(WalletCard, {
+          key: wc.wallet.id,
+          wallet: wc.wallet,
+          entries: wc.entries,
+          onAddEntry: handleAddEntry,
+          onDeleteEntry: handleDeleteEntry,
+          onDeleteWallet: handleDeleteWallet,
+          onRenameWallet: handleRenameWallet
+        });
+      }),
 
       h(WalletsSection, {
         wallets: wallets,
