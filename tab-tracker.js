@@ -321,7 +321,7 @@
   }
 
   function TrackerTab() {
-    var state = React.useState(loadEntries());
+    var state = React.useState(loadJSON(KEY_ENTRIES) || []);
     var entries = state[0], setEntries = state[1];
 
     var formState = React.useState(false);
@@ -444,6 +444,32 @@
       return { wallet: w, entries: ownEntries };
     });
 
+    /* Split by category */
+    var retirementCards = [];
+    var investmentCards = [];
+    var retirementTotal = 0;
+    walletCards.forEach(function(wc) {
+      if (wc.wallet.category === 'retirement') {
+        retirementCards.push(wc);
+        if (wc.entries.length) retirementTotal += wc.entries[wc.entries.length - 1].balance;
+      } else {
+        investmentCards.push(wc);
+      }
+    });
+
+    /* Pre-build retirement elements to avoid issues in JSX */
+    var retirementElements = retirementCards.map(function(wc) {
+      return h(WalletCard, {
+        key: wc.wallet.id,
+        wallet: wc.wallet,
+        entries: wc.entries,
+        onAddEntry: handleAddEntry,
+        onDeleteEntry: handleDeleteEntry,
+        onDeleteWallet: handleDeleteWallet,
+        onRenameWallet: handleRenameWallet
+      });
+    });
+
     var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
 
     function handleAdd() {
@@ -518,7 +544,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K')),
+        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTO ' + formatUSD(walletsTotal - retirementTotal)),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
@@ -600,6 +626,9 @@
         )
       ),
 
+      /* Retirement accounts (pre-built) */
+      retirementElements.length > 0 ? retirementElements : null,
+
       h(WalletsSection, {
         wallets: wallets,
         setWallets: setWallets,
@@ -607,8 +636,8 @@
         setWalletEntries: setWalletEntries,
         syncStatus: walletSyncStatus,
         setSyncStatus: setWalletSyncStatus,
-        walletCards: walletCards,
-        grandTotal: walletsTotal
+        walletCards: investmentCards,
+        grandTotal: walletsTotal - retirementTotal
       }),
 
       h('div', { style: S.footer }, 'DADOS SALVOS NESTE DISPOSITIVO · NETBENEFITS / FIDELITY')
