@@ -188,6 +188,8 @@
     var syncStatus = props.syncStatus, setSyncStatus = props.setSyncStatus;
     var walletCards = props.walletCards;
     var syncMsgs = props.syncMsgs || {};
+    var deltas = props.deltas || null;
+    var prevMonthLabel = props.prevMonthLabel || '';
     var grandTotal = props.grandTotal;
 
     var showNewWallet = React.useState(false);
@@ -303,7 +305,8 @@
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'SALDO TOTAL DE INVESTIMENTOS'),
         h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
-        h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA')
+        h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA'),
+        deltas ? h(DeltaRow, { deltas: deltas, prevMonthLabel: prevMonthLabel }) : null
       ),
 
       walletCards.map(function (wc) {
@@ -337,6 +340,101 @@
         ) : null
       )
     );
+  }
+
+  /* Bloco de variacao reutilizado pelos cards de total */
+  function DeltaRow(props) {
+    var d = props.deltas || {};
+    var label = props.prevMonthLabel || '';
+    var mChange = (typeof d.lastMonthChange === 'number') ? d.lastMonthChange : null;
+    var mPct = d.lastMonthChangePct || 0;
+    var tChange = d.totalChange || 0;
+    var tPct = d.totalChangePct || 0;
+
+    return h('div', { style: S.deltaRow },
+      h('div', { style: S.deltaBox },
+        h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS (' + label + ')'),
+        mChange !== null
+          ? h('div', { style: Object.assign({}, S.deltaValue, { color: mChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
+              h(Icon, { name: mChange >= 0 ? 'up' : 'down', size: 14 }),
+              (mChange >= 0 ? '+' : '') + formatUSD(mChange),
+              h('span', { style: S.deltaPct }, '(' + (mPct >= 0 ? '+' : '') + mPct.toFixed(2) + '%)')
+            )
+          : h('div', { style: Object.assign({}, S.deltaValue, { color: '#6B7280', fontSize: 11 }) }, 'SEM LEITURAS')
+      ),
+      h('div', { style: S.deltaDivider }),
+      h('div', { style: S.deltaBox },
+        h('div', { style: S.deltaLabel }, 'DESDE O INÍCIO'),
+        h('div', { style: Object.assign({}, S.deltaValue, { color: tChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
+          h(Icon, { name: tChange >= 0 ? 'up' : 'down', size: 14 }),
+          (tChange >= 0 ? '+' : '') + formatUSD(tChange),
+          h('span', { style: S.deltaPct }, '(' + (tPct >= 0 ? '+' : '') + tPct.toFixed(2) + '%)')
+        )
+      )
+    );
+  }
+
+  /* Serie agregada: para cada data, soma o ultimo saldo conhecido de cada conta */
+  function aggregateSeries(cards) {
+    if (!cards || !cards.length) return [];
+    var dateSet = {};
+    cards.forEach(function (c) {
+      (c.entries || []).forEach(function (e) { dateSet[e.date] = true; });
+    });
+    var dates = Object.keys(dateSet).sort();
+    return dates.map(function (d) {
+      var sum = 0;
+      cards.forEach(function (c) {
+        var last = null;
+        var list = c.entries || [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].date <= d) last = list[i]; else break;
+        }
+        if (last) sum += last.balance;
+      });
+      return { date: d, balance: sum };
+    });
+  }
+
+  /* Deltas (mes anterior e desde o inicio) a partir de uma serie ordenada */
+  function computeDeltas(series) {
+    var out = {
+      latest: null, first: null,
+      totalChange: 0, totalChangePct: 0,
+      lastMonthChange: null, lastMonthChangePct: null
+    };
+    if (!series || !series.length) return out;
+
+    out.latest = series[series.length - 1];
+    out.first = series[0];
+    out.totalChange = out.latest.balance - out.first.balance;
+    out.totalChangePct = out.first.balance ? (out.totalChange / out.first.balance) * 100 : 0;
+
+    var now = new Date();
+    var pMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+    var pYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+
+    var pmEntries = series.filter(function (e) {
+      var d = new Date(e.date + 'T00:00:00');
+      return d.getMonth() === pMonth && d.getFullYear() === pYear;
+    });
+
+    if (pmEntries.length >= 2) {
+      var a = pmEntries[0], b = pmEntries[pmEntries.length - 1];
+      out.lastMonthChange = b.balance - a.balance;
+      out.lastMonthChangePct = a.balance > 0 ? (out.lastMonthChange / a.balance) * 100 : 0;
+    } else if (pmEntries.length === 1) {
+      var only = pmEntries[0];
+      var before = series.filter(function (e) {
+        return new Date(e.date + 'T00:00:00') < new Date(only.date + 'T00:00:00');
+      });
+      if (before.length) {
+        var ref = before[before.length - 1];
+        out.lastMonthChange = only.balance - ref.balance;
+        out.lastMonthChangePct = ref.balance > 0 ? (out.lastMonthChange / ref.balance) * 100 : 0;
+      }
+    }
+    return out;
   }
 
   function TrackerTab() {
@@ -495,6 +593,11 @@
       return { wallet: w, entries: ownEntries };
     });
 
+    /* Deltas por secao — cada card resume as contas listadas abaixo dele */
+    var retirementCards = [];  /* nenhuma conta de aposentadoria nesta secao ainda */
+    var retireDeltas = computeDeltas(aggregateSeries(retirementCards));
+    var investDeltas = computeDeltas(aggregateSeries(walletCards));
+
     var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
 
     function handleAdd() {
@@ -633,31 +736,12 @@
 
       h('div', { style: S.gaugeCard },
         h('div', { style: S.gaugeLabel }, 'SALDO TOTAL DE APOSENTADORIA'),
-        h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
-        h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
-        latest && (latest.updated_at || latest.created_at) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' } },
-          'SYNC: ' + new Date(latest.updated_at || latest.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-        ) : null,
+        h('div', { style: S.gaugeValue }, retireDeltas.latest ? formatUSD(retireDeltas.latest.balance) : formatUSD(0)),
+        h('div', { style: S.gaugeDate }, retirementCards.length
+          ? (retirementCards.length + ' conta' + (retirementCards.length !== 1 ? 's' : ''))
+          : 'NENHUMA CONTA DE APOSENTADORIA'),
 
-        h('div', { style: S.deltaRow },
-          h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'ÚLTIMO MÊS (' + prevMonthLabel + ')'),
-            lastMonthChange !== null ? h('div', { style: Object.assign({}, S.deltaValue, { color: lastMonthChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
-              h(Icon, { name: lastMonthChange >= 0 ? 'up' : 'down', size: 14 }),
-              (lastMonthChange >= 0 ? '+' : '') + formatUSD(lastMonthChange),
-              h('span', { style: S.deltaPct }, '(' + (lastMonthChangePct >= 0 ? '+' : '') + lastMonthChangePct.toFixed(2) + '%)')
-            ) : h('div', { style: Object.assign({}, S.deltaValue, { color: '#6B7280', fontSize: 11 }) }, 'SEM LEITURAS')
-          ),
-          h('div', { style: S.deltaDivider }),
-          h('div', { style: S.deltaBox },
-            h('div', { style: S.deltaLabel }, 'DESDE O INÍCIO'),
-            h('div', { style: Object.assign({}, S.deltaValue, { color: totalChange >= 0 ? '#5EEAD4' : '#FB7185' }) },
-              h(Icon, { name: totalChange >= 0 ? 'up' : 'down', size: 14 }),
-              (totalChange >= 0 ? '+' : '') + formatUSD(totalChange),
-              h('span', { style: S.deltaPct }, '(' + (totalChangePct >= 0 ? '+' : '') + totalChangePct.toFixed(2) + '%)')
-            )
-          )
-        )
+        h(DeltaRow, { deltas: retireDeltas, prevMonthLabel: prevMonthLabel })
       ),
 
       h(WalletsSection, {
@@ -669,6 +753,8 @@
         setSyncStatus: setWalletSyncStatus,
         walletCards: walletCards,
         grandTotal: walletsTotal,
+        deltas: investDeltas,
+        prevMonthLabel: prevMonthLabel,
         syncMsgs: syncMsgs
       }),
 
