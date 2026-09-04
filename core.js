@@ -15,6 +15,7 @@ var h = React.createElement;
   var KEY_PAY_ENTRIES = '401k-pay-entries';
   var KEY_WALLETS = '401k-wallets';
   var KEY_WALLET_ENTRIES = '401k-wallet-entries';
+  var KEY_SYNC_MSGS = '401k-sync-msgs';
   var KEY_LOCK_CONFIG = '401k-lock-config';
   var KEY_AUTH_SESSION = '401k-auth-session';
 
@@ -163,7 +164,7 @@ var h = React.createElement;
   // Carrega TODOS os dados do IndexedDB para o cache em memória.
   // Também migra qualquer dado remanescente do localStorage (de versões antigas do app)
   // para o IndexedDB, então funciona como upgrade transparente.
-  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES, KEY_WALLETS, KEY_WALLET_ENTRIES, KEY_LOCK_CONFIG, KEY_AUTH_SESSION];
+  var ALL_KEYS = [KEY_ENTRIES, KEY_PAYCHECK, KEY_PROJECTION, KEY_ACTIVE_TAB, KEY_PAY_ENTRIES, KEY_WALLETS, KEY_WALLET_ENTRIES, KEY_LOCK_CONFIG, KEY_AUTH_SESSION, KEY_SYNC_MSGS];
 
   function initStorage() {
     return openDB().then(function () {
