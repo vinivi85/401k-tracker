@@ -19,6 +19,8 @@
   }
 
   /* Seção colapsável reutilizável */
+  var PLAID_MAX_CONNECTIONS = 10;
+
   function Section(props) {
     var openState = React.useState(props.defaultOpen !== false);
     var open = openState[0], setOpen = openState[1];
@@ -1032,7 +1034,11 @@
       ),
 
       /* ---- CONECTAR CONTAS ---- */
-      h(Section, { title: 'CONECTAR CONTAS', defaultOpen: false },
+      h(Section, {
+        title: 'CONECTAR CONTAS',
+        defaultOpen: false,
+        summary: 'plaid ' + (cfg.plaidAccounts || []).filter(function(a){ return a && a.plaidItemId; }).length + '/' + PLAID_MAX_CONNECTIONS
+      },
         h(ConnectAccountsSection, {
           userId: window.currentUserId ? window.currentUserId() : null,
           savedAccounts: cfg.plaidAccounts || [],
