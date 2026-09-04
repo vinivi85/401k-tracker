@@ -112,11 +112,29 @@
       }).then(function(r){ return r.text().then(function(t){ try { return JSON.parse(t); } catch(e) { return {}; } }); })
         .then(function(d) {
           console.log('repair:', JSON.stringify(d));
-          if (d && d.failed && d.failed.length) {
-            setRepairInfo(d.failed.map(function(f) {
-              return f.wallet + ': ' + f.reason + (f.detail ? ' — ' + f.detail : '');
-            }).join(' | '));
+          if (!d || !d.failed || !d.failed.length) return;
+
+          /* Associacao apontando pra conexao que nao existe mais:
+             limpa o vinculo local pra conta voltar ao estado 'conectar' */
+          var staleNames = d.failed.filter(function(f){ return f.stale; })
+                                   .map(function(f){ return f.wallet; });
+          if (staleNames.length) {
+            var cleaned = accounts.map(function(a) {
+              if (staleNames.indexOf(a.name || a.walletId) === -1) return a;
+              return Object.assign({}, a, {
+                status: 'pending', plaidItemId: null, plaidAccounts: [],
+                plaidAccountId: null, institutionName: null, lastMsg: null
+              });
+            });
+            setAccounts(cleaned);
+            props.onSave && props.onSave(cleaned);
+            setRepairInfo('Conexao expirada em: ' + staleNames.join(', ') + '. Clique em CONECTAR para reconectar.');
+            return;
           }
+
+          setRepairInfo(d.failed.map(function(f) {
+            return f.wallet + ': ' + f.reason + (f.detail ? ' \u2014 ' + f.detail : '');
+          }).join(' | '));
         }).catch(function(){});
     }, [accounts, userId]);
     var loadingState = React.useState(null); // id being loaded
