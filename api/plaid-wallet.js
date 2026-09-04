@@ -136,6 +136,49 @@ export default async function handler(req, res) {
       }
       res.status(200).json({ items: result });
 
+    } else if (action === 'repair') {
+      /* Regrava no banco as associacoes que o app tem no estado local.
+         Corrige contas antigas cujo wallet_id ficou null por causa do bug do assign. */
+      const { userId, accounts } = req.body;
+      if (!userId || !Array.isArray(accounts)) { res.status(400).json({ error: 'userId e accounts required' }); return; }
+
+      /* Mapa nome -> uuid das carteiras do usuario */
+      const wR = await supa(`wallets?user_id=eq.${userId}&select=id,name`);
+      const wRows = wR.ok ? await wR.json() : [];
+      const uuidByName = {};
+      wRows.forEach(w => { uuidByName[w.name] = w.id; });
+
+      const repaired = [];
+      for (const a of accounts) {
+        if (!a || !a.plaidAccountId || !a.walletId) continue;
+        const walletUuid = uuidByName[a.walletId] || null;
+
+        const patchR = await supa(`plaid_wallet_accounts?plaid_account_id=eq.${a.plaidAccountId}`, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ wallet_id: a.walletId, wallet_uuid: walletUuid })
+        });
+        let rows = patchR.ok ? await patchR.json() : [];
+
+        if (!rows.length && a.itemId) {
+          const insR = await supa('plaid_wallet_accounts', {
+            method: 'POST',
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({
+              item_id: a.itemId,
+              plaid_account_id: a.plaidAccountId,
+              account_name: a.walletId,
+              wallet_id: a.walletId,
+              wallet_uuid: walletUuid,
+              last_synced_at: new Date().toISOString()
+            })
+          });
+          rows = insR.ok ? await insR.json() : [];
+        }
+        if (rows.length) repaired.push(a.walletId);
+      }
+      res.status(200).json({ ok: true, repaired });
+
     } else if (action === 'assign') {
       const { walletId, plaidAccountId, userId, itemId } = req.body;
       if (!plaidAccountId) { res.status(400).json({ error: 'plaidAccountId required' }); return; }
