@@ -36,6 +36,7 @@
     var onDeleteEntry = props.onDeleteEntry;
     var onDeleteWallet = props.onDeleteWallet;
     var onRenameWallet = props.onRenameWallet;
+    var syncMsg = props.syncMsg;
 
     var expandState = React.useState(false);
     var expanded = expandState[0], setExpanded = expandState[1];
@@ -106,7 +107,8 @@
           h(Icon, { name: 'wallet', size: 15, color: '#5EEAD4' }),
           h('div', null,
             h('div', { style: S.walletName }, wallet.name),
-            h('div', { style: S.walletMeta }, latest ? (formatDateLabel(latest.date) + ' · ' + entries.length + ' leitura' + (entries.length > 1 ? 's' : '')) : 'SEM LEITURAS')
+            h('div', { style: S.walletMeta }, latest ? (formatDateLabel(latest.date) + ' · ' + entries.length + ' leitura' + (entries.length > 1 ? 's' : '')) : 'SEM LEITURAS'),
+            syncMsg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: syncMsg.color, marginTop: 3 } }, syncMsg.text) : null
           )
         ),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
@@ -185,6 +187,7 @@
     var walletEntries = props.walletEntries, setWalletEntries = props.setWalletEntries;
     var syncStatus = props.syncStatus, setSyncStatus = props.setSyncStatus;
     var walletCards = props.walletCards;
+    var syncMsgs = props.syncMsgs || {};
     var grandTotal = props.grandTotal;
 
     var showNewWallet = React.useState(false);
@@ -311,7 +314,8 @@
           onAddEntry: handleAddEntry,
           onDeleteEntry: handleDeleteEntry,
           onDeleteWallet: handleDeleteWallet,
-          onRenameWallet: handleRenameWallet
+          onRenameWallet: handleRenameWallet,
+          syncMsg: syncMsgs[wc.wallet.name]
         });
       }),
 
@@ -345,6 +349,8 @@
     var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
     var lastSyncState = React.useState(null);
     var lastSync = lastSyncState[0], setLastSync = lastSyncState[1];
+    var syncMsgsState = React.useState({});
+    var syncMsgs = syncMsgsState[0], setSyncMsgs = syncMsgsState[1];
 
     var dateState = React.useState('');
     var newDate = dateState[0], setNewDate = dateState[1];
@@ -580,6 +586,16 @@
                   setSyncingPlaid(false);
                   setLastSync(new Date());
                   if (d.error) { console.error(d.error); return; }
+                  /* Mensagem por conta a partir do retorno do sync */
+                  var msgs = {};
+                  (d.results || []).forEach(function(r) {
+                    if (!r || !r.wallet) return;
+                    if (r.action === 'created')      msgs[r.wallet] = { text: '\u2713 Leitura criada', color: '#5EEAD4' };
+                    else if (r.action === 'updated') msgs[r.wallet] = { text: '\u2713 Leitura atualizada', color: '#5EEAD4' };
+                    else if (r.action === 'skipped') msgs[r.wallet] = { text: '\u2014 Sem altera\u00e7\u00e3o', color: '#9CA3AF' };
+                    else if (r.action === 'error')   msgs[r.wallet] = { text: '\u26a0 Erro ao sincronizar', color: '#FB7185' };
+                  });
+                  setSyncMsgs(msgs);
                   Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
                     .then(function(results) {
                       var allWallets = results[0] || [];
@@ -641,7 +657,8 @@
         syncStatus: walletSyncStatus,
         setSyncStatus: setWalletSyncStatus,
         walletCards: walletCards,
-        grandTotal: walletsTotal
+        grandTotal: walletsTotal,
+        syncMsgs: syncMsgs
       }),
 
       h('div', { style: S.footer }, 'DADOS SALVOS NESTE DISPOSITIVO · NETBENEFITS / FIDELITY')
