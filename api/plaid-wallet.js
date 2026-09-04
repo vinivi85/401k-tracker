@@ -137,7 +137,9 @@ export default async function handler(req, res) {
       res.status(200).json({ items: result });
 
     } else if (action === 'assign') {
-      const { accountId, walletId, plaidAccountId, userId } = req.body;
+      const { walletId, plaidAccountId, userId, itemId } = req.body;
+      if (!plaidAccountId) { res.status(400).json({ error: 'plaidAccountId required' }); return; }
+
       /* Look up wallet UUID so we can store it directly */
       let walletUuid = null;
       if (walletId && walletId !== '401k' && userId) {
@@ -145,14 +147,33 @@ export default async function handler(req, res) {
         const wRows = wR.ok ? await wR.json() : [];
         if (wRows.length) walletUuid = wRows[0].id;
       }
-      await supa(`plaid_wallet_accounts?id=eq.${accountId}`, {
-        method: 'PATCH', body: JSON.stringify({
-          wallet_id: walletId || null,
-          plaid_account_id: plaidAccountId || null,
-          wallet_uuid: walletUuid
-        })
+
+      /* Match by plaid_account_id — the app's local account id is NOT the table id */
+      const patchR = await supa(`plaid_wallet_accounts?plaid_account_id=eq.${plaidAccountId}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ wallet_id: walletId || null, wallet_uuid: walletUuid })
       });
-      res.status(200).json({ ok: true, wallet_uuid: walletUuid });
+      let rows = patchR.ok ? await patchR.json() : [];
+
+      /* Row missing (account not captured on exchange) — insert it */
+      if (!rows.length && itemId) {
+        const insR = await supa('plaid_wallet_accounts', {
+          method: 'POST',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({
+            item_id: itemId,
+            plaid_account_id: plaidAccountId,
+            account_name: walletId || 'Conta Plaid',
+            wallet_id: walletId || null,
+            wallet_uuid: walletUuid,
+            last_synced_at: new Date().toISOString()
+          })
+        });
+        rows = insR.ok ? await insR.json() : [];
+      }
+
+      res.status(200).json({ ok: true, wallet_uuid: walletUuid, rows: rows.length });
 
     } else if (action === 'sync-one') {
       const { userId, itemId, walletId, plaidAccountId } = req.body;
