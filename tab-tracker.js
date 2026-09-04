@@ -605,7 +605,7 @@
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'SALDO ATUAL 401K'),
+        h('div', { style: S.gaugeLabel }, 'SALDO TOTAL DE APOSENTADORIA'),
         h('div', { style: S.gaugeValue }, latest ? formatUSD(latest.balance) : '—'),
         h('div', { style: S.gaugeDate }, latest ? ('ÚLTIMA LEITURA · ' + formatDateLabel(latest.date).toUpperCase() + ' 2026') : 'SEM DADOS'),
         latest && (latest.updated_at || latest.created_at) ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280', marginTop: 2, textAlign: 'center' } },
