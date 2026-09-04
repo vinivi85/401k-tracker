@@ -117,8 +117,7 @@
       { id: 'paycheck',   label: 'PAYCHECK',  icon: 'dollar'  },
       { id: 'pay',        label: 'PAY',       icon: 'receipt' },
       { id: 'projection', label: 'PROJEÇÃO',  icon: 'chart'   },
-      { id: 'irs',        label: 'IRS',        icon: 'receipt' },
-      { id: 'config',     label: 'CONFIG',    icon: 'settings'}
+      { id: 'irs',        label: 'IRS',        icon: 'receipt' }
     ];
 
     var content;
@@ -158,8 +157,8 @@
         ),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
           h('button', { style: { background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: 2 },
-            onClick: function () { setActiveTab('config'); } },
-            h(Icon, { name: 'settings', size: 18, color: '#6B7280' })
+            onClick: function () { setActiveTab(activeTab === 'config' ? 'tracker' : 'config'); } },
+            h(Icon, { name: 'settings', size: 18, color: activeTab === 'config' ? '#5EEAD4' : '#6B7280' })
           ),
           h('button', { style: { background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'flex', padding: 2 }, onClick: function () { setShowSecurity(true); } },
             h(Icon, { name: 'lock', size: 18, color: '#9CA3AF' })
