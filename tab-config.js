@@ -94,6 +94,8 @@
 
     /* Regrava no banco as associacoes do estado local — corrige contas com wallet_id null */
     var repairedRef = React.useRef(false);
+    var repairInfoState = React.useState('');
+    var repairInfo = repairInfoState[0], setRepairInfo = repairInfoState[1];
     React.useEffect(function() {
       if (repairedRef.current) return;
       if (!userId || !accounts.length) return;
@@ -107,7 +109,15 @@
       fetch('/api/plaid-wallet?action=repair', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: userId, accounts: assoc })
-      }).catch(function(){});
+      }).then(function(r){ return r.text().then(function(t){ try { return JSON.parse(t); } catch(e) { return {}; } }); })
+        .then(function(d) {
+          console.log('repair:', JSON.stringify(d));
+          if (d && d.failed && d.failed.length) {
+            setRepairInfo(d.failed.map(function(f) {
+              return f.wallet + ': ' + f.reason + (f.detail ? ' — ' + f.detail : '');
+            }).join(' | '));
+          }
+        }).catch(function(){});
     }, [accounts, userId]);
     var loadingState = React.useState(null); // id being loaded
     var loadingId = loadingState[0], setLoadingId = loadingState[1];
@@ -529,7 +539,8 @@
             onClick: function(){ setShowImport(true); }
           },
             h(Icon, { name: 'plus', size: 14 }), 'IMPORTAR CONTA'
-          )
+          ),
+      repairInfo ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FF6B81', marginTop: 8, padding: '6px 8px', background: '#2A0F14', borderRadius: 6, wordBreak: 'break-word' } }, '\u26a0 ' + repairInfo) : null
     );
   }
 
