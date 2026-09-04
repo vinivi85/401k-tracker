@@ -161,8 +161,8 @@
             onClick: function () { setActiveTab('config'); } },
             h(Icon, { name: 'settings', size: 18, color: '#6B7280' })
           ),
-          h('button', { style: { background: 'transparent', border: 'none', color: '#4B5563', cursor: 'pointer', display: 'flex', padding: 2 }, onClick: function () { setShowSecurity(true); } },
-            h(Icon, { name: 'lock', size: 15 })
+          h('button', { style: { background: 'transparent', border: 'none', color: '#9CA3AF', cursor: 'pointer', display: 'flex', padding: 2 }, onClick: function () { setShowSecurity(true); } },
+            h(Icon, { name: 'lock', size: 18, color: '#9CA3AF' })
           )
         )
       ),
