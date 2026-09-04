@@ -553,14 +553,7 @@
     var visibleRows = expanded ? allEntryRows : allEntryRows.slice(0, PREVIEW_COUNT);
     var hasMore = allEntryRows.length > PREVIEW_COUNT;
 
-    var trackerSyncBadge;
-    if (trackerSyncStatus === 'syncing') trackerSyncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SINCRONIZANDO...');
-    else if (trackerSyncStatus === 'synced') trackerSyncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
-    else trackerSyncBadge = h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL');
-
     return h(React.Fragment, null,
-      h('div', { style: { textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1, margin: '8px 0 -4px' } }, trackerSyncBadge),
-
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
