@@ -298,7 +298,7 @@
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'TOTAL EM CARTEIRAS DE INVESTIMENTO'),
+        h('div', { style: S.gaugeLabel }, 'SALDO TOTAL DE INVESTIMENTOS'),
         h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
         h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA')
       ),
