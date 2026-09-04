@@ -271,25 +271,7 @@
       });
     }
 
-    var syncBadge;
-    if (syncStatus === 'syncing') syncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SINCRONIZANDO...');
-    else if (syncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
-    else syncBadge = h('span', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-      h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL'),
-      h('button', {
-        style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4',
-          background: 'transparent', border: '1px solid #134E4A', borderRadius: 4,
-          padding: '2px 6px', cursor: 'pointer' },
-        onClick: function() {
-          /* Clear session and reload to force re-login */
-          try {
-            saveJSON('401k-auth-session', null);
-            window.__dbCache['401k-auth-session'] = null;
-          } catch(e) {}
-          window.location.reload();
-        }
-      }, 'RECONECTAR')
-    );
+
 
     return h(React.Fragment, null,
       h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
@@ -367,6 +349,30 @@
 
     var walletSyncState = React.useState('syncing');
     var walletSyncStatus = walletSyncState[0], setWalletSyncStatus = walletSyncState[1];
+
+    /* Use walletSyncStatus as primary — it reflects actual Supabase connectivity */
+    var effectiveSyncStatus = walletSyncStatus === 'synced' ? 'synced'
+      : walletSyncStatus === 'syncing' ? 'syncing'
+      : syncStatus;
+
+    var syncBadge;
+    if (effectiveSyncStatus === 'syncing') syncBadge = h('span', { style: { color: '#B0B7C3' } }, 'SINCRONIZANDO...');
+    else if (effectiveSyncStatus === 'synced') syncBadge = h('span', { style: { color: '#5EEAD4' } }, '☁ SINCRONIZADO');
+    else syncBadge = h('span', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+      h('span', { style: { color: '#FBBF24' } }, '⚠ OFFLINE · USANDO CACHE LOCAL'),
+      h('button', {
+        style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5EEAD4',
+          background: 'transparent', border: '1px solid #134E4A', borderRadius: 4,
+          padding: '2px 6px', cursor: 'pointer' },
+        onClick: function() {
+          try {
+            saveJSON('401k-auth-session', null);
+            window.__dbCache['401k-auth-session'] = null;
+          } catch(e) {}
+          window.location.reload();
+        }
+      }, 'RECONECTAR')
+    );
 
     React.useEffect(function () {
       var cancelled = false;
