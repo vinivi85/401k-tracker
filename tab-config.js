@@ -91,6 +91,24 @@
         props.onSave && props.onSave(synced);
       }
     }, [wallets]);
+
+    /* Regrava no banco as associacoes do estado local — corrige contas com wallet_id null */
+    var repairedRef = React.useRef(false);
+    React.useEffect(function() {
+      if (repairedRef.current) return;
+      if (!userId || !accounts.length) return;
+      var assoc = accounts.filter(function(a) {
+        return a.status === 'associated' && a.plaidAccountId && a.walletId;
+      }).map(function(a) {
+        return { plaidAccountId: a.plaidAccountId, walletId: a.name || a.walletId, itemId: a.plaidItemId };
+      });
+      if (!assoc.length) return;
+      repairedRef.current = true;
+      fetch('/api/plaid-wallet?action=repair', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, accounts: assoc })
+      }).catch(function(){});
+    }, [accounts, userId]);
     var loadingState = React.useState(null); // id being loaded
     var loadingId = loadingState[0], setLoadingId = loadingState[1];
     var confirmState = React.useState(null); // {type, id, msg, onOk}
