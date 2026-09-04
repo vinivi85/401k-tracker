@@ -157,7 +157,10 @@
           h('span', { style: S.headerLabel }, 'AA 401(K) · FLIGHT DECK')
         ),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
-          h('span', { style: S.headerRight }, 'OFFLINE-READY'),
+          h('button', { style: { background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: 2 },
+            onClick: function () { setActiveTab('config'); } },
+            h(Icon, { name: 'settings', size: 18, color: '#6B7280' })
+          ),
           h('button', { style: { background: 'transparent', border: 'none', color: '#4B5563', cursor: 'pointer', display: 'flex', padding: 2 }, onClick: function () { setShowSecurity(true); } },
             h(Icon, { name: 'lock', size: 15 })
           )
