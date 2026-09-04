@@ -590,10 +590,16 @@
                   var msgs = {};
                   (d.results || []).forEach(function(r) {
                     if (!r || !r.wallet) return;
-                    if (r.action === 'created')      msgs[r.wallet] = { text: '\u2713 Leitura criada', color: '#5EEAD4' };
-                    else if (r.action === 'updated') msgs[r.wallet] = { text: '\u2713 Leitura atualizada', color: '#5EEAD4' };
-                    else if (r.action === 'skipped') msgs[r.wallet] = { text: '\u2014 Sem altera\u00e7\u00e3o', color: '#9CA3AF' };
-                    else if (r.action === 'error')   msgs[r.wallet] = { text: '\u26a0 Erro ao sincronizar', color: '#FB7185' };
+                    var val = (typeof r.balance === 'number') ? formatUSD(r.balance) : '';
+                    if (r.action === 'created') {
+                      msgs[r.wallet] = { text: '\u2713 Leitura criada' + (val ? ': ' + val : ''), color: '#5EEAD4' };
+                    } else if (r.action === 'updated') {
+                      msgs[r.wallet] = { text: '\u2713 Leitura atualizada' + (val ? ': ' + val : ''), color: '#5EEAD4' };
+                    } else if (r.action === 'skipped') {
+                      msgs[r.wallet] = { text: '\u2014 Sem altera\u00e7\u00e3o' + (val ? ' \u00b7 igual \u00e0 \u00faltima (' + val + ')' : ''), color: '#9CA3AF' };
+                    } else if (r.action === 'error') {
+                      msgs[r.wallet] = { text: '\u26a0 ' + (r.error || 'Erro ao sincronizar'), color: '#FB7185' };
+                    }
                   });
                   /* Carteiras que nao voltaram no sync nao tem Plaid conectado */
                   wallets.forEach(function(w) {
