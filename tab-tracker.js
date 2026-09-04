@@ -318,7 +318,7 @@
   }
 
   function TrackerTab() {
-    var state = React.useState(loadEntries());
+    var state = React.useState(loadJSON(KEY_ENTRIES) || []);
     var entries = state[0], setEntries = state[1];
 
     var formState = React.useState(false);
