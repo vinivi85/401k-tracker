@@ -350,6 +350,29 @@
     );
   }
 
+  /* Consolida os deltas de varias secoes somando valores e bases */
+  function sumDeltas(list) {
+    var out = {
+      latest: null, first: null,
+      totalChange: 0, totalChangePct: 0, totalBase: 0,
+      lastMonthChange: null, lastMonthChangePct: null, monthBase: 0
+    };
+    var temMes = false;
+    (list || []).forEach(function (d) {
+      if (!d) return;
+      out.totalChange += d.totalChange || 0;
+      out.totalBase   += d.totalBase   || 0;
+      if (typeof d.lastMonthChange === 'number') {
+        temMes = true;
+        out.lastMonthChange = (out.lastMonthChange || 0) + d.lastMonthChange;
+        out.monthBase += d.monthBase || 0;
+      }
+    });
+    out.totalChangePct = out.totalBase ? (out.totalChange / out.totalBase) * 100 : 0;
+    if (temMes) out.lastMonthChangePct = out.monthBase ? (out.lastMonthChange / out.monthBase) * 100 : 0;
+    return out;
+  }
+
   /* Bloco de variacao reutilizado pelos cards de total */
   function DeltaRow(props) {
     var d = props.deltas || {};
@@ -408,14 +431,15 @@
   function computeDeltas(series) {
     var out = {
       latest: null, first: null,
-      totalChange: 0, totalChangePct: 0,
-      lastMonthChange: null, lastMonthChangePct: null
+      totalChange: 0, totalChangePct: 0, totalBase: 0,
+      lastMonthChange: null, lastMonthChangePct: null, monthBase: 0
     };
     if (!series || !series.length) return out;
 
     out.latest = series[series.length - 1];
     out.first = series[0];
     out.totalChange = out.latest.balance - out.first.balance;
+    out.totalBase = out.first.balance;
     out.totalChangePct = out.first.balance ? (out.totalChange / out.first.balance) * 100 : 0;
 
     var now = new Date();
@@ -430,6 +454,7 @@
     if (pmEntries.length >= 2) {
       var a = pmEntries[0], b = pmEntries[pmEntries.length - 1];
       out.lastMonthChange = b.balance - a.balance;
+      out.monthBase = a.balance;
       out.lastMonthChangePct = a.balance > 0 ? (out.lastMonthChange / a.balance) * 100 : 0;
     } else if (pmEntries.length === 1) {
       var only = pmEntries[0];
@@ -439,6 +464,7 @@
       if (before.length) {
         var ref = before[before.length - 1];
         out.lastMonthChange = only.balance - ref.balance;
+        out.monthBase = ref.balance;
         out.lastMonthChangePct = ref.balance > 0 ? (out.lastMonthChange / ref.balance) * 100 : 0;
       }
     }
@@ -613,6 +639,7 @@
     });
     var retireDeltas = computeDeltas(aggregateSeries(retirementCards));
     var investDeltas = computeDeltas(aggregateSeries(investmentCards));
+    var globalDeltas = sumDeltas([retireDeltas, investDeltas]);
 
     var globalTotal = retirementTotal + investmentTotal;
 
@@ -682,7 +709,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTOS ' + formatUSD(investmentTotal)),
+        h(DeltaRow, { deltas: globalDeltas, prevMonthLabel: prevMonthLabel }),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
