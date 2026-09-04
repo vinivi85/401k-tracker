@@ -21,7 +21,7 @@ async function saveToTracker(userId, walletId, balance, walletUuid = null) {
     const lastRows = lastR.ok ? await lastR.json() : [];
     const lastBalance = lastRows.length ? parseFloat(lastRows[0].balance) : null;
     if (lastBalance !== null && Math.abs(lastBalance - balance) < 0.01) {
-      return { action: 'skipped', reason: 'no change', balance };
+      return { action: 'skipped', reason: 'no change', balance, lastBalance };
     }
     const ex = await supa(`tracker_entries?user_id=eq.${userId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
@@ -45,7 +45,7 @@ async function saveToTracker(userId, walletId, balance, walletUuid = null) {
     const lastRows = lastR.ok ? await lastR.json() : [];
     const lastBalance = lastRows.length ? parseFloat(lastRows[0].balance) : null;
     if (lastBalance !== null && Math.abs(lastBalance - balance) < 0.01) {
-      return { action: 'skipped', reason: 'no change', balance };
+      return { action: 'skipped', reason: 'no change', balance, lastBalance };
     }
     const ex = await supa(`wallet_entries?wallet_id=eq.${wId}&entry_date=eq.${today}&select=id&limit=1`);
     const existing = ex.ok ? await ex.json() : [];
@@ -66,20 +66,47 @@ async function syncUser(userId, clientId, secret) {
   const connsR = await supa(`plaid_wallet_connections?user_id=eq.${userId}&select=id,plaid_access_token`);
   const conns = connsR.ok ? await connsR.json() : [];
   for (const conn of conns) {
-    const accsR = await supa(`plaid_wallet_accounts?item_id=eq.${conn.id}&wallet_id=not.is.null&select=plaid_account_id,wallet_id,wallet_uuid`);
+    const accsR = await supa(`plaid_wallet_accounts?item_id=eq.${conn.id}&wallet_id=not.is.null&select=plaid_account_id,wallet_id,wallet_uuid,account_name`);
     const accs = accsR.ok ? await accsR.json() : [];
     if (!accs.length) continue;
+
     const balR = await fetch(`${plaidBaseUrl()}/accounts/balance/get`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ client_id: clientId, secret, access_token: conn.plaid_access_token })
     });
-    if (!balR.ok) continue;
-    const balData = await balR.json();
+    const balData = await balR.json().catch(() => ({}));
+
+    /* Plaid recusou a conexao — reporta em cada conta em vez de sumir */
+    if (!balR.ok) {
+      const code = balData.error_code || '';
+      const needsReauth = code === 'ITEM_LOGIN_REQUIRED';
+      for (const acc of accs) {
+        results.push({
+          wallet: acc.wallet_id,
+          action: 'error',
+          error: needsReauth ? 'Reautenticar no CONFIG' : (balData.error_message || 'Falha no Plaid'),
+          code
+        });
+      }
+      continue;
+    }
+
     for (const acc of accs) {
-      const plaidAcc = balData.accounts?.find(a => a.account_id === acc.plaid_account_id);
-      const balance = plaidAcc ? (plaidAcc.balances?.current || 0) : 0;
+      const plaidAcc = (balData.accounts || []).find(a => a.account_id === acc.plaid_account_id);
+      /* Conta nao veio na resposta do Plaid */
+      if (!plaidAcc) {
+        results.push({ wallet: acc.wallet_id, action: 'error', error: 'Conta nao retornada pelo Plaid' });
+        continue;
+      }
+      const balance = plaidAcc.balances?.current || 0;
       const result = await saveToTracker(userId, acc.wallet_id, balance, acc.wallet_uuid || null);
-      results.push({ wallet: acc.wallet_id, balance, action: result?.action });
+      results.push({
+        wallet: acc.wallet_id,
+        balance,
+        action: result?.action,
+        lastBalance: result?.lastBalance,
+        error: result?.error
+      });
     }
   }
   return results;
