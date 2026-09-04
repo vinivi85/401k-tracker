@@ -158,7 +158,7 @@
         ),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
           h('button', { style: { background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: 2 },
-            onClick: function () { setTab('config'); } },
+            onClick: function () { setActiveTab('config'); } },
             h(Icon, { name: 'settings', size: 18, color: '#6B7280' })
           ),
           h('button', { style: { background: 'transparent', border: 'none', color: '#4B5563', cursor: 'pointer', display: 'flex', padding: 2 }, onClick: function () { setShowSecurity(true); } },
