@@ -1,6 +1,6 @@
-const CACHE_NAME = '401k-tracker-v264';
-const APP_VERSION = 'v264';
-const BUILD_DATE = '2026-09-04 16:40 CDT';
+const CACHE_NAME = '401k-tracker-v265';
+const APP_VERSION = 'v265';
+const BUILD_DATE = '2026-09-04 16:44 CDT';
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_VERSION') {
