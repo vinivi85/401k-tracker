@@ -148,6 +148,12 @@ export default async function handler(req, res) {
       const uuidByName = {};
       wRows.forEach(w => { uuidByName[w.name] = w.id; });
 
+      /* Conexoes validas — itemId apontando pra conexao removida vira 'stale' */
+      const cR = await supa(`plaid_wallet_connections?user_id=eq.${userId}&select=id,plaid_item_id`);
+      const cRows = cR.ok ? await cR.json() : [];
+      const validItems = new Set();
+      cRows.forEach(c2 => { validItems.add(c2.id); validItems.add(c2.plaid_item_id); });
+
       const repaired = [];
       const failed = [];
       for (const a of accounts) {
@@ -167,6 +173,10 @@ export default async function handler(req, res) {
         if (!rows.length) {
           if (!a.itemId) {
             failed.push({ wallet: a.walletId, reason: 'linha inexistente e sem itemId' });
+            continue;
+          }
+          if (!validItems.has(a.itemId)) {
+            failed.push({ wallet: a.walletId, reason: 'conexao removida — reconecte esta conta', stale: true });
             continue;
           }
           const insR = await supa('plaid_wallet_accounts', {
