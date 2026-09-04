@@ -349,7 +349,7 @@
     var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
     var lastSyncState = React.useState(null);
     var lastSync = lastSyncState[0], setLastSync = lastSyncState[1];
-    var syncMsgsState = React.useState({});
+    var syncMsgsState = React.useState(loadJSON(KEY_SYNC_MSGS) || {});
     var syncMsgs = syncMsgsState[0], setSyncMsgs = syncMsgsState[1];
 
     var dateState = React.useState('');
@@ -592,20 +592,21 @@
                     if (!r || !r.wallet) return;
                     var val = (typeof r.balance === 'number') ? formatUSD(r.balance) : '';
                     if (r.action === 'created') {
-                      msgs[r.wallet] = { text: '\u2713 Leitura criada' + (val ? ': ' + val : ''), color: '#5EEAD4' };
+                      msgs[r.wallet] = { text: '\u2713 Leitura criada' + (val ? ': ' + val : ''), color: '#00FFB2' };
                     } else if (r.action === 'updated') {
-                      msgs[r.wallet] = { text: '\u2713 Leitura atualizada' + (val ? ': ' + val : ''), color: '#5EEAD4' };
+                      msgs[r.wallet] = { text: '\u2713 Leitura atualizada' + (val ? ': ' + val : ''), color: '#00FFB2' };
                     } else if (r.action === 'skipped') {
-                      msgs[r.wallet] = { text: '\u2014 Sem altera\u00e7\u00e3o' + (val ? ' \u00b7 igual \u00e0 \u00faltima (' + val + ')' : ''), color: '#9CA3AF' };
+                      msgs[r.wallet] = { text: '\u2014 Sem altera\u00e7\u00e3o' + (val ? ' \u00b7 igual \u00e0 \u00faltima (' + val + ')' : ''), color: '#C9D1D9' };
                     } else if (r.action === 'error') {
-                      msgs[r.wallet] = { text: '\u26a0 ' + (r.error || 'Erro ao sincronizar'), color: '#FB7185' };
+                      msgs[r.wallet] = { text: '\u26a0 ' + (r.error || 'Erro ao sincronizar'), color: '#FF6B81' };
                     }
                   });
                   /* Carteiras que nao voltaram no sync nao tem Plaid conectado */
                   wallets.forEach(function(w) {
-                    if (!msgs[w.name]) msgs[w.name] = { text: '\u25cb N\u00e3o conectada', color: '#6B7280' };
+                    if (!msgs[w.name]) msgs[w.name] = { text: '\u25cb N\u00e3o conectada', color: '#94A3B8' };
                   });
                   setSyncMsgs(msgs);
+                  saveJSON(KEY_SYNC_MSGS, msgs);
                   Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
                     .then(function(results) {
                       var allWallets = results[0] || [];
