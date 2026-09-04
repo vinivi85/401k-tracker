@@ -149,8 +149,12 @@ export default async function handler(req, res) {
       wRows.forEach(w => { uuidByName[w.name] = w.id; });
 
       const repaired = [];
+      const failed = [];
       for (const a of accounts) {
-        if (!a || !a.plaidAccountId || !a.walletId) continue;
+        if (!a || !a.plaidAccountId || !a.walletId) {
+          failed.push({ wallet: a && a.walletId, reason: 'sem plaidAccountId ou walletId', got: a });
+          continue;
+        }
         const walletUuid = uuidByName[a.walletId] || null;
 
         const patchR = await supa(`plaid_wallet_accounts?plaid_account_id=eq.${a.plaidAccountId}`, {
@@ -160,7 +164,11 @@ export default async function handler(req, res) {
         });
         let rows = patchR.ok ? await patchR.json() : [];
 
-        if (!rows.length && a.itemId) {
+        if (!rows.length) {
+          if (!a.itemId) {
+            failed.push({ wallet: a.walletId, reason: 'linha inexistente e sem itemId' });
+            continue;
+          }
           const insR = await supa('plaid_wallet_accounts', {
             method: 'POST',
             headers: { Prefer: 'return=representation' },
@@ -173,11 +181,17 @@ export default async function handler(req, res) {
               last_synced_at: new Date().toISOString()
             })
           });
-          rows = insR.ok ? await insR.json() : [];
+          if (!insR.ok) {
+            const err = await insR.text().catch(() => '');
+            failed.push({ wallet: a.walletId, reason: 'insert falhou', status: insR.status, detail: err.slice(0, 300) });
+            continue;
+          }
+          rows = await insR.json().catch(() => []);
         }
         if (rows.length) repaired.push(a.walletId);
+        else failed.push({ wallet: a.walletId, reason: 'sem linhas afetadas' });
       }
-      res.status(200).json({ ok: true, repaired });
+      res.status(200).json({ ok: true, repaired, failed });
 
     } else if (action === 'assign') {
       const { walletId, plaidAccountId, userId, itemId } = req.body;
