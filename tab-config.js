@@ -289,6 +289,7 @@
     }
 
     function doAssociate(accId, plaidAccountId, walletId) {
+      var targetAcc = accounts.find(function(a){ return a.id === accId; });
       /* Check if another account is already associated to this wallet */
       var existing = accounts.find(function(a) {
         return a.id !== accId && a.status === 'associated' && a.walletId === walletId;
@@ -305,7 +306,7 @@
         });
         fetch('/api/plaid-wallet?action=assign', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId, userId: userId })
+          body: JSON.stringify({ accountId: accId, walletId: walletId, plaidAccountId: plaidAccountId, userId: userId, itemId: targetAcc ? targetAcc.plaidItemId : null })
         }).catch(function(){});
         save(updated);
         setAssociatingId(null);
