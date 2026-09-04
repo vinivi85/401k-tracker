@@ -37,6 +37,8 @@
     var onDeleteWallet = props.onDeleteWallet;
     var onRenameWallet = props.onRenameWallet;
     var syncMsg = props.syncMsg;
+    var isDisconnected = !!(syncMsg && (syncMsg.disconnected ||
+      (syncMsg.text && syncMsg.text.indexOf('conectada') !== -1)));
 
     var expandState = React.useState(false);
     var expanded = expandState[0], setExpanded = expandState[1];
@@ -104,11 +106,16 @@
     return h('div', { style: S.card },
       h('div', { style: S.walletCardHeader, onClick: function () { setExpanded(!expanded); } },
         h('div', { style: S.walletHeaderLeft },
-          h(Icon, { name: 'wallet', size: 15, color: '#5EEAD4' }),
+          h(Icon, { name: 'wallet', size: 15, color: isDisconnected ? '#FF6B81' : '#5EEAD4' }),
           h('div', null,
-            h('div', { style: S.walletName }, wallet.name),
+            h('div', { style: Object.assign({}, S.walletName, { display: 'flex', alignItems: 'center', gap: 6 }) },
+              wallet.name,
+              isDisconnected
+                ? h('span', { title: 'Sem conexao Plaid', style: { width: 7, height: 7, borderRadius: '50%', background: '#FF3B5C', boxShadow: '0 0 6px #FF3B5C', flexShrink: 0 } })
+                : null
+            ),
             h('div', { style: S.walletMeta }, latest ? (formatDateLabel(latest.date) + ' · ' + entries.length + ' leitura' + (entries.length > 1 ? 's' : '')) : 'SEM LEITURAS'),
-            syncMsg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: syncMsg.color, marginTop: 3 } }, syncMsg.text) : null
+            syncMsg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: isDisconnected ? '#FF6B81' : syncMsg.color, marginTop: 3 } }, syncMsg.text) : null
           )
         ),
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
@@ -749,7 +756,7 @@
                   });
                   /* Carteiras que nao voltaram no sync nao tem Plaid conectado */
                   wallets.forEach(function(w) {
-                    if (!msgs[w.name]) msgs[w.name] = { text: '\u25cb N\u00e3o conectada', color: '#94A3B8' };
+                    if (!msgs[w.name]) msgs[w.name] = { text: '\u25cf N\u00e3o conectada', color: '#FF6B81', disconnected: true };
                   });
                   setSyncMsgs(msgs);
                   saveJSON(KEY_SYNC_MSGS, msgs);
