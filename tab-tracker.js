@@ -191,6 +191,14 @@
     var deltas = props.deltas || null;
     var prevMonthLabel = props.prevMonthLabel || '';
     var grandTotal = props.grandTotal;
+    var category    = props.category    || 'investment';
+    var sectionTitle= props.sectionTitle|| 'CARTEIRAS DE INVESTIMENTO';
+    var totalLabel  = props.totalLabel  || 'SALDO TOTAL DE INVESTIMENTOS';
+    var addTitle    = props.addTitle    || 'NOVA CARTEIRA DE INVESTIMENTO';
+    var addSubmit   = props.addSubmit   || 'CRIAR CARTEIRA DE INVESTIMENTO';
+    var nameHint    = props.nameHint    || 'NOME (EX: ROBINHOOD, MARCUS)';
+    var namePlaceholder = props.namePlaceholder || 'Robinhood';
+    var countNoun   = props.countNoun   || 'carteira';
 
     var showNewWallet = React.useState(false);
     var showForm = showNewWallet[0], setShowForm = showNewWallet[1];
@@ -204,7 +212,7 @@
     function handleAddWallet() {
       setError('');
       if (!newName.trim()) { setError('Dê um nome pra carteira.'); return; }
-      SupabaseAPI.insertWallet(newName.trim()).then(function (created) {
+      SupabaseAPI.insertWallet(newName.trim(), category).then(function (created) {
         var next = wallets.concat([created]);
         setWallets(next);
         saveJSON(KEY_WALLETS, next);
@@ -212,7 +220,7 @@
         setShowForm(false);
       }).catch(function (e) {
         console.error('Falha ao criar carteira na nuvem', e);
-        var local = { id: 'local-' + Date.now(), name: newName.trim() };
+        var local = { id: 'local-' + Date.now(), name: newName.trim(), category: category };
         var next = wallets.concat([local]);
         setWallets(next);
         saveJSON(KEY_WALLETS, next);
@@ -298,14 +306,14 @@
 
     return h(React.Fragment, null,
       h('div', { style: { margin: '28px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' } },
-        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, 'CARTEIRAS DE INVESTIMENTO'),
+        h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 12, letterSpacing: 1.5, color: '#5EEAD4', fontWeight: 700 } }, sectionTitle),
         h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: 1 } }, syncBadge)
       ),
 
       h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'SALDO TOTAL DE INVESTIMENTOS'),
+        h('div', { style: S.gaugeLabel }, totalLabel),
         h('div', { style: S.gaugeValueSm }, formatUSD(grandTotal)),
-        h('div', { style: S.gaugeDate }, wallets.length + ' carteira' + (wallets.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA'),
+        h('div', { style: S.gaugeDate }, walletCards.length + ' ' + countNoun + (walletCards.length !== 1 ? 's' : '') + ' · SOMA DA LEITURA MAIS RECENTE DE CADA'),
         deltas ? h(DeltaRow, { deltas: deltas, prevMonthLabel: prevMonthLabel }) : null
       ),
 
@@ -324,7 +332,7 @@
 
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
-          h('span', { style: S.cardTitle }, 'NOVA CARTEIRA DE INVESTIMENTO'),
+          h('span', { style: S.cardTitle }, addTitle),
           h('button', { style: S.addBtn, onClick: function () { setShowForm(!showForm); } },
             h(Icon, { name: 'plus', size: 14 }),
             showForm ? 'CANCELAR' : 'ADICIONAR'
@@ -332,11 +340,11 @@
         ),
         showForm ? h('div', { style: S.formBox },
           h('div', { style: S.formRow },
-            h('label', { style: S.formLabel }, 'NOME (EX: ROBINHOOD, MARCUS)'),
-            h('input', { type: 'text', placeholder: 'Robinhood', value: newName, style: S.input, onChange: function (ev) { setNewName(ev.target.value); } })
+            h('label', { style: S.formLabel }, nameHint),
+            h('input', { type: 'text', placeholder: namePlaceholder, value: newName, style: S.input, onChange: function (ev) { setNewName(ev.target.value); } })
           ),
           error ? h('div', { style: S.errorText }, error) : null,
-          h('button', { style: S.submitBtn, onClick: handleAddWallet }, 'CRIAR CARTEIRA DE INVESTIMENTO')
+          h('button', { style: S.submitBtn, onClick: handleAddWallet }, addSubmit)
         ) : null
       )
     );
@@ -593,12 +601,20 @@
       return { wallet: w, entries: ownEntries };
     });
 
-    /* Deltas por secao — cada card resume as contas listadas abaixo dele */
-    var retirementCards = [];  /* nenhuma conta de aposentadoria nesta secao ainda */
+    /* Split por categoria — cada card resume as contas listadas abaixo dele */
+    var retirementCards = [];
+    var investmentCards = [];
+    var retirementTotal = 0;
+    var investmentTotal = 0;
+    walletCards.forEach(function (wc) {
+      var last = wc.entries.length ? wc.entries[wc.entries.length - 1].balance : 0;
+      if (wc.wallet.category === 'retirement') { retirementCards.push(wc); retirementTotal += last; }
+      else { investmentCards.push(wc); investmentTotal += last; }
+    });
     var retireDeltas = computeDeltas(aggregateSeries(retirementCards));
-    var investDeltas = computeDeltas(aggregateSeries(walletCards));
+    var investDeltas = computeDeltas(aggregateSeries(investmentCards));
 
-    var globalTotal = (latest ? latest.balance : 0) + walletsTotal;
+    var globalTotal = retirementTotal + investmentTotal;
 
     function handleAdd() {
       setError('');
@@ -666,7 +682,7 @@
       h('div', { style: Object.assign({}, S.gaugeCard, { border: '1px solid #134E4A' }) },
         h('div', { style: S.gaugeLabel }, 'SALDO GLOBAL'),
         h('div', { style: S.gaugeValue }, formatUSD(globalTotal)),
-        h('div', { style: S.gaugeDate }, '401K + CARTEIRAS · ' + (latest ? formatUSD(latest.balance) + ' + ' + formatUSD(walletsTotal) : 'SEM DADOS DE 401K')),
+        h('div', { style: S.gaugeDate }, 'APOSENTADORIA ' + formatUSD(retirementTotal) + ' · INVESTIMENTOS ' + formatUSD(investmentTotal)),
         h('div', { style: { marginTop: 12, paddingTop: 10, borderTop: '1px solid #134E4A' } },
           h('button', {
             style: Object.assign({}, S.smallAddBtn, {
@@ -734,15 +750,28 @@
         )
       ),
 
-      h('div', { style: S.gaugeCard },
-        h('div', { style: S.gaugeLabel }, 'SALDO TOTAL DE APOSENTADORIA'),
-        h('div', { style: S.gaugeValue }, retireDeltas.latest ? formatUSD(retireDeltas.latest.balance) : formatUSD(0)),
-        h('div', { style: S.gaugeDate }, retirementCards.length
-          ? (retirementCards.length + ' conta' + (retirementCards.length !== 1 ? 's' : ''))
-          : 'NENHUMA CONTA DE APOSENTADORIA'),
-
-        h(DeltaRow, { deltas: retireDeltas, prevMonthLabel: prevMonthLabel })
-      ),
+      /* ---- 1a secao: APOSENTADORIA ---- */
+      h(WalletsSection, {
+        wallets: wallets,
+        setWallets: setWallets,
+        walletEntries: walletEntries,
+        setWalletEntries: setWalletEntries,
+        syncStatus: walletSyncStatus,
+        setSyncStatus: setWalletSyncStatus,
+        walletCards: retirementCards,
+        grandTotal: retirementTotal,
+        syncMsgs: syncMsgs,
+        deltas: retireDeltas,
+        prevMonthLabel: prevMonthLabel,
+        category: 'retirement',
+        sectionTitle: 'CARTEIRAS DE APOSENTADORIA',
+        totalLabel: 'SALDO TOTAL DE APOSENTADORIA',
+        addTitle: 'NOVA CONTA DE APOSENTADORIA',
+        addSubmit: 'CRIAR CONTA DE APOSENTADORIA',
+        nameHint: 'NOME (EX: 401K FIDELITY, IRA)',
+        namePlaceholder: 'IRA - Fidelity',
+        countNoun: 'conta'
+      }),
 
       h(WalletsSection, {
         wallets: wallets,
@@ -751,8 +780,8 @@
         setWalletEntries: setWalletEntries,
         syncStatus: walletSyncStatus,
         setSyncStatus: setWalletSyncStatus,
-        walletCards: walletCards,
-        grandTotal: walletsTotal,
+        walletCards: investmentCards,
+        grandTotal: investmentTotal,
         deltas: investDeltas,
         prevMonthLabel: prevMonthLabel,
         syncMsgs: syncMsgs
