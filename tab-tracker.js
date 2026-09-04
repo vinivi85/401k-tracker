@@ -595,6 +595,10 @@
                     else if (r.action === 'skipped') msgs[r.wallet] = { text: '\u2014 Sem altera\u00e7\u00e3o', color: '#9CA3AF' };
                     else if (r.action === 'error')   msgs[r.wallet] = { text: '\u26a0 Erro ao sincronizar', color: '#FB7185' };
                   });
+                  /* Carteiras que nao voltaram no sync nao tem Plaid conectado */
+                  wallets.forEach(function(w) {
+                    if (!msgs[w.name]) msgs[w.name] = { text: '\u25cb N\u00e3o conectada', color: '#6B7280' };
+                  });
                   setSyncMsgs(msgs);
                   Promise.all([SupabaseAPI.fetchWallets(), SupabaseAPI.fetchWalletEntries()])
                     .then(function(results) {
