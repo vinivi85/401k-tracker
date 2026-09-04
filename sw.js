@@ -1,6 +1,6 @@
-const CACHE_NAME = '401k-tracker-v246';
-const APP_VERSION = 'v246';
-const BUILD_DATE = '2026-09-04 07:31 CDT';
+const CACHE_NAME = '401k-tracker-v247';
+const APP_VERSION = 'v247';
+const BUILD_DATE = '2026-09-04 07:43 CDT';
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'GET_VERSION') {
@@ -19,6 +19,7 @@ const ASSETS = [
   './tab-paycheck.js',
   './tab-pay.js',
   './tab-projection.js',
+  './tab-irs.js',
   './tab-config.js',
   './app.js',
 ];
