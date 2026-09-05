@@ -564,6 +564,231 @@
     );
   }
 
+  /* ================================================================
+     GOOGLE DRIVE — pasta base dos pay stubs
+     ================================================================ */
+  var DRIVE_ROOT_PADRAO = '11tYCgska0jC4iaiJIpRbyy9b4yjCAVIK';
+
+  function GoogleDriveSection(props) {
+    var userId = props.userId;
+    var cfg = props.cfg || {};
+    var update = props.update;
+
+    var connState = React.useState(null);          /* null=verificando, false, true */
+    var connected = connState[0], setConnected = connState[1];
+    var busyState = React.useState('');
+    var busy = busyState[0], setBusy = busyState[1];
+    var foldersState = React.useState([]);
+    var folders = foldersState[0], setFolders = foldersState[1];
+    var msgState = React.useState(null);
+    var msg = msgState[0], setMsg = msgState[1];
+
+    var rootId = (cfg.driveRootId || DRIVE_ROOT_PADRAO).trim();
+    var pastaId = cfg.driveFolderId || '';
+    var pastaNome = cfg.driveFolderName || '';
+
+    /* status da conexao */
+    React.useEffect(function () {
+      if (!userId) { setConnected(false); return; }
+      fetch('/api/google-drive?action=status&userId=' + encodeURIComponent(userId))
+        .then(function (r) { return r.json(); })
+        .then(function (d) { setConnected(!!(d && d.connected)); })
+        .catch(function () { setConnected(false); });
+    }, [userId]);
+
+    /* retorno do OAuth */
+    React.useEffect(function () {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get('google_connected')) {
+        setConnected(true);
+        setMsg({ text: 'Google Drive conectado.', color: '#00FFB2' });
+        window.history.replaceState({}, '', window.location.pathname);
+      } else if (p.get('google_error')) {
+        setMsg({ text: 'Erro Google: ' + p.get('google_error'), color: '#FF6B81' });
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }, []);
+
+    function conectar() {
+      if (!userId) return;
+      setBusy('conectando');
+      fetch('/api/google-drive?action=auth-url', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          setBusy('');
+          if (d && d.url) window.location.href = d.url;
+          else setMsg({ text: 'Nao foi possivel iniciar a conexao.', color: '#FF6B81' });
+        }).catch(function (e) { setBusy(''); setMsg({ text: e.message, color: '#FF6B81' }); });
+    }
+
+    function desconectar() {
+      if (!userId) return;
+      fetch('/api/google-drive?action=disconnect', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId })
+      }).then(function () {
+        setConnected(false); setFolders([]);
+        setMsg({ text: 'Desconectado.', color: '#C9D1D9' });
+      }).catch(function () {});
+    }
+
+    function listarPastas() {
+      if (!userId) return;
+      setBusy('pastas'); setMsg(null);
+      fetch('/api/google-drive?action=list-folders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, folderId: rootId })
+      }).then(function (r) { return r.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return {}; } }); })
+        .then(function (d) {
+          setBusy('');
+          if (d.error) { setMsg({ text: 'Erro: ' + d.error, color: '#FF6B81' }); return; }
+          setFolders(d.folders || []);
+          if (!(d.folders || []).length) setMsg({ text: 'Nenhuma subpasta encontrada na pasta raiz.', color: '#C9D1D9' });
+        }).catch(function (e) { setBusy(''); setMsg({ text: e.message, color: '#FF6B81' }); });
+    }
+
+    function escolherPasta(f) {
+      update('driveFolderId', f.id);
+      update('driveFolderName', f.name);
+      setFolders([]);
+      setMsg({ text: 'Pasta base: ' + f.name, color: '#00FFB2' });
+    }
+
+    /* Le a pasta e envia para o bucket do paycheck viewer, pulando o que ja existe */
+    function sincronizar() {
+      if (!userId || !pastaId) return;
+      setBusy('sync'); setMsg(null);
+
+      Promise.all([
+        fetch('/api/google-drive?action=list-files', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, folderId: pastaId })
+        }).then(function (r) { return r.json(); }),
+        SupabaseAPI.listPayStubs().catch(function () { return []; })
+      ]).then(function (res) {
+        var d = res[0] || {};
+        if (d.error) throw new Error(d.error);
+        var existentes = {};
+        (res[1] || []).forEach(function (s) { existentes[s.name] = true; });
+
+        var novos = (d.files || []).filter(function (f) { return !existentes[f.name]; });
+        if (!novos.length) {
+          setBusy('');
+          setMsg({ text: '\u2014 Nenhum arquivo novo (' + (d.files || []).length + ' no Drive)', color: '#C9D1D9' });
+          return;
+        }
+
+        var enviados = 0, falhas = 0;
+        var fila = novos.reduce(function (p, f) {
+          return p.then(function () {
+            return fetch('/api/google-drive?action=download', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: userId, fileId: f.id })
+            }).then(function (r) { return r.json(); })
+              .then(function (dd) {
+                if (!dd || !dd.base64) throw new Error('download vazio');
+                var bin = atob(dd.base64);
+                var bytes = new Uint8Array(bin.length);
+                for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                var blob = new Blob([bytes], { type: 'application/pdf' });
+                return SupabaseAPI.uploadPayStub(blob, f.name);
+              })
+              .then(function () { enviados++; })
+              .catch(function (e) { falhas++; console.error('drive sync', f.name, e); });
+          });
+        }, Promise.resolve());
+
+        return fila.then(function () {
+          setBusy('');
+          setMsg({
+            text: '\u2713 ' + enviados + ' arquivo' + (enviados !== 1 ? 's' : '') + ' importado' + (enviados !== 1 ? 's' : '') +
+                  (falhas ? ' \u00b7 ' + falhas + ' falhou' : ''),
+            color: falhas ? '#FF6B81' : '#00FFB2'
+          });
+          window.dispatchEvent(new Event('paystubs-updated'));
+        });
+      }).catch(function (e) {
+        setBusy('');
+        setMsg({ text: 'Erro: ' + e.message, color: '#FF6B81' });
+      });
+    }
+
+    var linhaMsg = msg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: msg.color, marginTop: 8 } }, msg.text) : null;
+
+    if (connected === null) {
+      return h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#6B7280' } }, 'Verificando conexao...');
+    }
+
+    if (!connected) {
+      return h('div', null,
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10 } },
+          'Conecte o Google Drive para alimentar o PAYCHECK VIEWER com os PDFs de uma pasta.'
+        ),
+        h('button', {
+          style: Object.assign({}, S.addBtn, { width: '100%', justifyContent: 'center' }),
+          disabled: busy === 'conectando',
+          onClick: conectar
+        }, busy === 'conectando' ? 'ABRINDO...' : 'CONECTAR GOOGLE DRIVE'),
+        linhaMsg
+      );
+    }
+
+    return h('div', null,
+      /* pasta raiz */
+      h('div', { style: S.formRow },
+        h('label', { style: S.formLabel }, 'ID DA PASTA RAIZ'),
+        h('input', {
+          type: 'text', value: cfg.driveRootId || DRIVE_ROOT_PADRAO, style: S.input,
+          onChange: function (ev) { update('driveRootId', ev.target.value); }
+        })
+      ),
+
+      /* pasta base selecionada */
+      h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', margin: '4px 0 8px' } },
+        pastaNome ? ('PASTA BASE: ' + pastaNome) : 'NENHUMA PASTA BASE SELECIONADA'
+      ),
+
+      h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
+        h('button', {
+          style: Object.assign({}, S.smallAddBtn, { color: '#5EEAD4', borderColor: '#134E4A' }),
+          disabled: busy === 'pastas',
+          onClick: listarPastas
+        }, busy === 'pastas' ? 'BUSCANDO...' : (pastaNome ? 'TROCAR PASTA' : 'ESCOLHER PASTA')),
+
+        pastaId ? h('button', {
+          style: Object.assign({}, S.smallAddBtn, { color: '#00FFB2', borderColor: '#00AA55' }),
+          disabled: busy === 'sync',
+          onClick: sincronizar
+        }, busy === 'sync' ? 'SINCRONIZANDO...' : '\u21bb SINCRONIZAR') : null,
+
+        h('button', {
+          style: Object.assign({}, S.smallAddBtn, { color: '#FF6B81', borderColor: '#7F1D1D' }),
+          onClick: desconectar
+        }, 'DESCONECTAR')
+      ),
+
+      /* lista de subpastas para escolher */
+      folders.length ? h('div', { style: { marginTop: 10, background: '#111827', borderRadius: 10, padding: 10, border: '1px solid #1F2937' } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } }, 'Selecione a pasta base:'),
+        folders.map(function (f) {
+          return h('button', {
+            key: f.id,
+            style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', marginBottom: 6,
+              borderRadius: 8, border: '1px solid ' + (f.id === pastaId ? '#00AA55' : '#1F2937'),
+              background: '#0D1117', cursor: 'pointer',
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+              color: f.id === pastaId ? '#00FFB2' : '#D1D5DB' },
+            onClick: function () { escolherPasta(f); }
+          }, '\u{1F4C1} ' + f.name);
+        })
+      ) : null,
+
+      linhaMsg
+    );
+  }
+
   function ConfigTab() {
     var cfgState = React.useState(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
     var cfg = cfgState[0], setCfg = cfgState[1];
@@ -1045,6 +1270,19 @@
           onSave: function(next) {
             update('plaidAccounts', next);
           }
+        })
+      ),
+
+      /* ---- GOOGLE DRIVE ---- */
+      h(Section, {
+        title: 'GOOGLE DRIVE',
+        defaultOpen: false,
+        summary: cfg.driveFolderName || null
+      },
+        h(GoogleDriveSection, {
+          userId: window.currentUserId ? window.currentUserId() : null,
+          cfg: cfg,
+          update: update
         })
       ),
 
