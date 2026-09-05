@@ -527,9 +527,15 @@
 
     /* Carrega lista de pay stubs salvos */
     React.useEffect(function () {
-      SupabaseAPI.listPayStubs().then(function (list) {
-        setStubs(list);
-      }).catch(function () {});
+      function carregar() {
+        SupabaseAPI.listPayStubs().then(function (list) {
+          setStubs(list);
+        }).catch(function () {});
+      }
+      carregar();
+      /* Recarrega quando o CONFIG importa arquivos do Google Drive */
+      window.addEventListener('paystubs-updated', carregar);
+      return function () { window.removeEventListener('paystubs-updated', carregar); };
     }, []);
 
     /* Sincroniza config do Supabase ao montar */
