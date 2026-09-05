@@ -570,6 +570,27 @@
       return function () { cancelled = true; };
     }, []);
 
+    function importStubFromList() {
+      var stub = stubs.find(function (s) { return s.name === selectedStub; });
+      if (!stub) return;
+      setImportErr('');
+      setImportMsg('Baixando ' + stub.name + '...');
+      setImporting(true);
+      SupabaseAPI.getPayStubUrl(stub.path).then(function (url) {
+        return fetch(url);
+      }).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.blob();
+      }).then(function (blob) {
+        /* Reaproveita o mesmo fluxo do import manual, sem reenviar ao bucket */
+        handleFileImport({ target: { files: [blob], value: '' } }, 'pdf', true);
+      }).catch(function (e) {
+        setImporting(false);
+        setImportMsg('');
+        setImportErr('Erro ao ler arquivo: ' + e.message);
+      });
+    }
+
     function openPayStubViewer(stub) {
       setViewerLoading(true);
 
@@ -735,7 +756,7 @@
       handleFileImport(ev, 'image');
     }
 
-    function handleFileImport(ev, forceType) {
+    function handleFileImport(ev, forceType, skipUpload) {
       var file = ev.target.files[0];
       if (!file) return;
       ev.target.value = '';
@@ -868,6 +889,8 @@
 
         /* Upload do PDF para o Supabase Storage */
         (function () {
+          /* Origem ja e um arquivo do bucket (lista/Drive) — nao reenvia */
+          if (skipUpload) return;
           var dateForFile = parsed.paymentDate || payDate || '';
           var dateParts = dateForFile.split('-');
           var dateStr = dateParts.length === 3 ? dateParts[1] + dateParts[2] + dateParts[0] : '';
@@ -1240,14 +1263,21 @@
               title: 'Deletar arquivo'
             }, h(Icon, { name: 'trash', size: 15 })) : null
           ),
-          selectedStub ? h('button', {
-            style: Object.assign({}, S.submitBtn, { width: '100%', marginTop: 8 }),
-            onClick: function () {
-              var stub = stubs.find(function (s) { return s.name === selectedStub; });
-              if (stub) openPayStubViewer(stub);
-            },
-            disabled: viewerLoading
-          }, viewerLoading ? 'OBTENDO LINK...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 14 }), ' ABRIR PDF')) : null
+          selectedStub ? h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },
+            h('button', {
+              style: Object.assign({}, S.submitBtn, { flex: 1, marginTop: 0 }),
+              onClick: function () {
+                var stub = stubs.find(function (s) { return s.name === selectedStub; });
+                if (stub) openPayStubViewer(stub);
+              },
+              disabled: viewerLoading || importing
+            }, viewerLoading ? 'OBTENDO LINK...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 14 }), ' ABRIR PDF')),
+            h('button', {
+              style: Object.assign({}, S.submitBtn, { flex: 1, marginTop: 0, background: 'transparent', color: '#00FFB2', border: '1px solid #00AA55' }),
+              onClick: importStubFromList,
+              disabled: importing || viewerLoading
+            }, importing ? 'IMPORTANDO...' : h(React.Fragment, null, h(Icon, { name: 'plus', size: 14 }), ' IMPORTAR'))
+          ) : null
         )
       ),
 
