@@ -591,7 +591,13 @@
       return fetch('/api/google-drive?action=download', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: uid, fileId: driveId })
-      }).then(function (r) { return r.json(); })
+      }).then(function (r) {
+        return r.text().then(function (t) {
+          if (!r.ok) throw new Error('servidor HTTP ' + r.status + ' ' + t.slice(0, 120));
+          try { return JSON.parse(t); }
+          catch (e) { throw new Error('resposta invalida (' + t.length + ' bytes)'); }
+        });
+      })
         .then(function (d) {
           if (!d || !d.base64) throw new Error(d && d.error ? d.error : 'download vazio');
           var bin = atob(d.base64);
@@ -860,10 +866,15 @@
       setImporting(true);
       setImportMsg('Extraindo texto do PDF...');
 
-      extractPdfText(file).then(function (text) {
+      extractPdfText(file).catch(function (e) {
+        throw new Error('leitura do PDF — ' + e.message);
+      }).then(function (text) {
+        if (!text || !text.trim()) throw new Error('PDF sem texto extraivel (pode ser digitalizado)');
         setImportMsg('Interpretando com IA... (' + text.length + ' chars extraídos)');
-        console.log('PDF TEXT EXTRACTED:', text.slice(0, 500));
-        return parsePayStubWithGemini(text);
+        console.log('PDF TEXT EXTRACTED:', text.length, 'chars |', text.slice(0, 300));
+        return parsePayStubWithGemini(text).catch(function (e) {
+          throw new Error('IA — ' + e.message);
+        });
       }).then(function (parsed) {
         setImporting(false);
         setImportMsg('');
