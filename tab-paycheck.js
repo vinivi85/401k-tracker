@@ -209,6 +209,22 @@
       .replace(/\uFFFD/g, '');
   }
 
+  /* Extrai a data do nome do arquivo — serve de chave para nao duplicar
+     o mesmo contracheque salvo com nomes diferentes (bucket x Drive) */
+  function chaveDataStub(nome) {
+    var base = String(nome || '').replace(/\.pdf$/i, '');
+    var m = base.match(/(\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{4})/);
+    return m ? (m[3] + m[1] + m[2]) : base.toLowerCase();
+  }
+
+  /* Rotulo curto para caber no seletor nativo do iOS */
+  function rotuloStub(s) {
+    var base = String(s.name || '').replace(/\.pdf$/i, '');
+    var m = base.match(/(\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{4})/);
+    var data = m ? (m[1] + '/' + m[2] + '/' + m[3]) : base;
+    return (s.source === 'drive' ? 'Drive ' : 'App ') + data;
+  }
+
   function parsePayStubWithGemini(text) {
     var prompt = 'Parse this American Airlines Pay Statement and return ONLY valid JSON starting with {. No markdown, no explanation.\n\nIMPORTANT: Some earnings rows repeat across pay periods (e.g. Doubletime may appear twice with different Period End dates). SUM all hours of the same type.\n\nReturn this exact structure:\n{"paymentDate":"YYYY-MM-DD","periodStart":"YYYY-MM-DD","periodEnd":"YYYY-MM-DD","gross":0,"net":0,"hoursWorked":0,"regHours":0,"sickHours":0,"vacationHours":0,"additionalHours":0,"otHours":0,"ot2Hours":0,"holHours":0,"wrkHolHours":0,"lunchHours":0,"contrib401k":0,"profitSharing":0,"withholdingTax":0,"taxableGross":0,"deductions":{"medicalCoverage":0,"dentalCoverage":0,"visionCoverage":0,"employeeADD":0,"spouseADD":0,"childADD":0,"employeeLife":0,"spouseLife":0,"childLife":0,"groupAccident":0,"loan401k":0,"unionDues":0}}\n\nField rules:\n- paymentDate: Payment Date\n- periodStart/End: Pay Period dates\n- gross: Current Gross Earnings total\n- net: Net Pay / Deposit Amount\n- hoursWorked: Hours Worked in header\n- regHours: SUM of Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours ONLY (do NOT include Shift 2 hours, those are differentials not separate hours)\n- additionalHours: Additional Hours only\n- otHours: SUM of Overtime hours only — NOT Doubletime (e.g. 17.67 OT + 0 MANDO-OT)\n- ot2Hours: SUM of ALL Doubletime rows hours (may appear multiple times with different Period End dates — add them all)\n- holHours: Holiday Premium hours\n- wrkHolHours: Hol Worked OT 1.5 hours\n- contrib401k: 401k in Pre-Tax Deductions (employee)\n- profitSharing: 401k Company Contrib in Additional Information\n- withholdingTax: Federal Withholding Tax current amount\n- taxableGross: Federal Taxes Withholding Tax taxable base (Taxable Earnings row)\n- eerGrossUp: EE Recognition Gross-Up current amount from Imputed Income section (0 if blank or not present)\n- gtlImputed: Group Term Life current amount from Imputed Income section (0 if blank)\n\nPAY STUB TEXT:\n' + limparTextoPdf(text).slice(0, 5000);
 
@@ -542,10 +558,16 @@
         return { name: s.name, path: s.path, source: 'bucket' };
       });
       var vistos = {};
-      lista.forEach(function (s) { vistos[s.name] = true; });
+      lista.forEach(function (s) {
+        vistos[s.name] = true;
+        vistos[chaveDataStub(s.name)] = true;
+      });
       (cfg.driveFiles || []).forEach(function (f) {
-        if (vistos[f.name]) return;
+        var chave = chaveDataStub(f.name);
+        /* mesmo contracheque ja presente (mesmo nome ou mesma data) */
+        if (vistos[f.name] || vistos[chave]) return;
         vistos[f.name] = true;
+        vistos[chave] = true;
         lista.push({ name: f.name, driveId: f.id, source: 'drive' });
       });
       return lista;
@@ -1357,8 +1379,7 @@
             },
               h('option', { value: '' }, 'Selecione um pay stub...'),
               allStubs.map(function (s) {
-                return h('option', { key: s.path || s.driveId, value: s.name },
-                  (s.source === 'drive' ? '\u2601 ' : '') + s.name.replace('.pdf', ''));
+                return h('option', { key: s.path || s.driveId, value: s.name }, rotuloStub(s));
               })
             ),
             (function () {
