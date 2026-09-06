@@ -68,7 +68,8 @@ export default async function handler(req, res) {
   const action = req.query.action || req.body?.action;
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = `${process.env.APP_URL || 'https://401k-tracker.vercel.app'}/api/google-callback`;
+  const appUrl = (process.env.APP_URL || 'https://401k-tracker.vercel.app').trim().replace(/\/+$/, '');
+  const redirectUri = `${appUrl}/api/google-callback`;
 
   try {
     if (action === 'auth-url') {
@@ -82,7 +83,7 @@ export default async function handler(req, res) {
         prompt: 'consent',
         state: req.body?.userId || ''
       });
-      res.status(200).json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
+      res.status(200).json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}`, redirect_uri: redirectUri });
 
     } else if (action === 'status') {
       const { userId } = req.query;
