@@ -656,63 +656,40 @@
       setMsg({ text: 'Pasta base: ' + f.name, color: '#00FFB2' });
     }
 
-    /* Le a pasta e envia para o bucket do paycheck viewer, pulando o que ja existe */
+    /* Le a pasta do Drive e registra a lista — os PDFs ficam no Drive, nao no bucket */
     function sincronizar() {
       if (!userId || !pastaId) return;
       setBusy('sync'); setMsg(null);
 
-      Promise.all([
-        fetch('/api/google-drive?action=list-files', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: userId, folderId: pastaId })
-        }).then(function (r) { return r.json(); }),
-        SupabaseAPI.listPayStubs().catch(function () { return []; })
-      ]).then(function (res) {
-        var d = res[0] || {};
-        if (d.error) throw new Error(d.error);
-        var existentes = {};
-        (res[1] || []).forEach(function (s) { existentes[s.name] = true; });
-
-        var novos = (d.files || []).filter(function (f) { return !existentes[f.name]; });
-        if (!novos.length) {
+      fetch('/api/google-drive?action=list-files', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userId, folderId: pastaId })
+      }).then(function (r) { return r.text().then(function (t) { try { return JSON.parse(t); } catch (e) { return {}; } }); })
+        .then(function (d) {
           setBusy('');
-          setMsg({ text: '\u2014 Nenhum arquivo novo (' + (d.files || []).length + ' no Drive)', color: '#C9D1D9' });
-          return;
-        }
+          if (d.error) { setMsg({ text: 'Erro: ' + d.error, color: '#FF6B81' }); return; }
 
-        var enviados = 0, falhas = 0;
-        var fila = novos.reduce(function (p, f) {
-          return p.then(function () {
-            return fetch('/api/google-drive?action=download', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId: userId, fileId: f.id })
-            }).then(function (r) { return r.json(); })
-              .then(function (dd) {
-                if (!dd || !dd.base64) throw new Error('download vazio');
-                var bin = atob(dd.base64);
-                var bytes = new Uint8Array(bin.length);
-                for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                var blob = new Blob([bytes], { type: 'application/pdf' });
-                return SupabaseAPI.uploadPayStub(blob, f.name);
-              })
-              .then(function () { enviados++; })
-              .catch(function (e) { falhas++; console.error('drive sync', f.name, e); });
+          var arquivos = (d.files || []).map(function (f) {
+            return { id: f.id, name: f.name, modifiedTime: f.modifiedTime || null };
           });
-        }, Promise.resolve());
 
-        return fila.then(function () {
-          setBusy('');
+          var antes = (cfg.driveFiles || []).length;
+          update('driveFiles', arquivos);
+          update('driveSyncedAt', new Date().toISOString());
+
+          var novos = arquivos.length - antes;
           setMsg({
-            text: '\u2713 ' + enviados + ' arquivo' + (enviados !== 1 ? 's' : '') + ' importado' + (enviados !== 1 ? 's' : '') +
-                  (falhas ? ' \u00b7 ' + falhas + ' falhou' : ''),
-            color: falhas ? '#FF6B81' : '#00FFB2'
+            text: arquivos.length
+              ? ('\u2713 ' + arquivos.length + ' arquivo' + (arquivos.length !== 1 ? 's' : '') + ' na pasta' +
+                 (novos > 0 ? ' \u00b7 ' + novos + ' novo' + (novos !== 1 ? 's' : '') : ''))
+              : '\u2014 Nenhum PDF na pasta',
+            color: arquivos.length ? '#00FFB2' : '#C9D1D9'
           });
           window.dispatchEvent(new Event('paystubs-updated'));
+        }).catch(function (e) {
+          setBusy('');
+          setMsg({ text: 'Erro: ' + e.message, color: '#FF6B81' });
         });
-      }).catch(function (e) {
-        setBusy('');
-        setMsg({ text: 'Erro: ' + e.message, color: '#FF6B81' });
-      });
     }
 
     var linhaMsg = msg ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: msg.color, marginTop: 8 } }, msg.text) : null;
