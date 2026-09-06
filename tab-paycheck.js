@@ -634,6 +634,40 @@
       return function () { cancelled = true; };
     }, []);
 
+    /* Atualiza a lista com os arquivos da pasta do Drive */
+    var driveSyncState = React.useState('');
+    var driveSync = driveSyncState[0], setDriveSync = driveSyncState[1];
+
+    function sincronizarDrive() {
+      var uid = window.currentUserId ? window.currentUserId() : null;
+      var pasta = cfg.driveFolderId;
+      if (!uid || !pasta) return;
+      setDriveSync('sync');
+      fetch('/api/google-drive?action=list-files', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, folderId: pasta })
+      }).then(function (r) {
+        return r.text().then(function (t) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          try { return JSON.parse(t); } catch (e) { throw new Error('resposta invalida'); }
+        });
+      }).then(function (d) {
+        if (d.error) throw new Error(d.error);
+        var arquivos = (d.files || []).map(function (f) {
+          return { id: f.id, name: f.name, modifiedTime: f.modifiedTime || null };
+        });
+        var antes = (cfg.driveFiles || []).length;
+        update('driveFiles', arquivos);
+        var novos = arquivos.length - antes;
+        setDriveSync(novos > 0 ? ('+' + novos) : 'ok');
+        setTimeout(function () { setDriveSync(''); }, 4000);
+      }).catch(function (e) {
+        console.error('sync drive:', e);
+        setDriveSync('erro');
+        setTimeout(function () { setDriveSync(''); }, 4000);
+      });
+    }
+
     /* Baixa um PDF da pasta do Drive como Blob (nao passa pelo bucket) */
     function baixarDoDrive(driveId) {
       var uid = window.currentUserId ? window.currentUserId() : null;
@@ -1359,7 +1393,23 @@
       h('div', { style: S.card },
         h('div', { style: S.cardHeader },
           h('span', { style: S.cardTitle }, 'PAYCHECK VIEWER'),
-          stubsLoading ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3' } }, 'CARREGANDO...') : null
+          stubsLoading
+            ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3' } }, 'CARREGANDO...')
+            : (cfg.driveFolderId ? h('button', {
+                style: Object.assign({}, S.smallAddBtn, {
+                  color: driveSync === 'erro' ? '#FF6B81' : '#00FFB2',
+                  borderColor: driveSync === 'erro' ? '#7F1D1D' : '#00AA55',
+                  opacity: driveSync === 'sync' ? 0.6 : 1
+                }),
+                disabled: driveSync === 'sync',
+                onClick: sincronizarDrive
+              },
+                driveSync === 'sync' ? 'SYNC...'
+                  : driveSync === 'erro' ? 'ERRO'
+                  : driveSync === 'ok' ? 'ATUALIZADO'
+                  : driveSync ? (driveSync + ' NOVO')
+                  : '\u21bb DRIVE'
+              ) : null)
         ),
         allStubs.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#B0B7C3', padding: '8px 0' } },
           'Nenhum pay stub importado ainda. Importe um PDF para salvá-lo aqui.'
