@@ -505,6 +505,21 @@
     /* Paycheck Viewer */
     var stubsState = React.useState([]);
     var stubs = stubsState[0], setStubs = stubsState[1];
+
+    /* Lista do viewer = arquivos do bucket + arquivos da pasta do Drive (sem repetir nome) */
+    var allStubs = (function () {
+      var lista = (stubs || []).map(function (s) {
+        return { name: s.name, path: s.path, source: 'bucket' };
+      });
+      var vistos = {};
+      lista.forEach(function (s) { vistos[s.name] = true; });
+      (cfg.driveFiles || []).forEach(function (f) {
+        if (vistos[f.name]) return;
+        vistos[f.name] = true;
+        lista.push({ name: f.name, driveId: f.id, source: 'drive' });
+      });
+      return lista;
+    })();
     var selectedStubState = React.useState('');
     var selectedStub = selectedStubState[0], setSelectedStub = selectedStubState[1];
     var viewerUrlState = React.useState(null);
@@ -570,18 +585,37 @@
       return function () { cancelled = true; };
     }, []);
 
+    /* Baixa um PDF da pasta do Drive como Blob (nao passa pelo bucket) */
+    function baixarDoDrive(driveId) {
+      var uid = window.currentUserId ? window.currentUserId() : null;
+      return fetch('/api/google-drive?action=download', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: uid, fileId: driveId })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.base64) throw new Error(d && d.error ? d.error : 'download vazio');
+          var bin = atob(d.base64);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          return new Blob([bytes], { type: 'application/pdf' });
+        });
+    }
+
     function importStubFromList() {
-      var stub = stubs.find(function (s) { return s.name === selectedStub; });
+      var stub = allStubs.find(function (s) { return s.name === selectedStub; });
       if (!stub) return;
       setImportErr('');
       setImportMsg('Baixando ' + stub.name + '...');
       setImporting(true);
-      SupabaseAPI.getPayStubUrl(stub.path).then(function (url) {
-        return fetch(url);
-      }).then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.blob();
-      }).then(function (blob) {
+      var obterBlob = stub.source === 'drive'
+        ? baixarDoDrive(stub.driveId)
+        : SupabaseAPI.getPayStubUrl(stub.path).then(function (url) {
+            return fetch(url);
+          }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.blob();
+          });
+      obterBlob.then(function (blob) {
         /* Reaproveita o mesmo fluxo do import manual, sem reenviar ao bucket */
         handleFileImport({ target: { files: [blob], value: '' } }, 'pdf', true);
       }).catch(function (e) {
@@ -593,6 +627,19 @@
 
     function openPayStubViewer(stub) {
       setViewerLoading(true);
+
+      /* Arquivo do Drive: abre direto do blob, sem guardar nada */
+      if (stub.source === 'drive') {
+        baixarDoDrive(stub.driveId).then(function (blob) {
+          setViewerLoading(false);
+          window.open(URL.createObjectURL(blob), '_blank');
+        }).catch(function (e) {
+          setViewerLoading(false);
+          setImportErr('Erro ao abrir do Drive: ' + e.message);
+        });
+        return;
+      }
+
 
       var now = Date.now();
       var cachedUrls = cfg.paystubUrls || {};
@@ -1243,7 +1290,7 @@
           h('span', { style: S.cardTitle }, 'PAYCHECK VIEWER'),
           stubsLoading ? h('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3' } }, 'CARREGANDO...') : null
         ),
-        stubs.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#B0B7C3', padding: '8px 0' } },
+        allStubs.length === 0 ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#B0B7C3', padding: '8px 0' } },
           'Nenhum pay stub importado ainda. Importe um PDF para salvá-lo aqui.'
         ) : h('div', null,
           h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 } },
@@ -1253,11 +1300,15 @@
               onChange: function (ev) { setSelectedStub(ev.target.value); setViewerUrl(null); }
             },
               h('option', { value: '' }, 'Selecione um pay stub...'),
-              stubs.map(function (s) {
-                return h('option', { key: s.path, value: s.name }, s.name.replace('.pdf', ''));
+              allStubs.map(function (s) {
+                return h('option', { key: s.path || s.driveId, value: s.name },
+                  (s.source === 'drive' ? '\u2601 ' : '') + s.name.replace('.pdf', ''));
               })
             ),
-            selectedStub ? h('button', {
+            (function () {
+              var sel = allStubs.find(function (s) { return s.name === selectedStub; });
+              return (selectedStub && sel && sel.source !== 'drive');
+            })() ? h('button', {
               style: S.deleteBtn,
               onClick: deleteStub,
               title: 'Deletar arquivo'
@@ -1267,7 +1318,7 @@
             h('button', {
               style: Object.assign({}, S.submitBtn, { flex: 1, marginTop: 0 }),
               onClick: function () {
-                var stub = stubs.find(function (s) { return s.name === selectedStub; });
+                var stub = allStubs.find(function (s) { return s.name === selectedStub; });
                 if (stub) openPayStubViewer(stub);
               },
               disabled: viewerLoading || importing
