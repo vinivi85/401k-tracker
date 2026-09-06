@@ -6,8 +6,7 @@
   'use strict';
   var h = React.createElement;
 
-  var GEMINI_API_KEY = window.__GEMINI_KEY || '';
-  var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + GEMINI_API_KEY;
+  /* A chave do Gemini fica no servidor — as chamadas passam por /api/gemini */
 
   /* ---------- Cálculo do contracheque ---------- */
   function calcPaycheck(cfg) {
@@ -153,10 +152,8 @@
 
         var prompt = 'Extract from this American Airlines Work Summary. Return ONLY JSON.\n\nFor columns REG, OT1.5, OT2.0, OTS - sum each column across all rows EXCEPT the LUNCH-P row.\nregHours = REG + OTS columns (excluding LUNCH-P)\notHours = OT1.5 column (excluding LUNCH-P)\not2Hours = OT2.0 column (excluding LUNCH-P, 0 if missing)\nlunchHours = all values in the LUNCH-P row combined\nhoursWorked = Total row last column\nperiodStart = first date in pay period header as YYYY-MM-DD\nperiodEnd = last date in pay period header as YYYY-MM-DD\npaymentDate = next Friday after periodEnd as YYYY-MM-DD\n\n{"periodStart":"","periodEnd":"","paymentDate":"","hoursWorked":0,"regHours":0,"otHours":0,"ot2Hours":0,"lunchHours":0,"sickHours":0,"vacationHours":0,"holHours":0,"wrkHolHours":0,"additionalHours":0}';
 
-        var url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' + (window.__GEMINI_KEY || '');
-
         function attempt(retries) {
-          return fetch(url, {
+          return fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -224,8 +221,7 @@
       try { bytes = new Blob([corpo]).size; } catch (e) {}
       console.log('GEMINI req:', 'prompt', prompt.length, 'chars |', 'body', bytes, 'bytes');
 
-      /* Primeiro pelo proxy do proprio dominio — sem CORS/preflight.
-         Se o proxy nao responder, tenta a chamada direta (comportamento antigo). */
+      /* Sempre pelo proxy do proprio dominio — a chave fica no servidor */
       return fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,25 +229,6 @@
           prompt: prompt,
           generationConfig: { temperature: 0, maxOutputTokens: 8192 }
         })
-      }).then(function (resp) {
-        if (resp.ok) return resp;
-        /* proxy sem chave ou fora do ar — cai para a chamada direta */
-        if (resp.status === 500 || resp.status === 404) {
-          console.warn('GEMINI proxy indisponivel (' + resp.status + '), tentando direto');
-          return fetch(GEMINI_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: corpo
-          });
-        }
-        return resp;
-      }).catch(function (e) {
-        console.warn('GEMINI proxy falhou, tentando direto:', e && e.message);
-        return fetch(GEMINI_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: corpo
-        });
       }).catch(function (e) {
         /* falha de rede — reporta o que der para identificar */
         var det = [];
