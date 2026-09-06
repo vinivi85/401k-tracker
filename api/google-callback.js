@@ -11,7 +11,7 @@ async function supa(path, opts = {}) {
 
 export default async function handler(req, res) {
   const { code, state: userId, error } = req.query;
-  const appUrl = process.env.APP_URL || 'https://401k-tracker.vercel.app';
+  const appUrl = (process.env.APP_URL || 'https://401k-tracker.vercel.app').trim().replace(/\/+$/, '');
 
   if (error) {
     res.redirect(`${appUrl}?google_error=${encodeURIComponent(error)}`);
