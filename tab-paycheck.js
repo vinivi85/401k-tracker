@@ -217,12 +217,9 @@
     return m ? (m[3] + m[1] + m[2]) : base.toLowerCase();
   }
 
-  /* Rotulo curto para caber no seletor nativo do iOS */
+  /* Nome original do arquivo, sem a extensao */
   function rotuloStub(s) {
-    var base = String(s.name || '').replace(/\.pdf$/i, '');
-    var m = base.match(/(\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{4})/);
-    var data = m ? (m[1] + '/' + m[2] + '/' + m[3]) : base;
-    return (s.source === 'drive' ? 'Drive ' : 'App ') + data;
+    return String(s.name || '').replace(/\.pdf$/i, '');
   }
 
   function parsePayStubWithGemini(text) {
