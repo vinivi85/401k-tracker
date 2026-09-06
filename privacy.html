@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidade — 401k Tracker</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 32px 20px 64px;
+    background: #0B1120; color: #D1D5DB;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.65; font-size: 15px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { color: #5EEAD4; font-size: 22px; letter-spacing: .5px; margin: 0 0 4px; }
+  h2 { color: #5EEAD4; font-size: 15px; letter-spacing: .5px; margin: 28px 0 8px; }
+  .sub { color: #6B7280; font-size: 12px; margin-bottom: 28px;
+         font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  a { color: #5EEAD4; }
+  .box { background: #111827; border: 1px solid #1F2937; border-radius: 10px;
+         padding: 14px 16px; margin: 16px 0; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #1F2937;
+           color: #6B7280; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Política de Privacidade</h1>
+  <div class="sub">401k Tracker · Flight Deck — atualizado em setembro de 2026</div>
+
+  <p>
+    O 401k Tracker é um aplicativo de uso pessoal para acompanhar saldos de aposentadoria
+    e investimentos e conferir contracheques. Esta política descreve quais dados o app
+    acessa e o que faz com eles.
+  </p>
+
+  <h2>Quem opera o aplicativo</h2>
+  <p>
+    O aplicativo é mantido de forma individual, sem finalidade comercial, e é usado pelo
+    próprio desenvolvedor e por pessoas expressamente autorizadas por ele.
+  </p>
+
+  <h2>Dados que o aplicativo armazena</h2>
+  <ul>
+    <li>E-mail e credenciais de autenticação, para login na sua conta.</li>
+    <li>Saldos e leituras que você registra ou sincroniza das suas contas.</li>
+    <li>Parâmetros de cálculo de contracheque que você configura.</li>
+    <li>Arquivos PDF de contracheque que você optar por enviar ao aplicativo.</li>
+  </ul>
+  <p>
+    Esses dados ficam em um banco Supabase de acesso restrito, isolados por usuário, e são
+    usados apenas para exibir as suas próprias informações dentro do app.
+  </p>
+
+  <h2>Acesso ao Google Drive</h2>
+  <div class="box">
+    <p style="margin:0">
+      O aplicativo solicita o escopo <strong>drive.readonly</strong>, que é somente leitura.
+      Ele é usado exclusivamente para listar e abrir arquivos PDF da pasta que
+      <strong>você seleciona</strong> dentro do app.
+    </p>
+  </div>
+  <ul>
+    <li>O aplicativo não cria, altera nem exclui nada no seu Google Drive.</li>
+    <li>Os PDFs lidos do Drive não são copiados para os nossos servidores.</li>
+    <li>O conteúdo é lido no momento em que você abre ou importa o arquivo e não fica retido.</li>
+    <li>Guardamos apenas o identificador e o nome dos arquivos da pasta, para montar a lista.</li>
+    <li>Você pode revogar o acesso a qualquer momento pelo botão Desconectar no app ou em
+      <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</li>
+  </ul>
+
+  <h2>Conexão com instituições financeiras</h2>
+  <p>
+    Para atualizar saldos automaticamente, o aplicativo usa o Plaid. As credenciais das suas
+    instituições são informadas diretamente ao Plaid e nunca passam por este aplicativo nem
+    são armazenadas por ele. Recebemos apenas os saldos das contas que você associar.
+  </p>
+
+  <h2>Uso de inteligência artificial</h2>
+  <p>
+    Ao importar um contracheque, o texto extraído do PDF é enviado a um serviço de IA para
+    identificar horas, valores e descontos. O envio acontece somente quando você aciona a
+    importação.
+  </p>
+
+  <h2>Compartilhamento</h2>
+  <p>
+    Não vendemos, alugamos nem compartilhamos seus dados com terceiros para publicidade ou
+    qualquer outra finalidade. Os únicos serviços envolvidos são os de infraestrutura citados
+    acima, e apenas no necessário para o app funcionar.
+  </p>
+
+  <h2>Exclusão dos dados</h2>
+  <p>
+    Você pode apagar leituras, contas e arquivos diretamente no aplicativo. Para remover
+    integralmente a sua conta e todos os dados associados, entre em contato pelo e-mail abaixo.
+  </p>
+
+  <h2>Contato</h2>
+  <p>
+    Dúvidas sobre esta política: <a href="mailto:vinivi85@gmail.com">vinivi85@gmail.com</a>
+  </p>
+
+  <footer>
+    401k Tracker · Flight Deck —
+    <a href="https://401k-tracker.vercel.app">401k-tracker.vercel.app</a>
+  </footer>
+
+</div>
+</body>
+</html>
