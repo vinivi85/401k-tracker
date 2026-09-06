@@ -604,7 +604,12 @@
         setMsg({ text: 'Google Drive conectado.', color: '#00FFB2' });
         window.history.replaceState({}, '', window.location.pathname);
       } else if (p.get('google_error')) {
-        setMsg({ text: 'Erro Google: ' + p.get('google_error'), color: '#FF6B81' });
+        var uri = '';
+        try { uri = sessionStorage.getItem('drive_redirect_uri') || ''; } catch (e) {}
+        setMsg({
+          text: 'Erro Google: ' + p.get('google_error') + (uri ? ' \u00b7 redirect_uri enviada: ' + uri : ''),
+          color: '#FF6B81'
+        });
         window.history.replaceState({}, '', window.location.pathname);
       }
     }, []);
@@ -618,8 +623,13 @@
       }).then(function (r) { return r.json(); })
         .then(function (d) {
           setBusy('');
-          if (d && d.url) window.location.href = d.url;
-          else setMsg({ text: 'Nao foi possivel iniciar a conexao.', color: '#FF6B81' });
+          if (d && d.url) {
+            /* guarda a URI usada — se o Google recusar, mostramos qual foi */
+            try { sessionStorage.setItem('drive_redirect_uri', d.redirect_uri || ''); } catch (e) {}
+            window.location.href = d.url;
+          } else {
+            setMsg({ text: 'Nao foi possivel iniciar a conexao.', color: '#FF6B81' });
+          }
         }).catch(function (e) { setBusy(''); setMsg({ text: e.message, color: '#FF6B81' }); });
     }
 
