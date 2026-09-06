@@ -660,8 +660,7 @@
     }
 
     function escolherPasta(f) {
-      update('driveFolderId', f.id);
-      update('driveFolderName', f.name);
+      update({ driveFolderId: f.id, driveFolderName: f.name });
       setFolders([]);
       setMsg({ text: 'Pasta base: ' + f.name, color: '#00FFB2' });
     }
@@ -684,8 +683,7 @@
           });
 
           var antes = (cfg.driveFiles || []).length;
-          update('driveFiles', arquivos);
-          update('driveSyncedAt', new Date().toISOString());
+          update({ driveFiles: arquivos, driveSyncedAt: new Date().toISOString() });
 
           var novos = arquivos.length - antes;
           setMsg({
@@ -812,7 +810,9 @@
 
     function update(field, value) {
       var next = Object.assign({}, cfg);
-      next[field] = value;
+      /* Aceita update({a:1, b:2}) — evita perder campos ao chamar em sequencia */
+      if (field && typeof field === 'object') Object.assign(next, field);
+      else next[field] = value;
       setCfg(next);
       saveJSON(KEY_PAYCHECK, next);
       clearTimeout(window._configSaveTimer);
