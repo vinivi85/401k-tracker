@@ -216,13 +216,32 @@
     var prompt = 'Parse this American Airlines Pay Statement and return ONLY valid JSON starting with {. No markdown, no explanation.\n\nIMPORTANT: Some earnings rows repeat across pay periods (e.g. Doubletime may appear twice with different Period End dates). SUM all hours of the same type.\n\nReturn this exact structure:\n{"paymentDate":"YYYY-MM-DD","periodStart":"YYYY-MM-DD","periodEnd":"YYYY-MM-DD","gross":0,"net":0,"hoursWorked":0,"regHours":0,"sickHours":0,"vacationHours":0,"additionalHours":0,"otHours":0,"ot2Hours":0,"holHours":0,"wrkHolHours":0,"lunchHours":0,"contrib401k":0,"profitSharing":0,"withholdingTax":0,"taxableGross":0,"deductions":{"medicalCoverage":0,"dentalCoverage":0,"visionCoverage":0,"employeeADD":0,"spouseADD":0,"childADD":0,"employeeLife":0,"spouseLife":0,"childLife":0,"groupAccident":0,"loan401k":0,"unionDues":0}}\n\nField rules:\n- paymentDate: Payment Date\n- periodStart/End: Pay Period dates\n- gross: Current Gross Earnings total\n- net: Net Pay / Deposit Amount\n- hoursWorked: Hours Worked in header\n- regHours: SUM of Regular Pay hours + Voluntary Trade Worked hours + Training Pay hours ONLY (do NOT include Shift 2 hours, those are differentials not separate hours)\n- additionalHours: Additional Hours only\n- otHours: SUM of Overtime hours only — NOT Doubletime (e.g. 17.67 OT + 0 MANDO-OT)\n- ot2Hours: SUM of ALL Doubletime rows hours (may appear multiple times with different Period End dates — add them all)\n- holHours: Holiday Premium hours\n- wrkHolHours: Hol Worked OT 1.5 hours\n- contrib401k: 401k in Pre-Tax Deductions (employee)\n- profitSharing: 401k Company Contrib in Additional Information\n- withholdingTax: Federal Withholding Tax current amount\n- taxableGross: Federal Taxes Withholding Tax taxable base (Taxable Earnings row)\n- eerGrossUp: EE Recognition Gross-Up current amount from Imputed Income section (0 if blank or not present)\n- gtlImputed: Group Term Life current amount from Imputed Income section (0 if blank)\n\nPAY STUB TEXT:\n' + limparTextoPdf(text).slice(0, 5000);
 
     function attemptFetch(retries) {
+      var corpo = JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 8192 }
+      });
+      var bytes = -1;
+      try { bytes = new Blob([corpo]).size; } catch (e) {}
+      console.log('GEMINI req:', 'prompt', prompt.length, 'chars |', 'body', bytes, 'bytes');
+
       return fetch(GEMINI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 8192 }
-        })
+        body: corpo
+      }).catch(function (e) {
+        /* falha de rede — reporta o que der para identificar */
+        var det = [];
+        det.push(e && e.name ? e.name : 'Error');
+        det.push(e && e.message ? e.message : '');
+        det.push('prompt=' + prompt.length);
+        det.push('body=' + bytes + 'B');
+        try { det.push('online=' + navigator.onLine); } catch (e2) {}
+        if (retries > 0) {
+          console.warn('GEMINI retry apos falha de rede:', det.join(' '));
+          return new Promise(function (res) { setTimeout(res, 1500); })
+            .then(function () { return attemptFetch(retries - 1); });
+        }
+        throw new Error(det.join(' · '));
       }).then(function (resp) {
         if ((resp.status === 429 || resp.status === 503) && retries > 0) {
           return new Promise(function (res) { setTimeout(res, 3000); }).then(function () { return attemptFetch(retries - 1); });
@@ -602,19 +621,30 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: uid, fileId: driveId })
       }).then(function (r) {
+        if (!r.ok) {
+          return r.text().then(function (t) {
+            throw new Error('servidor HTTP ' + r.status + ' ' + t.slice(0, 150));
+          });
+        }
+        var tipo = r.headers.get('content-type') || '';
+        /* Resposta binaria: vira Blob direto, sem base64 nem copias intermediarias */
+        if (tipo.indexOf('application/pdf') !== -1) return r.blob();
+        /* Compatibilidade com a versao antiga que devolvia base64 em JSON */
         return r.text().then(function (t) {
-          if (!r.ok) throw new Error('servidor HTTP ' + r.status + ' ' + t.slice(0, 120));
-          try { return JSON.parse(t); }
+          var d;
+          try { d = JSON.parse(t); }
           catch (e) { throw new Error('resposta invalida (' + t.length + ' bytes)'); }
-        });
-      })
-        .then(function (d) {
           if (!d || !d.base64) throw new Error(d && d.error ? d.error : 'download vazio');
           var bin = atob(d.base64);
           var bytes = new Uint8Array(bin.length);
           for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
           return new Blob([bytes], { type: 'application/pdf' });
         });
+      }).then(function (blob) {
+        if (!blob || !blob.size) throw new Error('arquivo vazio');
+        console.log('DRIVE download:', blob.size, 'bytes');
+        return blob;
+      });
     }
 
     function importStubFromList() {
