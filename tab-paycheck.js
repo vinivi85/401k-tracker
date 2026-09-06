@@ -1348,7 +1348,11 @@
           h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 } },
             h('select', {
               value: selectedStub,
-              style: Object.assign({}, S.input, { flex: 1, margin: 0 }),
+              style: Object.assign({}, S.input, {
+                flex: 1, margin: 0, minWidth: 0,
+                fontSize: 11, padding: '9px 8px',
+                textOverflow: 'ellipsis'
+              }),
               onChange: function (ev) { setSelectedStub(ev.target.value); setViewerUrl(null); }
             },
               h('option', { value: '' }, 'Selecione um pay stub...'),
@@ -1361,25 +1365,36 @@
               var sel = allStubs.find(function (s) { return s.name === selectedStub; });
               return (selectedStub && sel && sel.source !== 'drive');
             })() ? h('button', {
-              style: S.deleteBtn,
+              style: Object.assign({}, S.deleteBtn, { flexShrink: 0 }),
               onClick: deleteStub,
               title: 'Deletar arquivo'
             }, h(Icon, { name: 'trash', size: 15 })) : null
           ),
           selectedStub ? h('div', { style: { display: 'flex', gap: 8, marginTop: 8 } },
             h('button', {
-              style: Object.assign({}, S.submitBtn, { flex: 1, marginTop: 0 }),
+              style: Object.assign({}, S.submitBtn, {
+                flex: 1, marginTop: 0, minWidth: 0,
+                fontSize: 11, letterSpacing: 0, padding: '10px 6px',
+                whiteSpace: 'nowrap', overflow: 'hidden',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
+              }),
               onClick: function () {
                 var stub = allStubs.find(function (s) { return s.name === selectedStub; });
                 if (stub) openPayStubViewer(stub);
               },
               disabled: viewerLoading || importing
-            }, viewerLoading ? 'OBTENDO LINK...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 14 }), ' ABRIR PDF')),
+            }, viewerLoading ? 'ABRINDO...' : h(React.Fragment, null, h(Icon, { name: 'receipt', size: 13 }), 'ABRIR PDF')),
             h('button', {
-              style: Object.assign({}, S.submitBtn, { flex: 1, marginTop: 0, background: 'transparent', color: '#00FFB2', border: '1px solid #00AA55' }),
+              style: Object.assign({}, S.submitBtn, {
+                flex: 1, marginTop: 0, minWidth: 0,
+                fontSize: 11, letterSpacing: 0, padding: '10px 6px',
+                whiteSpace: 'nowrap', overflow: 'hidden',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                background: 'transparent', color: '#00FFB2', border: '1px solid #00AA55'
+              }),
               onClick: importStubFromList,
               disabled: importing || viewerLoading
-            }, importing ? 'IMPORTANDO...' : h(React.Fragment, null, h(Icon, { name: 'plus', size: 14 }), ' IMPORTAR'))
+            }, importing ? 'IMPORTANDO...' : h(React.Fragment, null, h(Icon, { name: 'plus', size: 13 }), 'IMPORTAR'))
           ) : null
         )
       ),
