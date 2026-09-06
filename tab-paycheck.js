@@ -224,10 +224,34 @@
       try { bytes = new Blob([corpo]).size; } catch (e) {}
       console.log('GEMINI req:', 'prompt', prompt.length, 'chars |', 'body', bytes, 'bytes');
 
-      return fetch(GEMINI_URL, {
+      /* Primeiro pelo proxy do proprio dominio — sem CORS/preflight.
+         Se o proxy nao responder, tenta a chamada direta (comportamento antigo). */
+      return fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: corpo
+        body: JSON.stringify({
+          prompt: prompt,
+          generationConfig: { temperature: 0, maxOutputTokens: 8192 }
+        })
+      }).then(function (resp) {
+        if (resp.ok) return resp;
+        /* proxy sem chave ou fora do ar — cai para a chamada direta */
+        if (resp.status === 500 || resp.status === 404) {
+          console.warn('GEMINI proxy indisponivel (' + resp.status + '), tentando direto');
+          return fetch(GEMINI_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: corpo
+          });
+        }
+        return resp;
+      }).catch(function (e) {
+        console.warn('GEMINI proxy falhou, tentando direto:', e && e.message);
+        return fetch(GEMINI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: corpo
+        });
       }).catch(function (e) {
         /* falha de rede — reporta o que der para identificar */
         var det = [];
