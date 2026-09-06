@@ -108,10 +108,16 @@ export default async function handler(req, res) {
       const r = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!r.ok) { res.status(r.status).json({ error: 'Download failed' }); return; }
-      const buffer = await r.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString('base64');
-      res.status(200).json({ base64, mimeType: 'application/pdf' });
+      if (!r.ok) {
+        const detalhe = await r.text().catch(() => '');
+        res.status(r.status).json({ error: 'Download failed: ' + detalhe.slice(0, 200) });
+        return;
+      }
+      /* Devolve os bytes do PDF direto — evita base64 e as copias extras em memoria no cliente */
+      const buffer = Buffer.from(await r.arrayBuffer());
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', buffer.length);
+      res.status(200).send(buffer);
 
     } else if (action === 'disconnect') {
       const { userId } = req.body;
