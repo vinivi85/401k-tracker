@@ -486,7 +486,10 @@
     var showForm = formState[0], setShowForm = formState[1];
     var syncingPlaidState = React.useState(false);
     var syncingPlaid = syncingPlaidState[0], setSyncingPlaid = syncingPlaidState[1];
-    var lastSyncState = React.useState(null);
+    var lastSyncState = React.useState(function () {
+      var raw = loadJSON(KEY_LAST_PLAID_SYNC);
+      return (raw && raw.iso) ? new Date(raw.iso) : null;
+    });
     var lastSync = lastSyncState[0], setLastSync = lastSyncState[1];
     var syncMsgsState = React.useState(loadJSON(KEY_SYNC_MSGS) || {});
     var syncMsgs = syncMsgsState[0], setSyncMsgs = syncMsgsState[1];
@@ -737,7 +740,9 @@
               }).then(function(r){ return r.json(); })
                 .then(function(d){
                   setSyncingPlaid(false);
-                  setLastSync(new Date());
+                  var agora = new Date();
+                  setLastSync(agora);
+                  saveJSON(KEY_LAST_PLAID_SYNC, { iso: agora.toISOString() });
                   if (d.error) { console.error(d.error); return; }
                   /* Mensagem por conta a partir do retorno do sync */
                   var msgs = {};
