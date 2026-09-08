@@ -282,6 +282,46 @@
       });
     }
 
+    /* Conexoes Plaid ja existentes — uma instituicao pode servir varias contas */
+    var conexoesExistentes = (function () {
+      var vistos = {}, out = [];
+      accounts.forEach(function (a) {
+        if (!a.plaidItemId || !(a.plaidAccounts || []).length) return;
+        if (vistos[a.plaidItemId]) return;
+        vistos[a.plaidItemId] = true;
+        out.push({
+          itemId: a.plaidItemId,
+          instituicao: a.institutionName || 'Plaid',
+          contas: a.plaidAccounts
+        });
+      });
+      return out;
+    })();
+
+    /* Quais contas do Plaid ja estao associadas a alguma carteira */
+    function contaJaUsada(plaidAccountId) {
+      return accounts.some(function (a) { return a.plaidAccountId === plaidAccountId; });
+    }
+
+    var reusarState = React.useState(null);   /* id do card escolhendo conexao */
+    var reusarId = reusarState[0], setReusarId = reusarState[1];
+
+    /* Aproveita uma conexao ja feita, sem abrir o Plaid de novo */
+    function usarConexaoExistente(cardId, conexao) {
+      var updated = accounts.map(function (a) {
+        if (a.id !== cardId) return a;
+        return Object.assign({}, a, {
+          status: 'connected',
+          plaidItemId: conexao.itemId,
+          institutionName: conexao.instituicao,
+          plaidAccounts: conexao.contas,
+          needsReauth: false
+        });
+      });
+      save(updated);
+      setReusarId(null);
+    }
+
     function connectAccount(id) {
       confirm('Conectar "' + (accounts.find(function(a){return a.id===id;})||{}).name + '" via Plaid?', function() {
         setLoadingId(id);
@@ -429,6 +469,12 @@
               onClick: function(){ if (acc.status === 'pending') connectAccount(acc.id); }
             }, isLoading ? 'ABRINDO...' : acc.status === 'pending' ? 'CONECTAR' : '✓ CONECTADO') : null,
 
+            /* USAR CONEXÃO — evita abrir um Item novo no Plaid para a mesma instituição */
+            (acc.status === 'pending' && !acc.needsReauth && conexoesExistentes.length) ? h('button', {
+              style: Object.assign({}, S.smallAddBtn, { color: '#FFD700', borderColor: '#B8860B' }),
+              onClick: function () { setReusarId(reusarId === acc.id ? null : acc.id); }
+            }, 'USAR CONEXÃO') : null,
+
             /* ASSOCIAR — só habilitado em connected */
             h('button', {
               style: Object.assign({}, S.smallAddBtn, {
@@ -472,6 +518,36 @@
           ) : null,
 
           /* Association panel */
+          /* Painel: reaproveitar uma conexao ja feita */
+          (reusarId === acc.id) ? h('div', { style: { marginTop: 10, borderTop: '1px solid #1F2937', paddingTop: 10 } },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
+              'Reaproveite uma conexao ja feita — nao gasta outra das 10:'
+            ),
+            conexoesExistentes.map(function (cx) {
+              var livres = (cx.contas || []).filter(function (p) { return !contaJaUsada(p.account_id); });
+              return h('button', {
+                key: cx.itemId,
+                style: { display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', marginBottom: 6,
+                  borderRadius: 8, border: '1px solid ' + (livres.length ? '#B8860B' : '#1F2937'),
+                  background: '#0D1117', cursor: livres.length ? 'pointer' : 'default',
+                  fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                  color: livres.length ? '#FFD700' : '#4B5563' },
+                disabled: !livres.length,
+                onClick: function () { if (livres.length) usarConexaoExistente(acc.id, cx); }
+              },
+                cx.instituicao,
+                h('div', { style: { fontSize: 9, color: '#9CA3AF', marginTop: 2 } },
+                  livres.length
+                    ? (livres.length + ' conta' + (livres.length !== 1 ? 's' : '') + ' disponivel' + (livres.length !== 1 ? 'is' : ''))
+                    : 'todas as contas ja associadas'
+                )
+              );
+            }),
+            h('button', { style: Object.assign({}, S.ghostBtn, { width: '100%', marginTop: 4 }),
+              onClick: function () { setReusarId(null); }
+            }, 'CANCELAR')
+          ) : null,
+
           isAssociating ? h('div', { style: { marginTop: 10, borderTop: '1px solid #1F2937', paddingTop: 10 } },
             h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 8 } },
               'Selecione a conta Plaid e a conta do app:'
@@ -480,21 +556,30 @@
             acc.plaidAccounts && acc.plaidAccounts.length > 0 ? h('div', { style: { marginBottom: 8 } },
               h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#9CA3AF', marginBottom: 4 } }, 'CONTA PLAID:'),
               acc.plaidAccounts.map(function(pa) {
+                var selecionada = acc.plaidAccountId === pa.account_id;
+                /* usada por outro card — evita associar a mesma conta duas vezes */
+                var usadaPorOutro = !selecionada && accounts.some(function (o) {
+                  return o.id !== acc.id && o.plaidAccountId === pa.account_id;
+                });
                 return h('button', {
                   key: pa.account_id,
                   style: {
                     display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px', marginBottom: 4,
-                    borderRadius: 8, border: '1px solid', cursor: 'pointer',
-                    borderColor: acc.plaidAccountId === pa.account_id ? '#5EEAD4' : '#1F2937',
-                    background: acc.plaidAccountId === pa.account_id ? '#0F2D2A' : '#0D1117',
+                    borderRadius: 8, border: '1px solid',
+                    cursor: usadaPorOutro ? 'default' : 'pointer',
+                    opacity: usadaPorOutro ? 0.45 : 1,
+                    borderColor: selecionada ? '#5EEAD4' : '#1F2937',
+                    background: selecionada ? '#0F2D2A' : '#0D1117',
                     fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
-                    color: acc.plaidAccountId === pa.account_id ? '#5EEAD4' : '#D1D5DB'
+                    color: selecionada ? '#5EEAD4' : '#D1D5DB'
                   },
+                  disabled: usadaPorOutro,
                   onClick: function() {
+                    if (usadaPorOutro) return;
                     var updated = accounts.map(function(a){ return a.id === acc.id ? Object.assign({}, a, { plaidAccountId: pa.account_id }) : a; });
                     setAccounts(updated);
                   }
-                }, pa.name + ' · ' + formatUSD(pa.balance || 0));
+                }, pa.name + ' · ' + formatUSD(pa.balance || 0) + (usadaPorOutro ? '  (ja associada)' : ''));
               })
             ) : null,
             /* Tracker accounts */
