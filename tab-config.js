@@ -303,6 +303,40 @@
       return accounts.some(function (a) { return a.plaidAccountId === plaidAccountId; });
     }
 
+    /* Pareamento em lote — quando o Plaid devolve varias contas de uma vez */
+    var pareandoState = React.useState(null);   /* { itemId, instituicao, contas } */
+    var pareandoItem = pareandoState[0], setPareandoItem = pareandoState[1];
+    var pareamentoState = React.useState({});   /* plaid_account_id -> card id do app */
+    var pareamento = pareamentoState[0], setPareamento = pareamentoState[1];
+
+    function escolherParCard(plaidAccountId, cardId) {
+      var next = Object.assign({}, pareamento);
+      /* uma conta do app so pode receber uma conta do Plaid */
+      Object.keys(next).forEach(function (k) { if (next[k] === cardId) delete next[k]; });
+      if (cardId) next[plaidAccountId] = cardId; else delete next[plaidAccountId];
+      setPareamento(next);
+    }
+
+    function confirmarPareamento() {
+      var pares = Object.keys(pareamento);
+      if (!pares.length) { setPareandoItem(null); return; }
+      var updated = accounts.map(function (a) {
+        var pa = pares.filter(function (p) { return pareamento[p] === a.id; })[0];
+        if (!pa) return a;
+        var contaPlaid = pareandoItem.contas.filter(function (c) { return c.account_id === pa; })[0];
+        return Object.assign({}, a, {
+          status: 'connected',
+          plaidItemId: pareandoItem.itemId,
+          institutionName: pareandoItem.instituicao,
+          plaidAccounts: pareandoItem.contas,
+          plaidAccountId: pa
+        });
+      });
+      save(updated);
+      setPareandoItem(null);
+      setPareamento({});
+    }
+
     var reusarState = React.useState(null);   /* id do card escolhendo conexao */
     var reusarId = reusarState[0], setReusarId = reusarState[1];
 
@@ -362,6 +396,11 @@
                         });
                       });
                       save(updated);
+                      /* Plaid trouxe mais de uma conta desta instituicao — oferece
+                         parear todas de uma vez com os cards do app, sem reconectar */
+                      if ((d.accounts || []).length > 1) {
+                        setPareandoItem({ itemId: d.item_id, instituicao: d.institution_name, contas: d.accounts });
+                      }
                     }).catch(function(e){ setLoadingId(null); alert(e.message); });
                 },
                 onExit: function(e){ setLoadingId(null); if (e) alert(e.display_message || ''); }
@@ -645,7 +684,45 @@
           },
             h(Icon, { name: 'plus', size: 14 }), 'IMPORTAR CONTA'
           ),
-      repairInfo ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FF6B81', marginTop: 8, padding: '6px 8px', background: '#2A0F14', borderRadius: 6, wordBreak: 'break-word' } }, '\u26a0 ' + repairInfo) : null
+      repairInfo ? h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#FF6B81', marginTop: 8, padding: '6px 8px', background: '#2A0F14', borderRadius: 6, wordBreak: 'break-word' } }, '\u26a0 ' + repairInfo) : null,
+
+      /* Pareamento em lote: o Plaid trouxe varias contas — associa todas de uma vez */
+      pareandoItem ? h('div', { style: { marginTop: 10, background: '#111827', borderRadius: 10, padding: 12, border: '1px solid #B8860B' } },
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#FFD700', marginBottom: 4 } },
+          pareandoItem.instituicao + ' trouxe ' + pareandoItem.contas.length + ' contas'
+        ),
+        h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#B0B7C3', marginBottom: 10 } },
+          'Associe cada uma a uma conta do app, sem precisar reconectar:'
+        ),
+        pareandoItem.contas.map(function (pa) {
+          var pendentes = accounts.filter(function (a) {
+            return a.status === 'pending' || (pareamento[pa.account_id] === a.id);
+          });
+          return h('div', { key: pa.account_id, style: { marginBottom: 12 } },
+            h('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#D1D5DB', marginBottom: 4 } },
+              pa.name + ' · ' + formatUSD(pa.balance || 0)
+            ),
+            h('select', {
+              value: pareamento[pa.account_id] || '',
+              style: Object.assign({}, S.input, { fontSize: 10, padding: '6px 8px' }),
+              onChange: function (ev) { escolherParCard(pa.account_id, ev.target.value || null); }
+            },
+              h('option', { value: '' }, '— nao associar —'),
+              pendentes.map(function (a) {
+                return h('option', { key: a.id, value: a.id }, a.name);
+              })
+            )
+          );
+        }),
+        h('div', { style: { display: 'flex', gap: 8, marginTop: 4 } },
+          h('button', { style: Object.assign({}, S.ghostBtn, { flex: 1 }),
+            onClick: function () { setPareandoItem(null); setPareamento({}); }
+          }, 'DEIXAR PARA DEPOIS'),
+          h('button', { style: Object.assign({}, S.addBtn, { flex: 1, justifyContent: 'center' }),
+            onClick: confirmarPareamento
+          }, 'CONFIRMAR')
+        )
+      ) : null
     );
   }
 
