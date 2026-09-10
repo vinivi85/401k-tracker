@@ -567,6 +567,10 @@
         vistos[chave] = true;
         lista.push({ name: f.name, driveId: f.id, source: 'drive' });
       });
+      /* Mais recente primeiro — pela data extraida do nome, nao pelo texto bruto */
+      lista.sort(function (a, b) {
+        return chaveDataStub(b.name).localeCompare(chaveDataStub(a.name));
+      });
       return lista;
     })();
     var selectedStubState = React.useState('');
@@ -655,6 +659,10 @@
         if (d.error) throw new Error(d.error);
         var arquivos = (d.files || []).map(function (f) {
           return { id: f.id, name: f.name, modifiedTime: f.modifiedTime || null };
+        });
+        /* Mais recente primeiro */
+        arquivos.sort(function (a, b) {
+          return chaveDataStub(b.name).localeCompare(chaveDataStub(a.name));
         });
         var antes = (cfg.driveFiles || []).length;
         update('driveFiles', arquivos);
