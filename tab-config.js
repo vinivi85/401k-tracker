@@ -844,6 +844,16 @@
             return { id: f.id, name: f.name, modifiedTime: f.modifiedTime || null };
           });
 
+          /* Mais recente primeiro — mesma extracao de data usada no viewer do Paycheck */
+          function chaveDataArquivo(nome) {
+            var base = String(nome || '').replace(/\.pdf$/i, '');
+            var m = base.match(/(\d{2})[.\-_ ]?(\d{2})[.\-_ ]?(\d{4})/);
+            return m ? (m[3] + m[1] + m[2]) : base.toLowerCase();
+          }
+          arquivos.sort(function (a, b) {
+            return chaveDataArquivo(b.name).localeCompare(chaveDataArquivo(a.name));
+          });
+
           var antes = (cfg.driveFiles || []).length;
           update({ driveFiles: arquivos, driveSyncedAt: new Date().toISOString() });
 
