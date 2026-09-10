@@ -833,16 +833,21 @@
     }
 
     function update(field, value) {
-      var next = Object.assign({}, cfg);
-      next[field] = value;
-      setCfg(next);
-      saveJSON(KEY_PAYCHECK, next);
-      clearTimeout(window._paycheckSaveTimer);
-      window._paycheckSaveTimer = setTimeout(function () {
-        SupabaseAPI.saveUserConfig(next).catch(function (e) {
-          console.error('Falha ao salvar config no Supabase', e);
-        });
-      }, 1000);
+      /* Forma funcional: nunca perde um valor gravado por outro caminho
+         (ex.: grossDiff calculado apos import de PDF) por causa de um
+         cfg antigo capturado no closure deste render. */
+      setCfg(function (prevCfg) {
+        var next = Object.assign({}, prevCfg);
+        next[field] = value;
+        saveJSON(KEY_PAYCHECK, next);
+        clearTimeout(window._paycheckSaveTimer);
+        window._paycheckSaveTimer = setTimeout(function () {
+          SupabaseAPI.saveUserConfig(next).catch(function (e) {
+            console.error('Falha ao salvar config no Supabase', e);
+          });
+        }, 1000);
+        return next;
+      });
     }
 
     function applyHours(parsed) {
@@ -1000,18 +1005,20 @@
         /* Aplica horas */
         applyHours(parsed);
 
-        /* Ajusta grossDiff para que net do app bata com net do PDF */
+        /* Ajusta grossDiff para que net do app bata com net do PDF.
+           Usa forma funcional do setCfg para nao perder updates concorrentes
+           do state do React (a causa do valor zerar sozinho). */
         if (parsed.net) {
           setTimeout(function () {
-            var r2 = calcPaycheck(loadJSON(KEY_PAYCHECK, defaultPaycheckConfig));
-            var netDiff = parsed.net - r2.net;
-            if (Math.abs(netDiff) > 0.02) {
-              var currentCfg2 = loadJSON(KEY_PAYCHECK, defaultPaycheckConfig);
-              var nextCfg2 = Object.assign({}, currentCfg2, { grossDiff: parseFloat(netDiff.toFixed(2)) });
+            setCfg(function (prevCfg) {
+              var r2 = calcPaycheck(prevCfg);
+              var netDiff = parsed.net - r2.net;
+              if (Math.abs(netDiff) <= 0.02) return prevCfg;
+              var nextCfg2 = Object.assign({}, prevCfg, { grossDiff: parseFloat(netDiff.toFixed(2)) });
               saveJSON(KEY_PAYCHECK, nextCfg2);
               SupabaseAPI.saveUserConfig(nextCfg2).catch(function(){});
-              setCfg(nextCfg2);
-            }
+              return nextCfg2;
+            });
           }, 800);
         }
 
